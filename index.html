@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Knitnox</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #e6e9ef;
+    --light: #ffffff;
+    --dark: #c2c8d0;
+    --text: #2a2f3a;
+  }
+
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+  }
+
+  .container {
+    max-width: 420px;
+    padding: 20px;
+  }
+
+  /* wrapper card for Knitnox */
+  .logo-card {
+    padding: 14px 18px;
+    border-radius: 16px;
+    background: var(--bg);
+    box-shadow: 6px 6px 12px var(--dark),
+                -6px -6px 12px var(--light);
+    text-align: center;
+    position: relative;
+
+    /* random color glow pulse */
+    animation: cardGlowRandom 60s infinite ease-in-out;
+  }
+
+  @keyframes cardGlowRandom {
+    0% {
+      box-shadow: 6px 6px 12px var(--dark),
+                  -6px -6px 12px var(--light),
+                  0 0 12.5px rgba(255,0,150,0.35);
+    }
+    20% {
+      box-shadow: 6px 6px 12px var(--dark),
+                  -6px -6px 12px var(--light),
+                  0 0 15px rgba(0,255,200,0.4);
+    }
+    40% {
+      box-shadow: 6px 6px 12px var(--dark),
+                  -6px -6px 12px var(--light),
+                  0 0 14px rgba(100,150,255,0.35);
+    }
+    60% {
+      box-shadow: 6px 6px 12px var(--dark),
+                  -6px -6px 12px var(--light),
+                  0 0 16px rgba(255,200,0,0.4);
+    }
+    80% {
+      box-shadow: 6px 6px 12px var(--dark),
+                  -6px -6px 12px var(--light),
+                  0 0 13px rgba(150,0,255,0.35);
+    }
+    100% {
+      box-shadow: 6px 6px 12px var(--dark),
+                  -6px -6px 12px var(--light),
+                  0 0 12.5px rgba(255,0,150,0.35);
+    }
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 2.6rem;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: var(--text);
+  }
+
+  h1 span {
+    display: inline-block;
+  }
+
+  h1 span:nth-child(6) {
+    animation: bulbGlow 2s ease-in-out infinite;
+    color: #ffa500;
+  }
+
+  @keyframes bulbGlow {
+    0%, 100% { 
+      text-shadow: 0 0 10px rgba(255, 200, 0, 0.4),
+                   0 0 20px rgba(255, 165, 0, 0.5),
+                   0 0 30px rgba(255, 140, 0, 0.3);
+    }
+    50% { 
+      text-shadow: 0 0 20px rgba(255, 200, 0, 0.8),
+                   0 0 35px rgba(255, 165, 0, 0.9),
+                   0 0 50px rgba(255, 140, 0, 0.6),
+                   0 0 70px rgba(255, 120, 0, 0.4);
+    }
+  }
+
+  p {
+    text-align: center;
+    color: #666;
+    font-size: 0.95rem;
+  }
+
+  .card {
+    margin-top: 16px;
+    padding: 18px;
+    border-radius: 16px;
+    background: var(--bg);
+    box-shadow: 6px 6px 12px var(--dark),
+                -6px -6px 12px var(--light);
+    transition: 3.2s ease;
+  }
+
+  .card:active {
+    box-shadow: inset 4px 4px 8px var(--dark),
+                inset -4px -4px 8px var(--light);
+  }
+
+  .card h3 {
+    margin: 0 0 6px 0;
+    font-size: 1.1rem;
+  }
+
+  .btn {
+    margin-top: 24px;
+    padding: 14px;
+    border-radius: 14px;
+    text-align: center;
+    background: var(--bg);
+    font-weight: bold;
+    text-decoration: none;
+    color: var(--text);
+    display: block;
+    box-shadow: 6px 6px 12px var(--dark),
+                -6px -6px 12px var(--light);
+    transition: 0.2s ease;
+  }
+
+  .btn:active {
+    box-shadow: inset 4px 4px 8px var(--dark),
+                inset -4px -4px 8px var(--light);
+  }
+
+  .footer {
+    margin-top: 28px;
+    font-size: 0.8rem;
+    color: #888;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+
+    <div class="logo-card">
+      <h1><span>K</span><span>n</span><span>i</span><span>t</span><span>n</span><span>o</span><span>x</span></h1>
+    </div>
+
+    <p>Offline-first ecosystem for smart devices and control apps.</p>
+
+    <div class="card">
+      <h3>🔌 Works Offline</h3>
+      <p>No cloud needed. Your system stays alive locally.</p>
+    </div>
+
+    <div class="card">
+      <h3>📱 Installable Apps</h3>
+      <p>Use browser-based apps like native tools.</p>
+    </div>
+
+    <div class="card">
+      <h3>⚡ Real-time Control</h3>
+      <p>Instant response using local messaging.</p>
+    </div>
+
+    <a href="#" class="btn">Get Started</a>
+
+    <div class="footer">
+      Built for a world that works offline.
+    </div>
+  </div>
+</body>
+</html>

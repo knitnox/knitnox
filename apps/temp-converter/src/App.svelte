@@ -16,9 +16,15 @@
   }
 
   // ── state ─────────────────────────────────────────────────────────────────
-  let celsius    = $state('0');
-  let fahrenheit = $state('32');
-  let kelvin     = $state('273.15');
+  const _savedC = localStorage.getItem('knitnox-temp-converter') ?? '0';
+  const _initC = parseFloat(_savedC);
+  let celsius    = $state(_savedC);
+  let fahrenheit = $state(!isNaN(_initC) ? fmt(cToF(_initC)) : '32');
+  let kelvin     = $state(!isNaN(_initC) ? fmt(cToK(_initC)) : '273.15');
+
+  $effect(() => {
+    localStorage.setItem('knitnox-temp-converter', celsius);
+  });
 
   let updating = false;
 

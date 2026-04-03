@@ -57,14 +57,21 @@
   }
 
   // ── state ─────────────────────────────────────────────────────────────────
-  let hex = $state('#5a8dee');
-  let r = $state(90);
-  let g = $state(141);
-  let b = $state(238);
-  let h = $state(220);
-  let s = $state(80);
-  let l = $state(64);
+  const _savedHex = localStorage.getItem('knitnox-color-calc') || '#5a8dee';
+  const _initRgb = hexToRgb(_savedHex) || { r: 90, g: 141, b: 238 };
+  const _initHsl = rgbToHsl(_initRgb.r, _initRgb.g, _initRgb.b);
+  let hex = $state(_savedHex);
+  let r = $state(_initRgb.r);
+  let g = $state(_initRgb.g);
+  let b = $state(_initRgb.b);
+  let h = $state(_initHsl.h);
+  let s = $state(_initHsl.s);
+  let l = $state(_initHsl.l);
   let copyLabel = $state('Copy HEX');
+
+  $effect(() => {
+    localStorage.setItem('knitnox-color-calc', hex.startsWith('#') ? hex : '#' + hex);
+  });
 
   let isUpdating = false;
 

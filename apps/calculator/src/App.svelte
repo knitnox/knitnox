@@ -3,10 +3,15 @@
   import Display from './components/Display.svelte';
   import ButtonGrid from './components/ButtonGrid.svelte';
 
-  let currentValue = $state('0');
-  let previousValue = $state('');
-  let operation = $state(null);
-  let shouldReset = $state(false);
+  const _saved = JSON.parse(localStorage.getItem('knitnox-calculator') || 'null');
+  let currentValue = $state(_saved?.currentValue ?? '0');
+  let previousValue = $state(_saved?.previousValue ?? '');
+  let operation = $state(_saved?.operation ?? null);
+  let shouldReset = $state(_saved?.shouldReset ?? false);
+
+  $effect(() => {
+    localStorage.setItem('knitnox-calculator', JSON.stringify({ currentValue, previousValue, operation, shouldReset }));
+  });
 
   let previousDisplay = $derived(
     previousValue && operation ? `${previousValue} ${operation}` : ''

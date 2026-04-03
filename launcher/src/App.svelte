@@ -11,21 +11,37 @@
   function navigate(target, app = null) {
     if (target === 'app' && app) selectedApp = app;
     view = target;
-    const path = target === 'home' ? '/' : target === 'apps' ? '/apps' : '/app';
+    const path =
+      target === 'home' ? '/' :
+      target === 'apps' ? '/apps' :
+      `/app?id=${app ? app.id : (selectedApp ? selectedApp.id : '')}`;
     history.pushState(null, '', path);
     window.scrollTo(0, 0);
   }
 
   $effect(() => {
-    function onPopState() {
+    async function resolveRoute() {
       const path = window.location.pathname;
-      if (path === '/apps') view = 'apps';
-      else if (path === '/app') view = 'app';
-      else view = 'home';
+      const params = new URLSearchParams(window.location.search);
+      if (path === '/apps') {
+        view = 'apps';
+      } else if (path === '/app') {
+        const id = params.get('id');
+        if (id && !selectedApp) {
+          const res = await fetch('/apps.json');
+          const apps = await res.json();
+          selectedApp = apps.find(a => a.id === id) || null;
+        }
+        view = selectedApp ? 'app' : 'apps';
+        if (!selectedApp) history.replaceState(null, '', '/apps');
+      } else {
+        view = 'home';
+      }
     }
+
+    function onPopState() { resolveRoute(); }
     window.addEventListener('popstate', onPopState);
-    // Handle initial path on load
-    onPopState();
+    resolveRoute();
     return () => window.removeEventListener('popstate', onPopState);
   });
 </script>

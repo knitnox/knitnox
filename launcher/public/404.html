@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Knitnox</title>
+    <script>
+      // GitHub Pages SPA fallback.
+      // Redirects 404s back to index.html, preserving the original path
+      // as a query parameter so the app can restore it via history.replaceState.
+      var l = window.location;
+      l.replace(
+        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+        '/?p=' + encodeURIComponent(l.pathname + l.search) + (l.hash || '')
+      );
+    </script>
+  </head>
+</html>

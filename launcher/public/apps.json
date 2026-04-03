@@ -1,0 +1,41 @@
+[
+  {
+    "id": "calculator",
+    "name": "Calculator",
+    "category": "Utilities",
+    "icon": "/icons/calculator.svg",
+    "shortDescription": "Simple calculator for basic arithmetic operations",
+    "fullDescription": "A beautiful neumorphic calculator app that works offline. Perform basic arithmetic operations (addition, subtraction, multiplication, division) with an elegant interface that matches the Knitnox design language.",
+    "folder": "apps/calculator",
+    "screenshots": [
+      "/screenshots/calculator/screenshot.PNG",
+      "/screenshots/calculator/screenshot2.PNG"
+    ],
+    "manifestUrl": "/apps/calculator/manifest.webmanifest",
+    "url": "/apps/calculator/"
+  },
+  {
+    "id": "color-calculator",
+    "name": "Color Calculator",
+    "category": "Utilities",
+    "icon": "/icons/color-calculator.svg",
+    "shortDescription": "Convert between HEX, RGB, and HSL color codes",
+    "fullDescription": "A beautiful color code calculator that lets you convert between different color formats (HEX, RGB, HSL). Perfect for designers and developers. Works completely offline with real-time color preview.",
+    "folder": "apps/color-calculator",
+    "screenshots": [],
+    "manifestUrl": "/apps/color-calculator/manifest.webmanifest",
+    "url": "/apps/color-calculator/"
+  },
+  {
+    "id": "temp-converter",
+    "name": "Temp Converter",
+    "category": "Utilities",
+    "icon": "/icons/temp-converter.svg",
+    "shortDescription": "Convert between Celsius, Fahrenheit, and Kelvin",
+    "fullDescription": "A clean, offline-ready temperature converter. Type any value in Celsius, Fahrenheit, or Kelvin and all three update instantly in real time. Works as an installable PWA.",
+    "folder": "apps/temp-converter",
+    "screenshots": [],
+    "manifestUrl": "/apps/temp-converter/manifest.webmanifest",
+    "url": "/apps/temp-converter/"
+  }
+]

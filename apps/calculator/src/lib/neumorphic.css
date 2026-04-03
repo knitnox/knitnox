@@ -1,0 +1,553 @@
+/**
+ * Knitnox Neumorphic Design System
+ * Version: 1.0.0
+ * 
+ * A comprehensive neumorphic (soft UI) design library for building
+ * consistent, beautiful interfaces across the Knitnox ecosystem.
+ * 
+ * Usage: Include this CSS file in your HTML:
+ * <link rel="stylesheet" href="path/to/neumorphic.css">
+ */
+
+/* ============================================
+   CSS VARIABLES (Theme Configuration)
+   ============================================ */
+:root {
+  /* Primary Colors */
+  --neumorph-bg: #e6e9ef;
+  --neumorph-light: #ffffff;
+  --neumorph-dark: #c2c8d0;
+  --neumorph-text: #2a2f3a;
+  
+  /* Accent Colors */
+  --neumorph-accent-blue: #5a8dee;
+  --neumorph-accent-red: #ff6b6b;
+  --neumorph-accent-green: #51cf66;
+  --neumorph-accent-orange: #ffa500;
+  
+  /* Shadow Configuration */
+  --neumorph-shadow-raised: 6px 6px 12px var(--neumorph-dark), 
+                            -6px -6px 12px var(--neumorph-light);
+  --neumorph-shadow-pressed: inset 4px 4px 8px var(--neumorph-dark), 
+                             inset -4px -4px 8px var(--neumorph-light);
+  --neumorph-shadow-large: 10px 10px 20px var(--neumorph-dark), 
+                           -10px -10px 20px var(--neumorph-light);
+  --neumorph-shadow-small: 4px 4px 8px var(--neumorph-dark), 
+                           -4px -4px 8px var(--neumorph-light);
+  
+  /* Border Radius */
+  --neumorph-radius-sm: 8px;
+  --neumorph-radius-md: 12px;
+  --neumorph-radius-lg: 16px;
+  --neumorph-radius-xl: 20px;
+  
+  /* Spacing */
+  --neumorph-spacing-xs: 4px;
+  --neumorph-spacing-sm: 8px;
+  --neumorph-spacing-md: 12px;
+  --neumorph-spacing-lg: 16px;
+  --neumorph-spacing-xl: 20px;
+  --neumorph-spacing-2xl: 24px;
+  
+  /* Transitions */
+  --neumorph-transition-fast: 0.15s ease;
+  --neumorph-transition-normal: 0.2s ease;
+  --neumorph-transition-slow: 0.3s ease;
+}
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+.neumorph-body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--neumorph-bg);
+  color: var(--neumorph-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================
+   CARDS
+   ============================================ */
+
+/* Basic raised card */
+.neumorph-card {
+  background: var(--neumorph-bg);
+  border-radius: var(--neumorph-radius-lg);
+  box-shadow: var(--neumorph-shadow-raised);
+  padding: var(--neumorph-spacing-xl);
+  transition: var(--neumorph-transition-normal);
+}
+
+/* Card with hover effect */
+.neumorph-card-hover {
+  background: var(--neumorph-bg);
+  border-radius: var(--neumorph-radius-lg);
+  box-shadow: var(--neumorph-shadow-raised);
+  padding: var(--neumorph-spacing-xl);
+  transition: var(--neumorph-transition-normal);
+  cursor: pointer;
+}
+
+.neumorph-card-hover:hover {
+  box-shadow: 8px 8px 16px var(--neumorph-dark), 
+              -8px -8px 16px var(--neumorph-light);
+}
+
+.neumorph-card-hover:active {
+  box-shadow: var(--neumorph-shadow-pressed);
+}
+
+/* Large card (for headers, featured content) */
+.neumorph-card-large {
+  background: var(--neumorph-bg);
+  border-radius: var(--neumorph-radius-xl);
+  box-shadow: var(--neumorph-shadow-large);
+  padding: var(--neumorph-spacing-2xl);
+}
+
+/* Small card */
+.neumorph-card-small {
+  background: var(--neumorph-bg);
+  border-radius: var(--neumorph-radius-md);
+  box-shadow: var(--neumorph-shadow-small);
+  padding: var(--neumorph-spacing-md);
+}
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+
+/* Base button */
+.neumorph-btn {
+  padding: 14px 24px;
+  border-radius: var(--neumorph-radius-md);
+  background: var(--neumorph-bg);
+  box-shadow: var(--neumorph-shadow-raised);
+  border: none;
+  font-weight: 600;
+  color: var(--neumorph-text);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: var(--neumorph-transition-normal);
+  font-family: inherit;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+}
+
+.neumorph-btn:hover {
+  box-shadow: 8px 8px 16px var(--neumorph-dark), 
+              -8px -8px 16px var(--neumorph-light);
+}
+
+.neumorph-btn:active {
+  box-shadow: var(--neumorph-shadow-pressed);
+}
+
+.neumorph-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Small button */
+.neumorph-btn-sm {
+  padding: 10px 18px;
+  font-size: 0.9rem;
+}
+
+/* Large button */
+.neumorph-btn-lg {
+  padding: 18px 32px;
+  font-size: 1.1rem;
+}
+
+/* Accent button (blue) */
+.neumorph-btn-accent {
+  background: linear-gradient(145deg, var(--neumorph-accent-blue), #4a7bde);
+  color: white;
+}
+
+.neumorph-btn-accent:active {
+  box-shadow: inset 4px 4px 8px rgba(0,0,0,0.2),
+              inset -2px -2px 6px rgba(255,255,255,0.1);
+}
+
+/* ============================================
+   INPUT FIELDS
+   ============================================ */
+
+/* Text input */
+.neumorph-input {
+  padding: 14px 18px;
+  border-radius: var(--neumorph-radius-md);
+  background: var(--neumorph-bg);
+  box-shadow: var(--neumorph-shadow-pressed);
+  border: none;
+  width: 100%;
+  font-size: 1rem;
+  color: var(--neumorph-text);
+  font-family: inherit;
+  outline: none;
+  transition: var(--neumorph-transition-normal);
+}
+
+.neumorph-input:focus {
+  box-shadow: inset 6px 6px 10px var(--neumorph-dark),
+              inset -6px -6px 10px var(--neumorph-light);
+}
+
+.neumorph-input::placeholder {
+  color: #999;
+}
+
+/* Textarea */
+.neumorph-textarea {
+  padding: 14px 18px;
+  border-radius: var(--neumorph-radius-md);
+  background: var(--neumorph-bg);
+  box-shadow: var(--neumorph-shadow-pressed);
+  border: none;
+  width: 100%;
+  font-size: 1rem;
+  color: var(--neumorph-text);
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Select dropdown */
+.neumorph-select {
+  padding: 14px 18px;
+  border-radius: var(--neumorph-radius-md);
+  background: var(--neumorph-bg);
+  box-shadow: var(--neumorph-shadow-pressed);
+  border: none;
+  width: 100%;
+  font-size: 1rem;
+  color: var(--neumorph-text);
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+}
+
+/* ============================================
+   CONTAINERS
+   ============================================ */
+
+/* Main container with max-width */
+.neumorph-container {
+  max-width: 420px;
+  padding: 20px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+@media (min-width: 1024px) {
+  .neumorph-container {
+    width: 50vw;
+    max-width: 1200px;
+  }
+}
+
+/* Flex container */
+.neumorph-flex {
+  display: flex;
+  gap: var(--neumorph-spacing-lg);
+}
+
+.neumorph-flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--neumorph-spacing-lg);
+}
+
+.neumorph-flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--neumorph-spacing-lg);
+}
+
+/* Grid container */
+.neumorph-grid {
+  display: grid;
+  gap: var(--neumorph-spacing-lg);
+}
+
+.neumorph-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--neumorph-spacing-lg);
+}
+
+.neumorph-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--neumorph-spacing-lg);
+}
+
+.neumorph-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--neumorph-spacing-lg);
+}
+
+/* Responsive grid for apps */
+.neumorph-grid-responsive {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--neumorph-spacing-lg);
+}
+
+@media (min-width: 1024px) {
+  .neumorph-grid-responsive {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* ============================================
+   TYPOGRAPHY
+   ============================================ */
+
+.neumorph-heading {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 900;
+  color: var(--neumorph-text);
+  margin: 0;
+}
+
+.neumorph-heading-xl {
+  font-size: 2.6rem;
+  letter-spacing: 4px;
+}
+
+.neumorph-heading-lg {
+  font-size: 2rem;
+  letter-spacing: 2px;
+}
+
+.neumorph-heading-md {
+  font-size: 1.6rem;
+  letter-spacing: 1px;
+}
+
+.neumorph-heading-sm {
+  font-size: 1.2rem;
+  letter-spacing: 0.5px;
+}
+
+.neumorph-text {
+  color: #666;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.neumorph-text-small {
+  font-size: 0.85rem;
+  color: #888;
+}
+
+/* ============================================
+   IMAGES & ICONS
+   ============================================ */
+
+.neumorph-icon {
+  border-radius: var(--neumorph-radius-md);
+  background: var(--neumorph-bg);
+  box-shadow: var(--neumorph-shadow-raised);
+  padding: 12px;
+}
+
+.neumorph-icon-sm {
+  width: 40px;
+  height: 40px;
+}
+
+.neumorph-icon-md {
+  width: 60px;
+  height: 60px;
+}
+
+.neumorph-icon-lg {
+  width: 90px;
+  height: 90px;
+  padding: 18px;
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+/* Spacing utilities */
+.neumorph-mt-sm { margin-top: var(--neumorph-spacing-sm); }
+.neumorph-mt-md { margin-top: var(--neumorph-spacing-md); }
+.neumorph-mt-lg { margin-top: var(--neumorph-spacing-lg); }
+.neumorph-mt-xl { margin-top: var(--neumorph-spacing-xl); }
+.neumorph-mt-2xl { margin-top: var(--neumorph-spacing-2xl); }
+
+.neumorph-mb-sm { margin-bottom: var(--neumorph-spacing-sm); }
+.neumorph-mb-md { margin-bottom: var(--neumorph-spacing-md); }
+.neumorph-mb-lg { margin-bottom: var(--neumorph-spacing-lg); }
+.neumorph-mb-xl { margin-bottom: var(--neumorph-spacing-xl); }
+.neumorph-mb-2xl { margin-bottom: var(--neumorph-spacing-2xl); }
+
+.neumorph-p-sm { padding: var(--neumorph-spacing-sm); }
+.neumorph-p-md { padding: var(--neumorph-spacing-md); }
+.neumorph-p-lg { padding: var(--neumorph-spacing-lg); }
+.neumorph-p-xl { padding: var(--neumorph-spacing-xl); }
+.neumorph-p-2xl { padding: var(--neumorph-spacing-2xl); }
+
+/* Text alignment */
+.neumorph-text-center { text-align: center; }
+.neumorph-text-left { text-align: left; }
+.neumorph-text-right { text-align: right; }
+
+/* Display utilities */
+.neumorph-block { display: block; }
+.neumorph-inline-block { display: inline-block; }
+.neumorph-hidden { display: none; }
+
+/* Width utilities */
+.neumorph-w-full { width: 100%; }
+.neumorph-w-half { width: 50%; }
+
+/* Cursor utilities */
+.neumorph-cursor-pointer { cursor: pointer; }
+
+/* Transition utilities */
+.neumorph-transition { transition: var(--neumorph-transition-normal); }
+.neumorph-transition-fast { transition: var(--neumorph-transition-fast); }
+.neumorph-transition-slow { transition: var(--neumorph-transition-slow); }
+
+/* ============================================
+   SPECIAL COMPONENTS
+   ============================================ */
+
+/* Loading spinner */
+.neumorph-spinner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--neumorph-bg);
+  box-shadow: var(--neumorph-shadow-pressed);
+  position: relative;
+  animation: neumorph-spin 1s linear infinite;
+}
+
+.neumorph-spinner::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  right: 5px;
+  bottom: 5px;
+  border-radius: 50%;
+  background: var(--neumorph-bg);
+  box-shadow: var(--neumorph-shadow-raised);
+}
+
+@keyframes neumorph-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Badge */
+.neumorph-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: var(--neumorph-bg);
+  box-shadow: var(--neumorph-shadow-small);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Divider */
+.neumorph-divider {
+  height: 2px;
+  background: linear-gradient(90deg, 
+    transparent, 
+    var(--neumorph-dark) 20%, 
+    var(--neumorph-dark) 80%, 
+    transparent);
+  margin: var(--neumorph-spacing-xl) 0;
+  border: none;
+}
+
+/* Progress bar */
+.neumorph-progress {
+  width: 100%;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--neumorph-bg);
+  box-shadow: var(--neumorph-shadow-pressed);
+  overflow: hidden;
+  position: relative;
+}
+
+.neumorph-progress-bar {
+  height: 100%;
+  background: linear-gradient(145deg, var(--neumorph-accent-blue), #4a7bde);
+  border-radius: 10px;
+  transition: width var(--neumorph-transition-slow);
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+@keyframes neumorph-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.neumorph-fade-in {
+  animation: neumorph-fade-in 0.3s ease-out;
+}
+
+@keyframes neumorph-slide-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.neumorph-slide-in {
+  animation: neumorph-slide-in 0.3s ease-out;
+}
+
+/* ============================================
+   ACCESSIBILITY
+   ============================================ */
+
+.neumorph-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Focus styles for accessibility */
+.neumorph-btn:focus-visible,
+.neumorph-input:focus-visible {
+  outline: 2px solid var(--neumorph-accent-blue);
+  outline-offset: 2px;
+}

@@ -1,0 +1,17 @@
+{
+  "name": "knitnox",
+  "version": "2.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm run build:launcher && npm run build:calculator && npm run build:color-calculator && npm run build:temp-converter",
+    "build:launcher": "npm run build --prefix launcher",
+    "build:calculator": "npm run build --prefix apps/calculator",
+    "build:color-calculator": "npm run build --prefix apps/color-calculator",
+    "build:temp-converter": "npm run build --prefix apps/temp-converter",
+    "install:all": "npm install --prefix launcher && npm install --prefix apps/calculator && npm install --prefix apps/color-calculator && npm install --prefix apps/temp-converter",
+    "dev:launcher": "npm run dev --prefix launcher",
+    "dev:calculator": "npm run dev --prefix apps/calculator",
+    "dev:color-calculator": "npm run dev --prefix apps/color-calculator",
+    "dev:temp-converter": "npm run dev --prefix apps/temp-converter"
+  }
+}

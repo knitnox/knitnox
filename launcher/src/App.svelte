@@ -46,7 +46,7 @@
   });
 </script>
 
-<div class="neumorph-body" style="min-height:100vh;">
+<div class="neumorph-body">
   {#if view === 'home'}
     <HomeView onNavigate={navigate} />
   {:else if view === 'apps'}

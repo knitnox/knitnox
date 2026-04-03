@@ -14,7 +14,15 @@
   --text: #2a2f3a;
 }
 
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 /* Base Styles */
+html {
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   font-family: 'Segoe UI', Tahoma, sans-serif;
@@ -22,6 +30,8 @@ body {
   color: var(--text);
   display: flex;
   justify-content: center;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 .container {

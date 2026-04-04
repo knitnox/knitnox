@@ -1,5 +1,17 @@
 <script>
+  import { marked } from 'marked';
+
   let { app, onNavigate } = $props();
+
+  let descriptionHtml = $derived(marked.parse(app.fullDescription ?? ''));
+
+  let installed = $state(false);
+
+  $effect(() => {
+    // Re-evaluate whenever app changes
+    app.id;
+    installed = localStorage.getItem(`knitnox-app-${app.id}`) === '1';
+  });
 
   function openApp() {
     window.open(app.url, '_blank', 'noopener');
@@ -7,14 +19,15 @@
 
   function installApp() {
     window.open(app.url, '_blank', 'noopener');
-    alert("App opened! To install, use your browser's 'Add to Home Screen' or install option.");
+    // Optimistically mark installed; confirmed when app runs in standalone and writes its own key
+    try { localStorage.setItem(`knitnox-app-${app.id}`, '1'); } catch {}
+    installed = true;
   }
 </script>
 
 <div class="neumorph-container">
   <div class="logo-card">
     <h1>{@html 'Knitnox'.split('').map(ch => `<span>${ch}</span>`).join('')}</h1>
-    <p>Your offline-first app ecosystem</p>
   </div>
   <a
     href="/apps"
@@ -30,8 +43,8 @@
     </div>
   </div>
 
-  <div class="detail-description">
-    <p>{app.fullDescription}</p>
+  <div class="detail-description md-prose">
+    {@html descriptionHtml}
   </div>
 
   {#if app.screenshots && app.screenshots.length > 0}
@@ -44,7 +57,11 @@
 
   <div class="action-buttons">
     <button class="btn action-btn" onclick={openApp}>Open App</button>
-    <button class="btn action-btn" onclick={installApp}>Install</button>
+    {#if installed}
+      <button class="btn action-btn installed-btn" disabled>✓ Installed</button>
+    {:else}
+      <button class="btn action-btn" onclick={installApp}>+ Install</button>
+    {/if}
   </div>
 
   <p class="footer">Knitnox v2.0</p>
@@ -63,5 +80,12 @@
     padding: 16px;
     text-align: center;
     box-sizing: border-box;
+  }
+
+  .installed-btn {
+    color: #4caf50;
+    font-weight: 700;
+    cursor: default;
+    opacity: 0.85;
   }
 </style>

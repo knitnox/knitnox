@@ -1,0 +1,18 @@
+{
+	"/": [
+		"src/routes/+layout.js",
+		"src/routes/+layout.js"
+	],
+	"/apps": [
+		"src/routes/apps/+page.js",
+		"src/routes/+layout.js"
+	],
+	"/app": [
+		"src/routes/app/+page.js",
+		"src/routes/+layout.js"
+	],
+	"/app/[id]": [
+		"src/routes/app/[id]/+page.js",
+		"src/routes/+layout.js"
+	]
+}

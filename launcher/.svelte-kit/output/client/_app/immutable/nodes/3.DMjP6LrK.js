@@ -1,0 +1,1 @@
+import{r}from"../chunks/hp4PFHFv.js";import"../chunks/DsnmJJEf.js";import"../chunks/69_IOA4Y.js";async function t({url:o}){const e=o.searchParams.get("id");throw e?r(302,`/app/${e}`):r(302,"/apps")}const i=Object.freeze(Object.defineProperty({__proto__:null,load:t},Symbol.toStringTag,{value:"Module"}));function c(o){}export{c as component,i as universal};

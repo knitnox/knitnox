@@ -13,5 +13,11 @@
     "dev:calculator": "npm run dev --prefix apps/calculator",
     "dev:color-calculator": "npm run dev --prefix apps/color-calculator",
     "dev:temp-converter": "npm run dev --prefix apps/temp-converter"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^3.0.10",
+    "@sveltejs/kit": "^2.56.1",
+    "svelte": "^5.55.1",
+    "svelte-language-server": "^0.17.30"
   }
 }

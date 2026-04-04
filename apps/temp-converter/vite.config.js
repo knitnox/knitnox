@@ -1,15 +1,10 @@
+import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
-import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
-  base: '/apps/temp-converter/',
-  build: {
-    outDir: '../../dist/apps/temp-converter',
-    emptyOutDir: true,
-  },
   plugins: [
-    svelte(),
+    sveltekit(),
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {

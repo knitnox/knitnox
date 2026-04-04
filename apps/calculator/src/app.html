@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Calculator — Knitnox</title>
+    <meta name="description" content="A free offline calculator that runs entirely in your browser. No ads, no tracking, no internet required. Part of the Knitnox privacy-first PWA platform." />
+    <meta name="keywords" content="calculator, offline calculator, pwa calculator, browser calculator, knitnox, privacy calculator" />
+    <meta name="author" content="Knitnox" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://knitnox.github.io/apps/calculator/" />
+    <meta property="og:site_name" content="Knitnox" />
+    <meta property="og:title" content="Calculator — Knitnox" />
+    <meta property="og:description" content="A free offline calculator. No ads, no tracking, no internet required." />
+    <meta property="og:image" content="https://knitnox.github.io/icons/og-image.png" />
+
+    <!-- Twitter / X Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Calculator — Knitnox" />
+    <meta name="twitter:description" content="A free offline calculator. No ads, no tracking, no internet required." />
+    <meta name="twitter:image" content="https://knitnox.github.io/icons/og-image.png" />
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://knitnox.github.io/apps/calculator/" />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet" />
+
+    %sveltekit.head%
+
+    <style>
+      html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+      #app { width: 100%; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+      #splash {
+        position: fixed; inset: 0; background: #e6e9ef;
+        display: flex; align-items: center; justify-content: center;
+        z-index: 9999; transition: opacity 0.45s ease, visibility 0.45s ease;
+      }
+      #splash.hidden { opacity: 0; visibility: hidden; }
+      .splash-card {
+        display: flex; flex-direction: column; align-items: center; gap: 18px;
+        padding: 40px 48px; border-radius: 28px; background: #e6e9ef;
+        box-shadow: 10px 10px 20px #c2c8d0, -10px -10px 20px #ffffff;
+        animation: splash-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+      }
+      @keyframes splash-pop { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+      .splash-icon { width: 88px; height: 88px; }
+      .splash-name { font-family: 'Orbitron', sans-serif; font-size: 1.5rem; font-weight: 700; color: #2a2f3a; margin: 0; letter-spacing: 0.04em; }
+      .splash-brand { font-size: 0.8rem; font-weight: 600; color: #8a9ab0; margin: 0; letter-spacing: 0.18em; text-transform: uppercase; }
+    </style>
+  </head>
+  <body>
+    <div id="splash" aria-hidden="true">
+      <div class="splash-card">
+        <img src="%sveltekit.assets%/icon.svg" alt="" class="splash-icon" />
+        <p class="splash-name">Calculator</p>
+        <p class="splash-brand">Knitnox</p>
+      </div>
+    </div>
+    <div style="display: contents">%sveltekit.body%</div>
+  </body>
+</html>

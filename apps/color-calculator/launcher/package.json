@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "knitnox-color-calculator": "file:.."
+  }
+}

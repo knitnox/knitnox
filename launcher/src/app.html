@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Knitnox — Your browser OS.</title>
+    <meta name="description" content="Hardware control &amp; privacy-first tools — zero cloud, zero latency. Browser-native control for ESP32, Arduino &amp; Raspberry Pi plus offline-first PWA utilities." />
+    <meta name="keywords" content="knitnox, web bluetooth, web serial, webusb, esp32, arduino, raspberry pi, pwa, offline apps, browser hardware control" />
+    <meta name="author" content="Knitnox" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://knitnox.github.io/" />
+    <meta property="og:site_name" content="Knitnox" />
+    <meta property="og:title" content="Knitnox — Your browser is the controller." />
+    <meta property="og:description" content="Hardware control &amp; privacy-first tools — zero cloud, zero latency." />
+    <meta property="og:image" content="https://knitnox.github.io/icons/og-image.png" />
+
+    <!-- Twitter / X Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Knitnox — Your browser is the controller." />
+    <meta name="twitter:description" content="Hardware control &amp; privacy-first tools — zero cloud, zero latency." />
+    <meta name="twitter:image" content="https://knitnox.github.io/icons/og-image.png" />
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://knitnox.github.io/" />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap" rel="stylesheet" />
+
+    %sveltekit.head%
+
+    <script>
+      // Backward compat: restore path redirected from the old GitHub Pages 404.html
+      (function () {
+        var q = window.location.search;
+        if (q && q.indexOf('?p=') === 0) {
+          var path = decodeURIComponent(q.slice(3));
+          if (/^\/apps\/[^/]/.test(path)) {
+            window.location.replace(path);
+          } else {
+            window.history.replaceState(null, null, path + window.location.hash);
+          }
+        }
+      })();
+    </script>
+  </head>
+  <body data-sveltekit-preload-data="hover">
+    <div id="splash" aria-hidden="true">
+      <span>K</span><span>n</span><span>i</span><span>t</span><span>n</span><span class="glow">o</span><span>x</span>
+    </div>
+    <style>
+      #splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+        background: #e6e9ef;
+        font-family: 'Orbitron', sans-serif;
+        font-size: clamp(2rem, 10vw, 3.2rem);
+        font-weight: 900;
+        letter-spacing: 4px;
+        color: #3a3f5c;
+        pointer-events: none;
+        animation: splashExit 0.5s cubic-bezier(0.4, 0, 0.2, 1) 1.2s forwards;
+      }
+      #splash .glow {
+        color: #ffa500;
+        animation: bulbGlow 2s ease-in-out infinite;
+      }
+      @keyframes splashExit {
+        to { transform: translateY(-100%); opacity: 0; }
+      }
+      @keyframes bulbGlow {
+        0%, 100% {
+          text-shadow: 0 0 10px rgba(255,200,0,0.4),
+                       0 0 20px rgba(255,165,0,0.5),
+                       0 0 30px rgba(255,140,0,0.3);
+        }
+        50% {
+          text-shadow: 0 0 20px rgba(255,200,0,0.8),
+                       0 0 35px rgba(255,165,0,0.9),
+                       0 0 50px rgba(255,140,0,0.6),
+                       0 0 70px rgba(255,120,0,0.4);
+        }
+      }
+    </style>
+    <div style="display: contents">%sveltekit.body%</div>
+  </body>
+</html>

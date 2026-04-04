@@ -1,14 +1,13 @@
 ﻿# Knitnox
 
-> A **browser-native IoT control platform** for ESP32 & Arduino — plus offline-first utility and productivity apps. Built with **Svelte 5**, **Vite**, and a custom **Neumorphic design system**. Deployed automatically to GitHub Pages via GitHub Actions.
+> A suite of **offline-first Progressive Web Apps** built with **Svelte 5**, **SvelteKit**, and a custom **Neumorphic design system**. Deployed automatically to GitHub Pages via GitHub Actions.
 
-No cloud. No accounts. No drivers. Just your browser talking directly to your hardware.
+No cloud. No accounts. No tracking. Just fast, installable tools that work entirely in your browser.
 
 ---
 
 ## Table of Contents
 
-- [Overview](#overview)
 - [Architecture](#architecture)
 - [Project Structure](#project-structure)
 - [Apps](#apps)
@@ -21,53 +20,52 @@ No cloud. No accounts. No drivers. Just your browser talking directly to your ha
 
 ---
 
-## Overview
-
-Knitnox is a suite of small, focused **Progressive Web Apps (PWAs)** wrapped in a shared app-store launcher. It has two main categories:
-
-### 🔧 Hardware Control Apps
-Connect to **ESP32**, **Arduino**, and other microcontrollers directly from the browser using modern Web APIs — no drivers, no middleware, no cloud relay:
-
-| Browser API | What it does |
-|---|---|
-| **Web Bluetooth** | Pair with BLE peripherals (ESP32, Arduino Nano 33 BLE) |
-| **Web Serial** | Open UART/COM ports — send commands, stream sensor data |
-| **WebUSB** | Talk to USB devices (CDC, HID, vendor-class) directly |
-| **WebSocket / HTTP** | Control Wi-Fi devices over your Local Area Network |
-
-### 🔒 Privacy-First Utility Apps
-Everyday tools (calculators, converters, etc.) that run entirely on your device:
-
-- Works fully **offline** via service workers
-- **Installable** to the home screen on any device (PWA)
-- **Zero telemetry** — no analytics, no accounts, no data ever leaves your browser
-- Shares a consistent **neumorphic (soft UI)** visual language
-
----
-
 ## Architecture
 
-```
-┌───────────────────────────────────────────────────────────┐
-│                     knitnox.com  (/)                      │
-│                                                           │
-│   ┌─────────────────────────────────────────────────┐    │
-│   │             Launcher (Svelte 5 SPA)             │    │
-│   │   App Store UI — search, browse, install apps   │    │
-│   │         Reads: /apps.json  (flat data file)     │    │
-│   └────────────┬───────────────────────┬────────────┘    │
-│                │   opens in same tab    │                  │
-│       ┌────────▼────────┐   ┌──────────▼──────────┐      │
-│       │   Calculator    │   │   Color Calculator   │      │
-│       │  /apps/calc…/   │   │  /apps/color-calc…/  │      │
-│       │  Svelte5 + PWA  │   │   Svelte5 + PWA      │      │
-│       └─────────────────┘   └──────────────────────┘      │
-└───────────────────────────────────────────────────────────┘
+Knitnox is a **static monorepo** — multiple independent SvelteKit apps that build into a single `dist/` folder, served from one GitHub Pages site.
 
-Build output: everything merges into a single dist/ folder
-Hosting: GitHub Pages (static, no server needed)
-CI/CD: GitHub Actions — push to main → auto build → deploy
 ```
+knitnox/ (monorepo root)
+│
+├── launcher/              ← SvelteKit app   → builds to dist/
+│   └── src/routes/        ← /  /apps  /app/[id]
+│
+├── apps/calculator/       ← SvelteKit app   → builds to dist/apps/calculator/
+├── apps/color-calculator/ ← SvelteKit app   → builds to dist/apps/color-calculator/
+├── apps/temp-converter/   ← SvelteKit app   → builds to dist/apps/temp-converter/
+│
+└── dist/                  ← merged build output → GitHub Pages
+    ├── index.html          ← launcher
+    ├── 404.html            ← SPA fallback for all launcher routes
+    ├── sw.js               ← launcher service worker (PWA)
+    └── apps/
+        ├── calculator/
+        ├── color-calculator/
+        └── temp-converter/
+```
+
+### How the pieces connect
+
+**Launcher** is the app store at `/`. It reads `/apps.json` (a static JSON file committed in `launcher/public/`) to render the app grid. When a user clicks an app card, the launcher navigates to that app's URL (e.g. `/apps/calculator/`), which is a completely separate SvelteKit app served from a sub-directory.
+
+**Sub-apps** are fully independent. They have their own `package.json`, `svelte.config.js`, service worker, and web manifest. They know their base path (`/apps/<name>/`) via `paths.base` in `svelte.config.js`, which SvelteKit uses to prefix all asset and navigation URLs automatically.
+
+**Build merging** works because each app's `adapter-static` is configured to output into a different sub-directory of the shared `dist/` folder:
+
+| App | `adapter-static` output |
+|---|---|
+| Launcher | `dist/` |
+| Calculator | `dist/apps/calculator/` |
+| Color Calculator | `dist/apps/color-calculator/` |
+| Temp Converter | `dist/apps/temp-converter/` |
+
+**Dev server** — the launcher's `vite.config.js` includes a custom `routeAppsPlugin`. In dev mode it reads pre-built sub-apps from `dist/` using `fs.readFileSync` and serves them at `/apps/*`, so you can test the full linked flow without running all four dev servers simultaneously.
+
+**PWA** — every app (including the launcher) registers its own service worker via `vite-plugin-pwa`. The launcher's service worker excludes `/apps/*` routes via `navigateFallbackDenylist` so it never intercepts requests meant for sub-app service workers.
+
+**Install detection** — when a sub-app launches in `standalone` display mode (i.e. it was installed to the home screen), its `+layout.svelte` writes a flag to `localStorage` (`knitnox-app-<id>`). The launcher reads this key on the app detail page to show a green **✓ Installed** badge.
+
+**Launcher splash screen** — the launcher's `app.html` contains a pure-CSS splash (`#splash`) with the animated Knitnox wordmark. It is painted by the browser immediately — before any JavaScript downloads — then slides off-screen via a CSS `animation` after 1.2 s. No JS is involved; the `animation-fill-mode: forwards` keeps it hidden permanently once dismissed.
 
 ---
 
@@ -77,86 +75,86 @@ CI/CD: GitHub Actions — push to main → auto build → deploy
 knitnox/
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml          ← GitHub Actions: build + deploy on push to main
+│       └── deploy.yml           ← CI/CD: install → build → deploy on push to main
 │
-├── launcher/                   ← App Store SPA (the home screen / app browser)
-│   ├── src/
-│   │   ├── main.js             ← Svelte 5 mount point
-│   │   ├── App.svelte          ← View router ($state: home / apps / app detail)
-│   │   ├── lib/
-│   │   │   ├── neumorphic.css  ← Shared design system tokens + components
-│   │   │   └── styles.css      ← Launcher-specific styles (landing page, cards, etc.)
-│   │   └── components/
-│   │       ├── HomeView.svelte       ← Landing page (hero, stats, how it works)
-│   │       ├── AppsView.svelte       ← App grid with search and infinite scroll
-│   │       ├── AppDetailView.svelte  ← App detail page (Markdown description + install)
-│   │       └── AppCard.svelte        ← Single app card in the grid
+├── launcher/                    ← App Store SPA
+│   ├── svelte.config.js         ← adapter-static → ../dist, fallback: 404.html
+│   ├── vite.config.js           ← sveltekit() + VitePWA + routeAppsPlugin
+│   ├── package.json
 │   ├── public/
-│   │   ├── apps.json           ← App registry (edit this to add/remove apps)
-│   │   ├── icons/              ← SVG app icons served by the launcher
-│   │   ├── screenshots/        ← App screenshots served by the launcher
-│   │   ├── CNAME               ← Custom domain: knitnox.com
-│   │   ├── .nojekyll           ← Prevents GitHub Pages from ignoring _assets/
-│   │   └── 404.html            ← GitHub Pages SPA fallback (redirects to index.html)
-│   ├── index.html
-│   ├── vite.config.js          ← base: '/', outDir: '../dist'
-│   └── package.json            ← Dependencies include: svelte, marked (Markdown parser)
+│   │   ├── apps.json            ← App registry (add entries here to add apps)
+│   │   ├── icons/               ← App icons (.svg) referenced by apps.json
+│   │   ├── screenshots/         ← App screenshots referenced by apps.json
+│   │   ├── CNAME                ← Custom domain
+│   │   └── 404.html             ← GitHub Pages SPA fallback
+│   └── src/
+│       ├── app.html             ← SvelteKit HTML shell (meta tags, fonts, splash)
+│       ├── routes/
+│       │   ├── +layout.js       ← ssr=false, prerender=false (SPA mode)
+│       │   ├── +layout.svelte   ← imports CSS, wraps in .neumorph-body
+│       │   ├── +page.svelte     ← Home / landing page
+│       │   ├── apps/
+│       │   │   ├── +page.js     ← loads apps.json via fetch
+│       │   │   └── +page.svelte ← App grid with search + infinite scroll
+│       │   └── app/
+│       │       ├── +page.js     ← backwards-compat: /app?id=x → /app/x
+│       │       └── [id]/
+│       │           ├── +page.js     ← loads app by id from apps.json
+│       │           └── +page.svelte ← App detail: description, screenshots, install
+│       └── lib/
+│           ├── neumorphic.css   ← Shared design tokens + components
+│           ├── styles.css       ← Launcher-specific styles
+│           └── components/
+│               └── AppCard.svelte
 │
 ├── apps/
-│   ├── calculator/             ← Installable PWA
-│   │   ├── src/
-│   │   │   ├── main.js         ← Detects standalone mode → writes install flag to localStorage
-│   │   │   ├── App.svelte
-│   │   │   ├── lib/
-│   │   │   │   └── neumorphic.css
-│   │   │   └── components/
-│   │   │       ├── Display.svelte
-│   │   │       ├── ButtonGrid.svelte
-│   │   │       └── CalcButton.svelte
-│   │   ├── index.html
-│   │   ├── vite.config.js      ← base: '/apps/calculator/', PWA manifest
-│   │   └── package.json
+│   ├── calculator/
+│   │   ├── svelte.config.js     ← paths.base: /apps/calculator/, output → dist/apps/calculator/
+│   │   ├── vite.config.js       ← sveltekit() + VitePWA
+│   │   ├── package.json
+│   │   └── src/
+│   │       ├── app.html         ← HTML shell with splash screen
+│   │       ├── routes/
+│   │       │   ├── +layout.js   ← ssr=false, prerender=false
+│   │       │   ├── +layout.svelte ← imports neumorphic.css, handles splash + install flag
+│   │       │   └── +page.svelte ← full calculator UI + keyboard handler + PWA prompt
+│   │       ├── components/
+│   │       │   ├── Display.svelte
+│   │       │   ├── ButtonGrid.svelte
+│   │       │   └── CalcButton.svelte
+│   │       └── lib/
+│   │           └── neumorphic.css
 │   │
-│   ├── color-calculator/       ← Installable PWA
-│   │   ├── src/
-│   │   │   ├── main.js
-│   │   │   ├── App.svelte
-│   │   │   ├── lib/
-│   │   │   │   └── neumorphic.css
-│   │   │   └── components/
-│   │   │       ├── ColorPreview.svelte
-│   │   │       ├── HexInput.svelte
-│   │   │       ├── RgbInputs.svelte
-│   │   │       └── HslInputs.svelte
-│   │   ├── index.html
-│   │   ├── vite.config.js      ← base: '/apps/color-calculator/', PWA manifest
-│   │   └── package.json
+│   ├── color-calculator/        ← same structure as calculator
+│   │   └── src/
+│   │       ├── components/
+│   │       │   ├── ColorPreview.svelte
+│   │       │   ├── HexInput.svelte
+│   │       │   ├── RgbInputs.svelte
+│   │       │   └── HslInputs.svelte
+│   │       └── routes/
+│   │           └── +page.svelte ← real-time HEX ↔ RGB ↔ HSL conversion
 │   │
-│   └── temp-converter/         ← Installable PWA
-│       ├── src/
-│       │   ├── main.js
-│       │   ├── App.svelte      ← °C ↔ °F ↔ K real-time conversion ($state)
-│       │   └── lib/
-│       │       └── neumorphic.css
-│       ├── index.html
-│       ├── vite.config.js      ← base: '/apps/temp-converter/', PWA manifest
-│       └── package.json
+│   └── temp-converter/          ← same structure as calculator
+│       └── src/
+│           └── routes/
+│               └── +page.svelte ← real-time °C ↔ °F ↔ K conversion
 │
-├── dist/                       ← Build output (gitignored — never edit directly)
-├── .gitignore
-└── package.json                ← Root: runs all 4 builds sequentially
+├── dist/                        ← build output (gitignored — never edit directly)
+├── package.json                 ← root scripts: build:all, install:all, dev:*
+└── .gitignore
 ```
 
 ---
 
 ## Apps
 
-| App | URL | Description |
+| App | Path | Description |
 |---|---|---|
 | **Launcher** | `/` | App store — browse, search, open, and install apps |
-| **Calculator** | `/apps/calculator/` | Neumorphic calculator with keyboard support |
+| **Calculator** | `/apps/calculator/` | Neumorphic calculator with full keyboard support |
 | **Color Calculator** | `/apps/color-calculator/` | Real-time HEX ↔ RGB ↔ HSL converter |
-| **Temp Converter** | `/apps/temp-converter/` | Real-time °C ↔ °F ↔ K temperature converter |
+| **Temp Converter** | `/apps/temp-converter/` | Real-time °C ↔ °F ↔ K converter |
 
 ---
 
@@ -164,29 +162,27 @@ knitnox/
 
 ### Prerequisites
 
-You need **Node.js** and **npm** installed on your computer. If you haven't installed them yet, download from [nodejs.org](https://nodejs.org/) — choose the **LTS** version.
-
-Check your versions:
+You need **Node.js v18+** and **npm v9+**. Download the LTS version from [nodejs.org](https://nodejs.org/).
 
 ```bash
-node --version   # should be v18 or higher
-npm --version    # should be v9 or higher
+node --version   # v18 or higher
+npm --version    # v9 or higher
 ```
 
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/your-username/knitnox.git
+git clone https://github.com/knitnox/knitnox.git
 cd knitnox
 ```
 
-### 2. Install dependencies for all projects
+### 2. Install all dependencies
 
 ```bash
 npm run install:all
 ```
 
-> This installs `node_modules` for the launcher and every app in a single command. It may take a minute.
+This installs `node_modules` for the launcher and every sub-app.
 
 ### 3. Build everything
 
@@ -194,645 +190,292 @@ npm run install:all
 npm run build
 ```
 
-This runs all builds in sequence and merges the output into `dist/`.
+All four SvelteKit apps build in sequence and their outputs merge into `dist/`.
 
-### 4. Preview the full site locally
+### 4. Preview the complete site locally
 
 ```bash
-npm run preview --prefix launcher
+cd launcher
+npm run preview
 ```
 
-Open `http://localhost:4173` — you'll see the complete app store with all apps working.
+Open `http://localhost:4173`. You'll see the full app store with all apps working and linkable.
 
 ---
 
 ## Development Workflow
 
-Run any project in **hot-reload dev mode** (changes reflect instantly in the browser):
+### Launcher (app store)
 
 ```bash
-# Launcher (app store UI)
-npm run dev --prefix launcher
+cd launcher
+npm run dev
 # → http://localhost:5173
-
-# Calculator
-npm run dev --prefix apps/calculator
-# → http://localhost:5173/apps/calculator/
-
-# Color Calculator
-npm run dev --prefix apps/color-calculator
-# → http://localhost:5173/apps/color-calculator/
-
-# Temp Converter
-npm run dev --prefix apps/temp-converter
-# → http://localhost:5173/apps/temp-converter/
 ```
 
-> **Tip:** When working on the launcher, use `npm run build` + `npm run preview` to test the full linked flow between the launcher and apps. In `dev` mode, clicking "Open App" navigates to the deployed URL.
+The launcher dev server serves itself via SvelteKit's dev mode. Clicking an app card navigates to `/apps/<name>/` — the `routeAppsPlugin` reads the pre-built sub-apps from `dist/apps/` and serves them directly. **You must build sub-apps at least once before they'll appear in launcher dev mode:**
+
+```bash
+# From the repo root, one-time setup:
+npm run build:calculator
+npm run build:color-calculator
+npm run build:temp-converter
+```
+
+After that, run `npm run dev --prefix launcher` and all links work.
+
+### Individual sub-apps
+
+Each sub-app runs on its own dev server with full hot-reload:
+
+```bash
+# From the repo root:
+npm run dev:calculator         # → http://localhost:5173/apps/calculator/
+npm run dev:color-calculator   # → http://localhost:5173/apps/color-calculator/
+npm run dev:temp-converter     # → http://localhost:5173/apps/temp-converter/
+
+# Or from inside the app folder:
+cd apps/calculator
+npm run dev
+```
+
+### Building individual apps
+
+```bash
+npm run build:launcher
+npm run build:calculator
+npm run build:color-calculator
+npm run build:temp-converter
+```
 
 ---
 
 ## Adding a New App
 
-Follow these steps to add a brand new app to Knitnox:
+Here is the complete, step-by-step process. Use `apps/calculator` as the reference template.
 
-### Step 1 — Copy an existing app as a template
+### Step 1 — Copy the template
 
-```bash
-# Windows (PowerShell)
-Copy-Item apps/calculator apps/my-new-app -Recurse
+```powershell
+# PowerShell
+Copy-Item apps/calculator apps/my-app -Recurse
 
 # macOS / Linux
-cp -r apps/calculator apps/my-new-app
+cp -r apps/calculator apps/my-app
 ```
 
-### Step 2 — Update the Vite config
+### Step 2 — Update `svelte.config.js`
 
-Edit `apps/my-new-app/vite.config.js`. Change the `base` and `outDir` paths, and update the PWA manifest fields:
+Open `apps/my-app/svelte.config.js` and change the base path and output directory:
 
 ```js
-export default defineConfig({
-  base: '/apps/my-new-app/',
-  build: {
-    outDir: '../../dist/apps/my-new-app',
-    emptyOutDir: true,
+import adapter from '@sveltejs/adapter-static';
+
+export default {
+  kit: {
+    adapter: adapter({
+      pages: '../../dist/apps/my-app',
+      assets: '../../dist/apps/my-app',
+      fallback: 'index.html',
+      precompress: false,
+      strict: false,
+    }),
+    paths: {
+      base: '/apps/my-app',   // ← must match the URL path exactly
+    },
   },
+};
+```
+
+### Step 3 — Update `vite.config.js`
+
+Open `apps/my-app/vite.config.js` and update the PWA manifest fields:
+
+```js
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
+
+export default defineConfig({
   plugins: [
-    svelte(),
+    sveltekit(),
     VitePWA({
+      registerType: 'autoUpdate',
       manifest: {
-        name: 'Knitnox My New App',
+        name: 'Knitnox My App',
         short_name: 'My App',
-        start_url: '/apps/my-new-app/',
-        scope: '/apps/my-new-app/',
-        // ...
+        description: 'What your app does.',
+        start_url: '/apps/my-app/',
+        scope: '/apps/my-app/',
+        display: 'standalone',
+        background_color: '#e6e9ef',
+        theme_color: '#e6e9ef',
+        orientation: 'portrait',
+        icons: [
+          {
+            src: 'icon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any maskable',
+          },
+        ],
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,svg,ico,woff,woff2}'],
+        navigateFallback: 'index.html',
       },
     }),
   ],
 });
 ```
 
-### Step 3 — Update the splash screen in index.html
+### Step 4 — Update `src/app.html`
 
-Open `apps/my-new-app/index.html` and update the app name shown while loading:
+Open `apps/my-app/src/app.html` and update the `<title>`, meta tags, and splash screen name:
 
 ```html
-<div id="splash" aria-hidden="true">
-  <div class="splash-card">
-    <img src="icon.svg" alt="" class="splash-icon" />
-    <p class="splash-name">My New App</p>  <!-- ← change this -->
-    <p class="splash-brand">Knitnox</p>
+<title>My App — Knitnox</title>
+<meta name="description" content="What your app does." />
+<meta property="og:title" content="My App — Knitnox" />
+<!-- ... other meta tags ... -->
+
+<!-- splash screen name -->
+<p class="splash-name">My App</p>
+```
+
+The `%sveltekit.assets%` placeholder in the splash icon `src` is automatically replaced by SvelteKit with the correct base-path-aware asset URL — **do not change it**:
+
+```html
+<img src="%sveltekit.assets%/icon.svg" alt="" class="splash-icon" />
+```
+
+### Step 5 — Write the app UI
+
+Edit `apps/my-app/src/routes/+page.svelte`. This file is the entire app — import components from `../components/`, use Svelte 5 runes, and keep the "Back to Apps" footer link pointing to `/` (absolute URL, not base-path-relative):
+
+```svelte
+<script>
+  // Svelte 5 runes — reactive by default
+  let value = $state('');
+  let result = $derived(value.toUpperCase());
+
+  $effect(() => {
+    localStorage.setItem('knitnox-my-app', value);
+  });
+</script>
+
+<div class="page">
+  <div class="card">
+    <h1>My App</h1>
+    <input bind:value />
+    <p>{result}</p>
+  </div>
+  <div class="footer">
+    <a href="/">← Back to Apps</a>   <!-- always use absolute "/" -->
   </div>
 </div>
 ```
 
-### Step 4 — Build the app UI
+The `+layout.svelte` (already in the template) imports `neumorphic.css`, handles the splash screen fade-out, and writes the install detection flag to `localStorage` — **you don't need to touch it**.
 
-Edit `apps/my-new-app/src/App.svelte` using Svelte 5 runes:
+### Step 6 — Add an icon to the launcher
 
-```svelte
-<script>
-  let count = $state(0);          // reactive variable
-  let doubled = $derived(count * 2); // computed value
-
-  $effect(() => {
-    document.title = `Count: ${count}`; // runs whenever count changes
-  });
-</script>
-
-<button onclick={() => count++}>
-  Clicked {count} times (doubled: {doubled})
-</button>
-```
-
-### Step 5 — Add icon and screenshots
-
-Place the app icon and any screenshots here:
+Place your app's icon SVG in:
 
 ```
-launcher/public/icons/my-new-app.svg          ← app icon (shown on app card)
-launcher/public/screenshots/my-new-app/       ← optional screenshots
-  screenshot1.png
+launcher/public/icons/my-app.svg
 ```
 
-### Step 6 — Register in apps.json
-
-Open `launcher/public/apps.json` and add an entry. The `fullDescription` field supports **Markdown** — use headings, lists, code blocks, and tables to write proper documentation:
-
-```json
-{
-  "id": "my-new-app",
-  "name": "My New App",
-  "category": "Utilities",
-  "icon": "/icons/my-new-app.svg",
-  "shortDescription": "One-line description shown on the app card",
-  "fullDescription": "## Overview\n\nDescribe your app here. Supports **Markdown**.\n\n## Features\n\n- Feature one\n- Feature two\n\n## Privacy\n\nNo data leaves your device.",
-  "folder": "apps/my-new-app",
-  "screenshots": ["/screenshots/my-new-app/screenshot1.png"],
-  "manifestUrl": "/apps/my-new-app/manifest.webmanifest",
-  "url": "/apps/my-new-app/"
-}
-```
-
-### Step 7 — Add build scripts to root package.json
-
-```json
-{
-  "scripts": {
-    "build:my-new-app": "npm run build --prefix apps/my-new-app",
-    "build": "npm run build:launcher && npm run build:calculator && npm run build:color-calculator && npm run build:temp-converter && npm run build:my-new-app",
-    "install:all": "... && npm install --prefix apps/my-new-app"
-  }
-}
-```
-
-### Step 8 — Add the install step to GitHub Actions
-
-Open `.github/workflows/deploy.yml` and add an `npm ci` step for your new app:
-
-```yaml
-      - name: Install my-new-app dependencies
-        run: npm ci
-        working-directory: apps/my-new-app
-```
-
-> Without this step, the CI build will fail because `node_modules` is never committed to the repo.
-
-### Step 9 — Install, build, and verify
-
-```bash
-npm install --prefix apps/my-new-app
-npm run build
-npm run preview --prefix launcher
-```
-
-Open `http://localhost:4173` — your new app should appear in the launcher.
-
----
-
-## How Install Detection Works
-
-Each sub-app's `main.js` runs a check on every launch:
-
-```js
-if (window.matchMedia('(display-mode: standalone)').matches) {
-  localStorage.setItem('knitnox-app-my-new-app', '1');
-}
-```
-
-`display-mode: standalone` is only `true` when the app is running as a **genuinely installed PWA** (launched from the home screen, not a browser tab). The launcher reads these keys to show a green **✓ Installed** badge on the app detail page.
-
----
-
-## Deployment
-
-The site deploys **automatically** to GitHub Pages on every push to `main`.
-
-### How it works
+Optionally add screenshots:
 
 ```
-git push origin main
-        ↓
-GitHub Actions (.github/workflows/deploy.yml)
-        ├── npm ci  (launcher)
-        ├── npm ci  (apps/calculator)
-        ├── npm ci  (apps/color-calculator)
-        ├── npm ci  (apps/temp-converter)
-        ├── npm run build  (all apps → dist/)
-        └── deploy dist/ → GitHub Pages → knitnox.com
-```
-
-### First-time GitHub Pages setup
-
-1. Go to your repo on GitHub
-2. **Settings → Pages → Source** → set to **"GitHub Actions"**
-3. Push to `main` — the workflow handles the rest
-
-### Manual build and deploy
-
-```bash
-npm run build
-# Upload the dist/ folder to any static host (Netlify, Vercel, Cloudflare Pages, etc.)
-```
-
----
-
-## Design System
-
-All apps share `neumorphic.css` — a soft UI component library using CSS variables. The "neumorphic" effect creates a raised/pressed look using two shadows: one dark (depth) and one light (highlight).
-
-### Theme tokens
-
-```css
-:root {
-  --neumorph-bg:           #e6e9ef;  /* page background */
-  --neumorph-light:        #ffffff;  /* highlight shadow */
-  --neumorph-dark:         #c2c8d0;  /* depth shadow */
-  --neumorph-text:         #2a2f3a;
-  --neumorph-accent-blue:  #5a8dee;
-  --neumorph-accent-red:   #ff6b6b;
-  --neumorph-accent-green: #51cf66;
-  --neumorph-accent-orange:#ffa500;
-}
-```
-
-### Shadow system
-
-| Effect | When to use | CSS |
-|---|---|---|
-| **Raised** | Default cards, buttons | `6px 6px 12px dark, -6px -6px 12px light` |
-| **Pressed** | Active / clicked state | `inset 4px 4px 8px dark, inset -4px -4px 8px light` |
-| **Large** | Hero cards | `10px 10px 20px dark, -10px -10px 20px light` |
-
-### Key component classes
-
-```html
-<div class="neumorph-card">…</div>
-<button class="neumorph-btn">Default</button>
-<button class="neumorph-btn neumorph-btn-accent">Accent</button>
-<input class="neumorph-input" />
-<div class="neumorph-container">…</div>
-<div class="neumorph-grid-2">…</div>          <!-- 2 columns -->
-<div class="neumorph-grid-responsive">…</div> <!-- 2 col → 4 col at 1024px -->
-```
-
----
-
-## Tech Stack
-
-| Layer | Technology | Notes |
-|---|---|---|
-| **UI Framework** | [Svelte 5](https://svelte.dev) | Uses runes: `$state`, `$derived`, `$effect`, `$props` |
-| **Build Tool** | [Vite 6](https://vitejs.dev) | One config per app |
-| **PWA** | [vite-plugin-pwa](https://vite-pwa-org.netlify.app) + Workbox | Service worker + offline caching |
-| **Markdown** | [marked](https://marked.js.org) v12 | Renders `fullDescription` in app detail views |
-| **Install Detection** | `display-mode: standalone` + localStorage | Sub-apps write a flag; launcher reads it |
-| **Hardware APIs** | Web Bluetooth, Web Serial, WebUSB, WebSocket | Browser-native, no drivers required |
-| **Styling** | Custom CSS (neumorphic design system) | No CSS framework |
-| **Language** | JavaScript (no TypeScript) | |
-| **Deployment** | GitHub Pages via GitHub Actions | Push to main = auto deploy |
-| **Fonts** | [Orbitron](https://fonts.google.com/specimen/Orbitron) + Segoe UI | Headings + body |
-
-
----
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Project Structure](#project-structure)
-- [Apps](#apps)
-- [Getting Started](#getting-started)
-- [Development Workflow](#development-workflow)
-- [Adding a New App](#adding-a-new-app)
-- [Deployment](#deployment)
-- [Design System](#design-system)
-- [Tech Stack](#tech-stack)
-
----
-
-## Overview
-
-Knitnox is a suite of small, focused **Progressive Web Apps (PWAs)** wrapped in a shared app-store launcher. Every app:
-
-- Works fully **offline** via service workers
-- Is **installable** to the home screen on any device
-- Shares a consistent **neumorphic (soft UI)** visual language
-- Is a completely **standalone Svelte 5 project** — easy to extend or extract independently
-
----
-
-## Architecture
-
-```
-┌───────────────────────────────────────────────────────────┐
-│                     knitnox.com  (/)                      │
-│                                                           │
-│   ┌─────────────────────────────────────────────────┐    │
-│   │             Launcher (Svelte 5 SPA)             │    │
-│   │       App Store UI — search, browse, detail     │    │
-│   │         Reads: /apps.json  (flat data file)     │    │
-│   └────────────┬───────────────────────┬────────────┘    │
-│                │   opens in same tab    │                  │
-│       ┌────────▼────────┐   ┌──────────▼──────────┐      │
-│       │   Calculator    │   │   Color Calculator   │      │
-│       │  /apps/calc…/   │   │  /apps/color-calc…/  │      │
-│       │  Svelte5 + PWA  │   │   Svelte5 + PWA      │      │
-│       └─────────────────┘   └──────────────────────┘      │
-└───────────────────────────────────────────────────────────┘
-
-Build output: everything merges into a single dist/ folder
-Hosting: GitHub Pages (static, no server)
-CI/CD: GitHub Actions — push to main → auto build → deploy
-```
-
----
-
-## Project Structure
-
-```
-knitnox/
-├── .github/
-│   └── workflows/
-│       └── deploy.yml          ← GitHub Actions: build + deploy on push to main
-│
-├── launcher/                   ← App Store SPA (NOT a PWA)
-│   ├── src/
-│   │   ├── main.js             ← Svelte 5 mount
-│   │   ├── App.svelte          ← View router ($state)
-│   │   ├── lib/
-│   │   │   ├── neumorphic.css  ← Design system tokens + components
-│   │   │   └── styles.css      ← Launcher-specific styles
-│   │   └── components/
-│   │       ├── HomeView.svelte
-│   │       ├── AppsView.svelte
-│   │       ├── AppDetailView.svelte
-│   │       └── AppCard.svelte
-│   ├── public/
-│   │   ├── apps.json           ← App registry (edit this to add/remove apps)
-│   │   ├── icons/              ← App icons served by launcher
-│   │   │   ├── calculator.svg
-│   │   │   └── color-calculator.svg
-│   │   ├── screenshots/        ← App screenshots served by launcher
-│   │   │   └── calculator/
-│   │   │       ├── screenshot.PNG
-│   │   │       └── screenshot2.PNG
-│   │   ├── CNAME               ← Custom domain: knitnox.com
-│   │   ├── .nojekyll           ← Prevents GitHub Pages from ignoring _assets/
-│   │   └── 404.html            ← GitHub Pages SPA fallback (redirects to index.html)
-│   ├── index.html
-│   ├── vite.config.js          ← base: '/', outDir: '../dist'
-│   └── package.json
-│
-├── apps/
-│   ├── calculator/             ← Installable PWA
-│   │   ├── src/
-│   │   │   ├── main.js
-│   │   │   ├── App.svelte      ← Calculator state + keyboard handler ($state, $effect)
-│   │   │   ├── lib/
-│   │   │   │   └── neumorphic.css
-│   │   │   └── components/
-│   │   │       ├── Display.svelte
-│   │   │       ├── ButtonGrid.svelte
-│   │   │       └── CalcButton.svelte
-│   │   ├── public/
-│   │   │   └── icon.svg
-│   │   ├── index.html
-│   │   ├── vite.config.js      ← base: '/apps/calculator/', PWA manifest
-│   │   └── package.json
-│   │
-│   └── color-calculator/       ← Installable PWA
-│       ├── src/
-│       │   ├── main.js
-│       │   ├── App.svelte
-│       │   ├── lib/
-│       │   │   └── neumorphic.css
-│       │   └── components/
-│       │       ├── ColorPreview.svelte
-│       │       ├── HexInput.svelte
-│       │       ├── RgbInputs.svelte
-│       │       └── HslInputs.svelte
-│       ├── public/
-│       │   └── icon.svg
-│       ├── index.html
-│       ├── vite.config.js      ← base: '/apps/color-calculator/', PWA manifest
-│       └── package.json
-│
-└── apps/temp-converter/        ← Installable PWA
-    ├── src/
-    │   ├── main.js
-    │   ├── App.svelte          ← °C ↔ °F ↔ K real-time conversion ($state)
-    │   └── lib/
-    │       └── neumorphic.css
-    ├── public/
-    │   └── icon.svg
-    ├── index.html
-    ├── vite.config.js      ← base: '/apps/temp-converter/', PWA manifest
-    └── package.json
-│
-├── dist/                       ← Build output (gitignored — never edit directly)
-├── .gitignore
-└── package.json                ← Root: runs all 3 builds sequentially
-```
-
----
-
-## Apps
-
-| App | URL | Description |
-|---|---|---|
-| **Launcher** | `/` | App store — browse, search, open, install |
-| **Calculator** | `/apps/calculator/` | Neumorphic calculator with keyboard support |
-| **Color Calculator** | `/apps/color-calculator/` | Real-time HEX ↔ RGB ↔ HSL converter |
-| **Temp Converter** | `/apps/temp-converter/` | Real-time °C ↔ °F ↔ K temperature converter |
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) v18 or higher
-- npm v9 or higher
-
-Check your versions:
-
-```bash
-node --version
-npm --version
-```
-
-### 1. Clone the repo
-
-```bash
-git clone https://github.com/your-username/knitnox.git
-cd knitnox
-```
-
-### 2. Install dependencies for all projects
-
-```bash
-npm run install:all
-```
-
-This installs `node_modules` for the launcher and every app in a single command.
-
-### 3. Build everything
-
-```bash
-npm run build
-```
-
-This runs all 3 builds in sequence and merges the output into `dist/`.
-
-### 4. Preview the full site locally
-
-```bash
-npm run preview --prefix launcher
-```
-
-Open `http://localhost:4173` — you'll see the complete app store with all apps working.
-
----
-
-## Development Workflow
-
-Run any project in **hot-reload dev mode**:
-
-```bash
-# Launcher (app store UI)
-npm run dev --prefix launcher
-# → http://localhost:5173
-
-# Calculator
-npm run dev --prefix apps/calculator
-# → http://localhost:5173/apps/calculator/
-
-# Color Calculator
-npm run dev --prefix apps/color-calculator
-# → http://localhost:5173/apps/color-calculator/
-```
-
-> **Tip:** When working on the launcher, use `npm run build` + `npm run preview` to test the full linked flow. In `dev` mode, app links open deployed URLs.
-
----
-
-## Adding a New App
-
-Follow these 9 steps to add a brand new app to Knitnox:
-
-### Step 1 — Copy an existing app as a template
-
-```bash
-# Windows (PowerShell)
-Copy-Item apps/calculator apps/my-new-app -Recurse
-
-# macOS / Linux
-cp -r apps/calculator apps/my-new-app
-```
-
-### Step 2 — Update the Vite config
-
-Edit `apps/my-new-app/vite.config.js`:
-
-```js
-export default defineConfig({
-  base: '/apps/my-new-app/',          // ← change this
-  build: {
-    outDir: '../../dist/apps/my-new-app',  // ← and this
-    emptyOutDir: true,
-  },
-  plugins: [
-    svelte(),
-    VitePWA({
-      manifest: {
-        name: 'Knitnox My New App',   // ← and these
-        short_name: 'My App',
-        start_url: '/apps/my-new-app/',
-        scope: '/apps/my-new-app/',
-        // ...
-      },
-    }),
-  ],
-});
-```
-
-### Step 3 — Update the splash screen in index.html
-
-Open `apps/my-new-app/index.html` and change the app name shown during loading:
-
-```html
-<div id="splash" aria-hidden="true">
-  <div class="splash-card">
-    <img src="icon.svg" alt="" class="splash-icon" />
-    <p class="splash-name">My New App</p>  <!-- ← change this -->
-    <p class="splash-brand">Knitnox</p>
-  </div>
-</div>
-```
-
-### Step 4 — Build the app UI
-
-Edit `apps/my-new-app/src/App.svelte` and components using Svelte 5 runes:
-
-```svelte
-<script>
-  // Reactive state
-  let count = $state(0);
-
-  // Computed values
-  let doubled = $derived(count * 2);
-
-  // Side effects (DOM events, SW registration, etc.)
-  $effect(() => {
-    document.title = `Count: ${count}`;
-  });
-</script>
-
-<button onclick={() => count++}>
-  Clicked {count} times (doubled: {doubled})
-</button>
-```
-
-### Step 5 — Add the app icon and screenshots
-
-```
-launcher/public/icons/my-new-app.svg          ← app icon (shown in launcher)
-launcher/public/screenshots/my-new-app/       ← screenshots (shown in detail view)
+launcher/public/screenshots/my-app/
   screenshot1.png
   screenshot2.png
 ```
 
-### Step 6 — Register in apps.json
+The icon is also required inside the sub-app's `public/` folder for the PWA manifest (the service worker caches it):
 
-Open `launcher/public/apps.json` and add an entry:
+```
+apps/my-app/public/
+  icon.svg        ← required by vite-plugin-pwa
+  favicon.svg     ← optional, falls back to site-wide /favicon.svg
+```
+
+### Step 7 — Register in `apps.json`
+
+Open `launcher/public/apps.json` and add an entry. The `fullDescription` field supports **Markdown** — use it to write real documentation for your app:
 
 ```json
 {
-  "id": "my-new-app",
-  "name": "My New App",
+  "id": "my-app",
+  "name": "My App",
   "category": "Utilities",
-  "icon": "/icons/my-new-app.svg",
-  "shortDescription": "One line description shown on the card",
-  "fullDescription": "Full description shown on the detail page.",
-  "folder": "apps/my-new-app",
-  "screenshots": [
-    "/screenshots/my-new-app/screenshot1.png"
-  ],
-  "manifestUrl": "/apps/my-new-app/manifest.webmanifest",
-  "url": "/apps/my-new-app/"
+  "icon": "/icons/my-app.svg",
+  "shortDescription": "One line shown on the app card.",
+  "fullDescription": "## Overview\n\nDescribe your app here. Markdown is supported.\n\n## Features\n\n- Feature one\n- Feature two\n\n## Privacy\n\nNo data leaves your device.",
+  "folder": "apps/my-app",
+  "screenshots": ["/screenshots/my-app/screenshot1.png"],
+  "manifestUrl": "/apps/my-app/manifest.webmanifest",
+  "url": "/apps/my-app/"
 }
 ```
 
-### Step 7 — Add build script to root package.json
+### Step 8 — Add scripts to the root `package.json`
+
+Open the root `package.json` and add your app to the build and install scripts:
 
 ```json
 {
   "scripts": {
-    "build:my-new-app": "npm run build --prefix apps/my-new-app",
-    "build": "npm run build:launcher && npm run build:calculator && npm run build:color-calculator && npm run build:my-new-app"
+    "build": "npm run build:launcher && npm run build:calculator && npm run build:color-calculator && npm run build:temp-converter && npm run build:my-app",
+    "build:my-app": "npm run build --prefix apps/my-app",
+    "install:all": "npm install --prefix launcher && npm install --prefix apps/calculator && npm install --prefix apps/color-calculator && npm install --prefix apps/temp-converter && npm install --prefix apps/my-app",
+    "dev:my-app": "npm run dev --prefix apps/my-app"
   }
 }
 ```
 
-### Step 8 — Add the install step to the GitHub Actions workflow
+> **Note:** the template `apps/calculator/package.json` already contains the required `overrides` block that pins `@sveltejs/vite-plugin-svelte` to a Vite-7-compatible version. Keep it when copying the template — removing it will cause peer-dependency conflicts on install.
 
-Open `.github/workflows/deploy.yml` and add an `npm ci` step for your new app alongside the existing ones:
+### Step 9 — Add CI steps to `deploy.yml`
+
+Open `.github/workflows/deploy.yml` and add an install step for your new app. Without this the CI build will fail since `node_modules` is never committed:
 
 ```yaml
-      - name: Install my-new-app dependencies
+      - name: Install my-app dependencies
         run: npm ci
-        working-directory: apps/my-new-app
+        working-directory: apps/my-app
 ```
 
-> Without this step, the GitHub Actions CI build will fail because `node_modules` is not committed to the repo.
+Add it after the existing install steps, before the "Build all projects" step.
 
-### Step 9 — Install deps and build
+Also add your app's `package-lock.json` to the `cache-dependency-path` list so GitHub Actions caches the install:
+
+```yaml
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            launcher/package-lock.json
+            apps/calculator/package-lock.json
+            apps/color-calculator/package-lock.json
+            apps/temp-converter/package-lock.json
+            apps/my-app/package-lock.json   # ← add this
+```
+
+### Step 10 — Install, build, and verify
 
 ```bash
-npm install --prefix apps/my-new-app
+# From the repo root:
+npm install --prefix apps/my-app
 npm run build
+cd launcher && npm run preview
 ```
+
+Open `http://localhost:4173` — your app should appear in the launcher grid. Click it, open the detail page, and verify the "Open App" button navigates correctly.
 
 ---
 
@@ -847,91 +490,170 @@ git push origin main
         │
         ▼
 GitHub Actions (.github/workflows/deploy.yml)
-        │
-        ├── npm ci  (launcher)
-        ├── npm ci  (apps/calculator)
-        ├── npm ci  (apps/color-calculator)
-        │
-        ├── npm run build  (all 3 → dist/)
-        │
-        └── deploy dist/ → GitHub Pages → knitnox.com
+        ├── Checkout repo
+        ├── Setup Node 20 (with npm cache per package-lock.json)
+        ├── npm ci   (launcher)
+        ├── npm ci   (apps/calculator)
+        ├── npm ci   (apps/color-calculator)
+        ├── npm ci   (apps/temp-converter)
+        ├── npm run build   (builds all 4 apps → dist/)
+        ├── Upload dist/ as Pages artifact
+        └── Deploy artifact → knitnox.github.io
 ```
 
 ### First-time GitHub Pages setup
 
-1. Go to your repo on GitHub
-2. **Settings → Pages → Source** → set to **"GitHub Actions"**
-3. Push to `main` — the workflow handles the rest
+1. Go to your repo → **Settings → Pages**
+2. Under **Source**, select **"GitHub Actions"**
+3. Push anything to `main` — the workflow runs automatically
 
-### Manual build and deploy
+### Manual build for other hosts
 
 ```bash
 npm run build
-# Upload dist/ to any static host (Netlify, Vercel, Cloudflare Pages, etc.)
+# Upload the dist/ folder to any static host:
+# Netlify, Vercel, Cloudflare Pages, S3, etc.
 ```
+
+No server-side rendering, no server required — `dist/` is 100% static HTML/CSS/JS.
+
+### Custom domain
+
+The file `launcher/public/CNAME` contains the custom domain. Edit it if you're deploying to your own domain. GitHub Pages reads this file automatically from the deployed artifact.
 
 ---
 
 ## Design System
 
-All apps share `neumorphic.css` — a soft UI component library using CSS variables.
+All apps share `neumorphic.css` — a soft UI library using CSS custom properties. The neumorphic effect creates depth using two shadows: one dark (indent) and one light (highlight).
 
-### Theme tokens
+### CSS variables
 
 ```css
 :root {
-  --neumorph-bg:           #e6e9ef;  /* main surface */
-  --neumorph-light:        #ffffff;  /* highlight shadow */
-  --neumorph-dark:         #c2c8d0;  /* depth shadow */
-  --neumorph-text:         #2a2f3a;
-  --neumorph-accent-blue:  #5a8dee;
-  --neumorph-accent-red:   #ff6b6b;
-  --neumorph-accent-green: #51cf66;
-  --neumorph-accent-orange:#ffa500;
+  --bg:     #e6e9ef;  /* page background — also the widget color */
+  --light:  #ffffff;  /* highlight shadow */
+  --dark:   #c2c8d0;  /* depth shadow */
+  --text:   #2a2f3a;
+  --accent: #5a8dee;
 }
 ```
 
-### Shadow system
+### Shadow patterns
 
-| Effect | CSS |
-|---|---|
-| **Raised** (default) | `6px 6px 12px dark, -6px -6px 12px light` |
-| **Pressed** (active) | `inset 4px 4px 8px dark, inset -4px -4px 8px light` |
-| **Large** (cards) | `10px 10px 20px dark, -10px -10px 20px light` |
+| Class / usage | Effect | Box-shadow value |
+|---|---|---|
+| Card / raised button | Raised | `6px 6px 12px var(--dark), -6px -6px 12px var(--light)` |
+| Active / pressed button | Pressed (inset) | `inset 4px 4px 8px var(--dark), inset -4px -4px 8px var(--light)` |
+| Hero card | Large raised | `10px 10px 20px var(--dark), -10px -10px 20px var(--light)` |
+| Text input | Recessed | `inset 4px 4px 8px var(--dark), inset -4px -4px 8px var(--light)` |
 
-### Key component classes
+### Utility classes
 
 ```html
-<!-- Cards -->
 <div class="neumorph-card">…</div>
-<div class="neumorph-card-hover">…</div>
-
-<!-- Buttons -->
 <button class="neumorph-btn">Default</button>
 <button class="neumorph-btn neumorph-btn-accent">Accent</button>
-
-<!-- Inputs -->
 <input class="neumorph-input" />
+<div class="neumorph-container">…</div>    <!-- centered max-width wrapper -->
+<div class="neumorph-grid-2">…</div>       <!-- 2-column grid -->
+<div class="neumorph-grid-responsive">…</div> <!-- 2-col → 4-col at 1024px -->
+```
 
-<!-- Layout -->
-<div class="neumorph-container">…</div>
-<div class="neumorph-grid-2">…</div>   <!-- 2 columns -->
-<div class="neumorph-grid-responsive">…</div>  <!-- 2 col → 4 col at 1024px -->
+### PWA install FAB
 
-<!-- Typography -->
-<h1 class="neumorph-heading neumorph-heading-xl">…</h1>
+`neumorphic.css` includes a `.pwa-install-fab` class for the floating "Install App" button. It's already wired up in every app's `+page.svelte` — just conditionally render it when `deferredPrompt` is non-null:
+
+```svelte
+{#if !isStandalone && deferredPrompt}
+  <button class="pwa-install-fab" onclick={installApp}>⊕ Install App</button>
+{/if}
 ```
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| **UI Framework** | [Svelte 5](https://svelte.dev) — runes-based reactivity (`$state`, `$derived`, `$effect`, `$props`) |
-| **Build Tool** | [Vite 6](https://vitejs.dev) |
-| **PWA** | [vite-plugin-pwa](https://vite-pwa-org.netlify.app) + Workbox |
-| **Styling** | Custom CSS (neumorphic design system), no CSS framework |
-| **Language** | JavaScript (no TypeScript) |
-| **Deployment** | GitHub Pages via GitHub Actions |
-| **Font** | [Orbitron](https://fonts.google.com/specimen/Orbitron) (headings) + Segoe UI (body) |
+| Layer | Technology | Details |
+|---|---|---|
+| **UI Framework** | [Svelte 5](https://svelte.dev) | Runes: `$state`, `$derived`, `$effect`, `$props` |
+| **App Framework** | [SvelteKit 2](https://kit.svelte.dev) | File-based routing, `adapter-static` for static output |
+| **Build Tool** | [Vite 7](https://vitejs.dev) | One independent config per app |
+| **Static Adapter** | `@sveltejs/adapter-static` | Outputs each app into its own `dist/` sub-directory |
+| **PWA** | [vite-plugin-pwa](https://vite-pwa-org.netlify.app) v1.2 + Workbox | Service worker + offline caching + web manifest |
+| **Markdown** | [marked](https://marked.js.org) v12 | Renders `fullDescription` on the app detail page |
+| **Styling** | Custom CSS (neumorphic system) | No CSS framework — pure CSS custom properties |
+| **Language** | JavaScript (no TypeScript) | |
+| **Fonts** | [Orbitron](https://fonts.google.com/specimen/Orbitron) + Segoe UI | Headings and body text |
+| **Deployment** | GitHub Pages + GitHub Actions | Push to `main` → auto build and deploy |
+
+---
+
+## Dependencies
+
+Every package used in this project, where it lives, and exactly why it is needed.
+
+### Root workspace (`package.json`)
+
+The root `package.json` holds only tooling shared across the monorepo. It has no runtime code of its own.
+
+| Package | Version | Why it's here |
+|---|---|---|
+| `svelte` | `^5.55.1` | Provides Svelte language types for the VS Code language server. Not bundled into any app — each app installs its own copy. |
+| `@sveltejs/kit` | `^2.56.1` | Same reason — type definitions for the monorepo editor experience. |
+| `@sveltejs/adapter-static` | `^3.0.10` | Same reason — adapter types available workspace-wide. |
+| `svelte-language-server` | `^0.17.30` | Powers Svelte IntelliSense in VS Code (syntax highlighting, hover docs, error underlining). Dev-only, never shipped. |
+
+---
+
+### Launcher (`launcher/package.json`)
+
+| Package | Version | Type | Why it's here |
+|---|---|---|---|
+| `marked` | `^12.0.2` | runtime dependency | Parses the `fullDescription` Markdown field in `apps.json` and converts it to HTML for display on the app detail page. The only runtime library in the entire project. |
+| `svelte` | `^5.0.0` | devDependency | The Svelte compiler. Transforms `.svelte` files into JavaScript at build time. Not shipped to the browser as a library — compiled away entirely. |
+| `@sveltejs/kit` | `^2.0.0` | devDependency | The SvelteKit framework: file-based router, SSR/prerender pipeline, `vite`/`svelte` integration. Drives `vite build` and `vite dev`. |
+| `@sveltejs/adapter-static` | `^3.0.0` | devDependency | Tells SvelteKit to output a fully static site (`dist/`) instead of a Node.js server. Writes `index.html` + `404.html` + all assets. Required for GitHub Pages. |
+| `vite` | `^7.0.0` | devDependency | The build tool and dev server. Bundles and tree-shakes all JS/CSS, serves HMR in dev mode, drives SSR build pipeline for SvelteKit. Vite 7 uses Rollup (not Rolldown), which is required for `vite-plugin-pwa` compatibility. |
+| `vite-plugin-pwa` | `^1.2.0` | devDependency | Generates `sw.js` (service worker) and `manifest.webmanifest` at build time using Workbox. Enables offline caching, "Add to Home Screen" install prompts, and PWA badge in browser address bars. |
+
+#### Launcher overrides
+
+| Override | Pinned to | Why |
+|---|---|---|
+| `@sveltejs/vite-plugin-svelte` | `^6.2.4` | npm's peer-resolution algorithm would otherwise pick `v7.0.0`, which requires Vite 8. Pinning to v6 keeps everything on Vite 7 cleanly, with no `--legacy-peer-deps`. |
+| `serialize-javascript` | `^6.0.2` | Patches a known prototype-pollution vulnerability (CVE) in older transitive versions pulled in by Workbox. |
+
+---
+
+### Sub-apps (`apps/*/package.json`)
+
+All three sub-apps (`calculator`, `color-calculator`, `temp-converter`) have identical dependency sets. None have any runtime dependencies — they are pure compile-time builds.
+
+| Package | Version | Type | Why it's here |
+|---|---|---|---|
+| `svelte` | `^5.0.0` | devDependency | Svelte compiler — same role as in the launcher. |
+| `@sveltejs/kit` | `^2.0.0` | devDependency | SvelteKit framework — file-based routing, build pipeline. Each sub-app is a fully independent SvelteKit project. |
+| `@sveltejs/adapter-static` | `^3.0.0` | devDependency | Outputs the sub-app into `dist/apps/<name>/` as a static SPA with `index.html` as the SPA fallback. |
+| `vite` | `^7.0.0` | devDependency | Build tool — same role as in the launcher. |
+| `vite-plugin-pwa` | `^1.2.0` | devDependency | Generates a per-app service worker and web manifest so each sub-app is independently installable as a PWA. |
+
+#### Sub-app overrides (same as launcher)
+
+| Override | Pinned to | Why |
+|---|---|---|
+| `@sveltejs/vite-plugin-svelte` | `^6.2.4` | Same Vite 7 compatibility pin as the launcher. |
+| `serialize-javascript` | `^6.0.2` | Same security patch as the launcher. |
+
+---
+
+### Transitive dependencies (auto-resolved, not directly declared)
+
+These are installed automatically by npm as dependencies of the packages above. You never declare them — but it's useful to know they exist.
+
+| Package | Pulled in by | Role |
+|---|---|---|
+| `@sveltejs/vite-plugin-svelte` | `@sveltejs/kit` | The Vite plugin that connects the Svelte compiler to Vite's transform pipeline. Pinned to `^6.2.4` via `overrides`. |
+| `workbox-build` | `vite-plugin-pwa` | Generates the Workbox-powered service worker (`sw.js`) and its precache manifest at build time. |
+| `workbox-window` | `vite-plugin-pwa` | Tiny browser-side library (inlined into the service worker registration script) that manages SW lifecycle events — update detection, `skipWaiting`, etc. |
+| `rollup` | `vite` | The bundler Vite 7 uses under the hood (replaced by Rolldown in Vite 8, which is why we stay on Vite 7). |

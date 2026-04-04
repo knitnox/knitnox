@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/apps/temp-converter/sw.js', { scope: '/apps/temp-converter/' })})}

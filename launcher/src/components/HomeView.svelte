@@ -22,7 +22,7 @@
       <span class="stat-label">Offline</span>
     </div>
     <div class="stat-item">
-      <span class="stat-number">10</span>
+      <span class="stat-number">n+</span>
       <span class="stat-label">Browser APIs</span>
     </div>
     <div class="stat-item">
@@ -142,7 +142,7 @@
         <svg viewBox="0 0 24 24" width="11" height="11" aria-hidden="true" style="fill:currentColor;flex-shrink:0"><rect x="10" y="19" width="4" height="3" rx="1"/><rect x="11" y="10" width="2" height="9"/><rect x="3" y="9.5" width="18" height="1.5"/><rect x="4.25" y="7.5" width="1.5" height="3"/><rect x="2.5" y="3" width="6" height="5" rx=".5"/><rect x="11" y="5" width="2" height="5.5"/><polygon points="12,1.5 9.5,5.5 14.5,5.5"/><rect x="18.25" y="7" width="1.5" height="4"/><circle cx="19" cy="5" r="2.5"/></svg>
         WebUSB
       </span>
-      <span class="pill">📶 LAN</span>
+      <span class="pill">📶 LAN/WiFi</span>
     </div>
   </div>
 

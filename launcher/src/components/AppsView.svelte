@@ -74,6 +74,10 @@
 </script>
 
 <div class="neumorph-container">
+  <div class="logo-card">
+    <h1>{@html 'Knitnox'.split('').map(ch => `<span>${ch}</span>`).join('')}</h1>
+    <p>Your offline-first app ecosystem</p>
+  </div>
   <a href="/" class="back-btn" onclick={(e) => { e.preventDefault(); onNavigate('home'); }}>← Home</a>
   <h2 style="margin: 16px 0 4px; font-size:1.4rem;">All Apps</h2>
 

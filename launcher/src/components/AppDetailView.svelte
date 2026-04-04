@@ -12,6 +12,10 @@
 </script>
 
 <div class="neumorph-container">
+  <div class="logo-card">
+    <h1>{@html 'Knitnox'.split('').map(ch => `<span>${ch}</span>`).join('')}</h1>
+    <p>Your offline-first app ecosystem</p>
+  </div>
   <a
     href="/apps"
     class="back-btn"

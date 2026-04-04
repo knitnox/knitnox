@@ -5,6 +5,30 @@
   import RgbInputs from './components/RgbInputs.svelte';
   import HslInputs from './components/HslInputs.svelte';
 
+  // ── PWA install prompt ────────────────────────────────────────────────────
+  let deferredPrompt = $state(null);
+  let isStandalone = $state(
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true
+  );
+
+  $effect(() => {
+    function onBeforeInstall(e) {
+      e.preventDefault();
+      deferredPrompt = e;
+    }
+    window.addEventListener('beforeinstallprompt', onBeforeInstall);
+    window.addEventListener('appinstalled', () => { deferredPrompt = null; isStandalone = true; });
+    return () => window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+  });
+
+  async function installApp() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') { deferredPrompt = null; isStandalone = true; }
+  }
+
   // ── helpers ──────────────────────────────────────────────────────────────
   function hexToRgb(hex) {
     const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -148,20 +172,14 @@
   </div>
 </div>
 
+<!-- Floating Install Button (only when not installed and prompt is available) -->
+{#if !isStandalone && deferredPrompt}
+  <button class="pwa-install-fab" onclick={installApp} aria-label="Install app">
+    ⊕ Install App
+  </button>
+{/if}
+
 <style>
-  :global(*) {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-
-  :global(:root) {
-    --bg: #e6e9ef;
-    --light: #ffffff;
-    --dark: #c2c8d0;
-    --text: #2a2f3a;
-  }
-
   :global(body) {
     font-family: 'Segoe UI', Tahoma, sans-serif;
     background: var(--bg);

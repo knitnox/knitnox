@@ -3,6 +3,30 @@
   import Display from './components/Display.svelte';
   import ButtonGrid from './components/ButtonGrid.svelte';
 
+  // ── PWA install prompt ────────────────────────────────────────────────────
+  let deferredPrompt = $state(null);
+  let isStandalone = $state(
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true
+  );
+
+  $effect(() => {
+    function onBeforeInstall(e) {
+      e.preventDefault();
+      deferredPrompt = e;
+    }
+    window.addEventListener('beforeinstallprompt', onBeforeInstall);
+    window.addEventListener('appinstalled', () => { deferredPrompt = null; isStandalone = true; });
+    return () => window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+  });
+
+  async function installApp() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') { deferredPrompt = null; isStandalone = true; }
+  }
+
   const _saved = JSON.parse(localStorage.getItem('knitnox-calculator') || 'null');
   let currentValue = $state(_saved?.currentValue ?? '0');
   let previousValue = $state(_saved?.previousValue ?? '');
@@ -119,6 +143,13 @@
   </div>
 </div>
 
+<!-- Floating Install Button (only when not installed and prompt is available) -->
+{#if !isStandalone && deferredPrompt}
+  <button class="pwa-install-fab" onclick={installApp} aria-label="Install app">
+    ⊕ Install App
+  </button>
+{/if}
+
 <style>
   :global(*) {
     margin: 0;
@@ -165,11 +196,6 @@
     letter-spacing: 2px;
     color: var(--text);
     margin-bottom: 6px;
-  }
-
-  .header p {
-    font-size: 0.85rem;
-    color: #888;
   }
 
   .calc-body {

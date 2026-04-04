@@ -529,6 +529,33 @@
   animation: neumorph-slide-in 0.3s ease-out;
 }
 
+/* ── PWA floating install button ─────────────────────────────────────────── */
+.pwa-install-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 20px;
+  padding: 12px 20px;
+  border-radius: 40px;
+  background: var(--neumorph-bg, #e6e9ef);
+  color: #ffa500;
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  box-shadow: 6px 6px 14px var(--neumorph-dark, #c2c8d0),
+              -6px -6px 14px var(--neumorph-light, #ffffff),
+              0 0 0 2px rgba(255, 165, 0, 0.25);
+  transition: 0.2s ease;
+  z-index: 999;
+  white-space: nowrap;
+}
+
+.pwa-install-fab:active {
+  box-shadow: inset 4px 4px 8px var(--neumorph-dark, #c2c8d0),
+              inset -4px -4px 8px var(--neumorph-light, #ffffff);
+}
+
 /* ============================================
    ACCESSIBILITY
    ============================================ */

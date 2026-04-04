@@ -1,6 +1,30 @@
 <script>
   import './lib/neumorphic.css';
 
+  // ── PWA install prompt ────────────────────────────────────────────────────
+  let deferredPrompt = $state(null);
+  let isStandalone = $state(
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true
+  );
+
+  $effect(() => {
+    function onBeforeInstall(e) {
+      e.preventDefault();
+      deferredPrompt = e;
+    }
+    window.addEventListener('beforeinstallprompt', onBeforeInstall);
+    window.addEventListener('appinstalled', () => { deferredPrompt = null; isStandalone = true; });
+    return () => window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+  });
+
+  async function installApp() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') { deferredPrompt = null; isStandalone = true; }
+  }
+
   // ── conversion helpers ────────────────────────────────────────────────────
   function cToF(c) { return (c * 9) / 5 + 32; }
   function cToK(c) { return c + 273.15; }
@@ -149,21 +173,14 @@
   </div>
 </div>
 
+<!-- Floating Install Button (only when not installed and prompt is available) -->
+{#if !isStandalone && deferredPrompt}
+  <button class="pwa-install-fab" onclick={installApp} aria-label="Install app">
+    ⊕ Install App
+  </button>
+{/if}
+
 <style>
-  :global(*) {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-
-  :global(:root) {
-    --bg: #e6e9ef;
-    --light: #ffffff;
-    --dark: #c2c8d0;
-    --text: #2a2f3a;
-    --accent: #5a8dee;
-  }
-
   :global(body) {
     font-family: 'Segoe UI', Tahoma, sans-serif;
     background: var(--bg);
@@ -251,6 +268,7 @@
     color: var(--text);
     font-family: 'Segoe UI', Tahoma, sans-serif;
     -moz-appearance: textfield;
+    appearance: textfield;
     min-width: 0;
   }
 

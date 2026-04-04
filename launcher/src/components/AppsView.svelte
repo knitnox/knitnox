@@ -10,7 +10,6 @@
   let searchTerm = $state('');
   let displayCount = $state(INITIAL_COUNT);
   let loadError = $state(false);
-  let installedIds = $state(new Set());
 
   let filtered = $derived(
     searchTerm.trim() === ''
@@ -40,49 +39,6 @@
     return Object.keys(map).sort().map(name => ({ name, apps: map[name] }));
   });
 
-  // Read per-app localStorage keys written by sub-apps when they run in standalone mode.
-  // Also falls back to the old knitnox-installed JSON array for backwards compatibility.
-  function refreshInstalledIds(apps) {
-    const ids = new Set();
-    for (const app of apps) {
-      if (localStorage.getItem(`knitnox-app-${app.id}`) === '1') ids.add(app.id);
-    }
-    // backwards compat: honour anything manually added via old key
-    try {
-      const raw = localStorage.getItem('knitnox-installed');
-      if (raw) for (const id of JSON.parse(raw)) ids.add(id);
-    } catch {}
-    installedIds = ids;
-  }
-
-  // Re-check every time the tab becomes visible (user may have just installed an app then come back)
-  $effect(() => {
-    function onVisibilityChange() {
-      if (!document.hidden && allApps.length) refreshInstalledIds(allApps);
-    }
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
-  });
-
-  // Also react to storage events so the launcher updates if a sub-app writes the key in another tab
-  $effect(() => {
-    function onStorage(e) {
-      if (e.key?.startsWith('knitnox-') && allApps.length) refreshInstalledIds(allApps);
-    }
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  });
-
-  function handleInstall(app) {
-    window.open(app.url, '_blank', 'noopener');
-    // Optimistically mark as installed so UI updates immediately;
-    // the real confirmation comes when the app runs in standalone and writes its own key.
-    try { localStorage.setItem(`knitnox-app-${app.id}`, '1'); } catch {}
-    const ids = new Set(installedIds);
-    ids.add(app.id);
-    installedIds = ids;
-  }
-
   // Reset display count when search changes
   $effect(() => {
     searchTerm; // track
@@ -93,10 +49,7 @@
   $effect(() => {
     fetch('/apps.json')
       .then(r => r.json())
-      .then(data => {
-        allApps = data;
-        refreshInstalledIds(data);
-      })
+      .then(data => { allApps = data; })
       .catch(() => { loadError = true; });
   });
 

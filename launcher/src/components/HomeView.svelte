@@ -14,7 +14,7 @@
   <!-- Stats Strip -->
   <div class="stats-strip">
     <div class="stat-item">
-      <span class="stat-number">0</span>
+      <span class="stat-number">Zero</span>
       <span class="stat-label">Servers</span>
     </div>
     <div class="stat-item">
@@ -22,7 +22,7 @@
       <span class="stat-label">Offline</span>
     </div>
     <div class="stat-item">
-      <span class="stat-number">4</span>
+      <span class="stat-number">All</span>
       <span class="stat-label">Browser APIs</span>
     </div>
     <div class="stat-item">

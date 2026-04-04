@@ -444,27 +444,13 @@ Open `.github/workflows/deploy.yml` and add an install step for your new app. Wi
 
 ```yaml
       - name: Install my-app dependencies
-        run: npm ci
+        run: npm install
         working-directory: apps/my-app
 ```
 
 Add it after the existing install steps, before the "Build all projects" step.
 
-Also add your app's `package-lock.json` to the `cache-dependency-path` list so GitHub Actions caches the install:
-
-```yaml
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: |
-            launcher/package-lock.json
-            apps/calculator/package-lock.json
-            apps/color-calculator/package-lock.json
-            apps/temp-converter/package-lock.json
-            apps/my-app/package-lock.json   # ← add this
-```
+> **Note:** The workflow uses `npm install` (not `npm ci`) so that npm resolves platform-specific optional dependencies (e.g. the correct Rollup native binary) fresh on the CI runner. Using `npm ci` with a lock file generated on a different OS will cause the build to fail with a missing native module error.
 
 ### Step 10 — Install, build, and verify
 
@@ -491,15 +477,17 @@ git push origin main
         ▼
 GitHub Actions (.github/workflows/deploy.yml)
         ├── Checkout repo
-        ├── Setup Node 20 (with npm cache per package-lock.json)
-        ├── npm ci   (launcher)
-        ├── npm ci   (apps/calculator)
-        ├── npm ci   (apps/color-calculator)
-        ├── npm ci   (apps/temp-converter)
+        ├── Setup Node 20
+        ├── npm install   (launcher)
+        ├── npm install   (apps/calculator)
+        ├── npm install   (apps/color-calculator)
+        ├── npm install   (apps/temp-converter)
         ├── npm run build   (builds all 4 apps → dist/)
         ├── Upload dist/ as Pages artifact
         └── Deploy artifact → knitnox.github.io
 ```
+
+> **Why `npm install` instead of `npm ci`?** Lock files are platform-specific for packages with native binaries (like Rollup). A lock file generated on Windows only contains the Windows native module; `npm ci` on Linux would then fail with `Cannot find module @rollup/rollup-linux-x64-gnu`. Using `npm install` lets npm resolve the correct platform binary on each run.
 
 ### First-time GitHub Pages setup
 

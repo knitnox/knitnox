@@ -27,19 +27,19 @@ jobs:
           node-version: 20
 
       - name: Install launcher dependencies
-        run: npm install
+        run: npm install --no-package-lock
         working-directory: launcher
 
       - name: Install calculator dependencies
-        run: npm install
+        run: npm install --no-package-lock
         working-directory: apps/calculator
 
       - name: Install color-calculator dependencies
-        run: npm install
+        run: npm install --no-package-lock
         working-directory: apps/color-calculator
 
       - name: Install temp-converter dependencies
-        run: npm install
+        run: npm install --no-package-lock
         working-directory: apps/temp-converter
 
       - name: Build all projects

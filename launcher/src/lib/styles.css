@@ -611,8 +611,6 @@ p {
   font-weight: 700;
   color: var(--text);
   line-height: 1;
-  padding-left: 2px;
-  padding-right: 2px;
 }
 
 .stat-label {
@@ -620,6 +618,16 @@ p {
   color: #888;
   margin-top: 4px;
   text-align: center;
+}
+
+@media (max-width: 480px) {
+  .stat-number {
+    font-size: 1.1rem;
+  }
+
+  .stat-label {
+    font-size: 0.62rem;
+  }
 }
 
 /* ================================================

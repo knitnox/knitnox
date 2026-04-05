@@ -3,8 +3,9 @@
   <!-- Hero -->
   <div class="logo-card">
     <h1>{@html 'Knitnox'.split('').map(ch => `<span>${ch}</span>`).join('')}</h1>
-    <p class="tagline">Your browser is the controller.</p>
-    <p class="sub-tagline">Hardware control &amp; privacy-first tools — zero cloud, zero latency.</p>
+    <!-- <p class="tagline">Your browser is the controller.</p> -->
+    <p class="sub-tagline">zero cloud dependacy, zero latency.</p>
+    <p class="sub-tagline"><small> 🛠️This App is Under Construction</small></p>
   </div>
 
   <!-- Stats Strip -->
@@ -15,7 +16,7 @@
     </div>
     <div class="stat-item">
       <span class="stat-number">100%</span>
-      <span class="stat-label">Offline</span>
+      <span class="stat-label">Local-First</span>
     </div>
     <div class="stat-item">
       <span class="stat-number">n+</span>
@@ -33,7 +34,7 @@
       <span class="feature-badge">🔧</span>
       <div>
         <h2 class="feature-title">Hardware Control</h2>
-        <p class="feature-desc">Pair with Raspberry Pi, ESP32, and any other hardware directly from your browser — no drivers, no middleware, no cloud relay.</p>
+        <p class="feature-desc">Talk to your Raspberry Pi, ESP32, and any other hardware directly from your browser over WebUSB, WebSerial, WebBluetooth or local network; no drivers, no middleware, no cloud relay.</p>
       </div>
     </div>
     <div class="hw-svg-wrap">
@@ -76,14 +77,14 @@
 
         <!-- ── Waves + arrow → ESP32/Arduino (top node) ── -->
         <line x1="90" y1="28" x2="116" y2="28" stroke="currentColor" stroke-width="1.5" opacity="0.35" marker-end="url(#hw-arr)"/>
-        <circle cx="122" cy="28" r="2.3" fill="#5a8dee"/>
-        <path d="M 122 22 A 6 6 0 0 1 122 34" fill="none" stroke="#5a8dee" stroke-width="2.2" stroke-linecap="round"/>
-        <path d="M 122 17 A 11 11 0 0 1 122 39" fill="none" stroke="#5a8dee" stroke-width="1.7" stroke-linecap="round" opacity="0.65"/>
-        <line x1="134" y1="28" x2="156" y2="28" stroke="#5a8dee" stroke-width="1.5" opacity="0.55" marker-end="url(#hw-arr-blue)"/>
+        <circle cx="122" cy="28" r="2.3" fill="currentColor"/>
+        <path d="M 122 22 A 6 6 0 0 1 122 34" fill="none" stroke="currentColor" stroke-width="0.38" stroke-linecap="round"/>
+        <path d="M 122 17 A 11 11 0 0 1 122 39" fill="none" stroke="currentColor" stroke-width="0.38" stroke-linecap="round" opacity="0.65"/>
+        <line x1="134" y1="28" x2="156" y2="28" stroke="currentColor" stroke-width="0.38" opacity="0.38" marker-end="url(#hw-arr-blue)"/>
         <!-- ESP32/Arduino chip -->
-        <rect x="158" y="8" width="44" height="38" rx="4" fill="none" stroke="currentColor" stroke-width="1.8" opacity="0.65"/>
+        <rect x="158" y="8" width="44" height="38" rx="4" fill="none" stroke="currentColor" stroke-width="0.38" opacity="0.38"/>
         <rect x="164" y="14" width="32" height="26" rx="2" fill="currentColor" opacity="0.05"/>
-        <rect x="164" y="14" width="32" height="26" rx="2" fill="none" stroke="currentColor" stroke-width="0.8" opacity="0.18"/>
+        <rect x="164" y="14" width="32" height="26" rx="2" fill="none" stroke="currentColor" stroke-width="0.38" opacity="0.18"/>
         <rect x="150" y="16" width="8" height="2.5" rx="1" fill="currentColor" opacity="0.38"/>
         <rect x="150" y="22" width="8" height="2.5" rx="1" fill="currentColor" opacity="0.38"/>
         <rect x="150" y="28" width="8" height="2.5" rx="1" fill="currentColor" opacity="0.38"/>
@@ -92,19 +93,19 @@
         <rect x="202" y="22" width="8" height="2.5" rx="1" fill="currentColor" opacity="0.38"/>
         <rect x="202" y="28" width="8" height="2.5" rx="1" fill="currentColor" opacity="0.38"/>
         <rect x="202" y="34" width="8" height="2.5" rx="1" fill="currentColor" opacity="0.38"/>
-        <text x="180" y="26" font-size="6.5" font-family="monospace" fill="currentColor" opacity="0.6" text-anchor="middle">ESP32</text>
+        <text x="180" y="26" font-size="6.5" font-family="monospace" fill="currentColor" opacity="0.38" text-anchor="middle">ESP32</text>
         <text x="180" y="35" font-size="5" font-family="monospace" fill="currentColor" opacity="0.38" text-anchor="middle">Arduino</text>
 
         <!-- ── Waves + arrow → Raspberry Pi (bottom node) ── -->
-        <line x1="90" y1="98" x2="116" y2="98" stroke="currentColor" stroke-width="1.5" opacity="0.35" marker-end="url(#hw-arr)"/>
-        <circle cx="122" cy="98" r="2.3" fill="#c0392b"/>
-        <path d="M 122 92 A 6 6 0 0 1 122 104" fill="none" stroke="#c0392b" stroke-width="2.2" stroke-linecap="round"/>
-        <path d="M 122 87 A 11 11 0 0 1 122 109" fill="none" stroke="#c0392b" stroke-width="1.7" stroke-linecap="round" opacity="0.65"/>
-        <line x1="134" y1="98" x2="156" y2="98" stroke="#c0392b" stroke-width="1.5" opacity="0.55" marker-end="url(#hw-arr-red)"/>
+        <line x1="90" y1="98" x2="116" y2="98" stroke="currentColor" stroke-width="1.5" opacity="0.38" marker-end="url(#hw-arr)"/>
+        <circle cx="122" cy="98" r="2.3" fill="currentColor"/>
+        <path d="M 122 92 A 6 6 0 0 1 122 104" fill="none" stroke="currentColor" stroke-width="0.38" stroke-linecap="round"/>
+        <path d="M 122 87 A 11 11 0 0 1 122 109" fill="none" stroke="currentColor" stroke-width="0.38" stroke-linecap="round" opacity="0.65"/>
+        <line x1="134" y1="98" x2="156" y2="98" stroke="currentColor" stroke-width="0.38" opacity="0.38" marker-end="url(#hw-arr-red)"/>
         <!-- Raspberry Pi board -->
-        <rect x="158" y="80" width="62" height="38" rx="4" fill="none" stroke="currentColor" stroke-width="1.8" opacity="0.65"/>
+        <rect x="158" y="80" width="62" height="38" rx="4" fill="none" stroke="currentColor" stroke-width="0.38" opacity="0.38"/>
         <rect x="172" y="88" width="18" height="18" rx="2" fill="currentColor" opacity="0.08"/>
-        <rect x="172" y="88" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="1" opacity="0.2"/>
+        <rect x="172" y="88" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="0.38" opacity="0.2"/>
         <text x="181" y="99" font-size="4.5" font-family="monospace" fill="currentColor" opacity="0.5" text-anchor="middle">CPU</text>
         <rect x="196" y="84" width="5" height="2.5" rx="0.8" fill="currentColor" opacity="0.35"/>
         <rect x="196" y="89" width="5" height="2.5" rx="0.8" fill="currentColor" opacity="0.35"/>
@@ -116,8 +117,8 @@
         <rect x="203" y="94" width="5" height="2.5" rx="0.8" fill="currentColor" opacity="0.35"/>
         <rect x="203" y="99" width="5" height="2.5" rx="0.8" fill="currentColor" opacity="0.35"/>
         <rect x="203" y="104" width="5" height="2.5" rx="0.8" fill="currentColor" opacity="0.35"/>
-        <rect x="158" y="86" width="6" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3"/>
-        <rect x="158" y="94" width="6" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3"/>
+        <rect x="158" y="86" width="6" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="0.38" opacity="0.3"/>
+        <rect x="158" y="94" width="6" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="0.38" opacity="0.3"/>
         <text x="165" y="114" font-size="5.5" font-family="monospace" fill="currentColor" opacity="0.45" text-anchor="start">Raspberry Pi</text>
       </svg>
     </div>
@@ -131,7 +132,7 @@
         <svg viewBox="0 0 24 24" width="11" height="11" aria-hidden="true" style="fill:currentColor;flex-shrink:0"><rect x="10" y="19" width="4" height="3" rx="1"/><rect x="11" y="10" width="2" height="9"/><rect x="3" y="9.5" width="18" height="1.5"/><rect x="4.25" y="7.5" width="1.5" height="3"/><rect x="2.5" y="3" width="6" height="5" rx=".5"/><rect x="11" y="5" width="2" height="5.5"/><polygon points="12,1.5 9.5,5.5 14.5,5.5"/><rect x="18.25" y="7" width="1.5" height="4"/><circle cx="19" cy="5" r="2.5"/></svg>
         WebUSB
       </span>
-      <span class="pill">📶 LAN/WiFi</span>
+      <span class="pill">⌔ LAN/WiFi</span>
     </div>
   </div>
 
@@ -140,8 +141,8 @@
     <div class="feature-header">
       <span class="feature-badge">📲</span>
       <div>
-        <h2 class="feature-title">Offline-First App Collection</h2>
-        <p class="feature-desc">Lightweight PWAs that run entirely on your device — no Heavy installation, no store approval, no internet required after first load.</p>
+        <h2 class="feature-title">Local-First App Collection</h2>
+        <p class="feature-desc">Lightweight PWAs that run entirely on your device or local network; no cloud installation, no store approval, no internet required after first load. Utility tools work fully offline; hardware tools talk directly to devices on your LAN.</p>
       </div>
     </div>
     <div class="hw-svg-wrap">
@@ -168,8 +169,8 @@
         <rect x="93" y="58" width="14" height="14" rx="3" fill="currentColor" opacity="0.1" stroke="currentColor" stroke-width="0.8"/>
         <rect x="110" y="58" width="14" height="14" rx="3" fill="currentColor" opacity="0.1" stroke="currentColor" stroke-width="0.8"/>
         <!-- Down-arrow install badge -->
-        <line x1="100" y1="61" x2="100" y2="68" stroke="#5a8dee" stroke-width="2" stroke-linecap="round"/>
-        <polyline points="97,66 100,70 103,66" fill="none" stroke="#5a8dee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <line x1="100" y1="61" x2="100" y2="68" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <polyline points="97,66 100,70 103,66" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         <!-- Cloud source (left) -->
         <ellipse cx="22" cy="42" rx="14" ry="10" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4"/>
         <ellipse cx="15" cy="47" rx="9" ry="6" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.35"/>
@@ -179,9 +180,9 @@
         <line x1="38" y1="50" x2="66" y2="58" stroke="currentColor" stroke-width="1.5" opacity="0.35" stroke-dasharray="4 3"/>
         <polygon points="66,55 70,59 64,61" fill="currentColor" opacity="0.3"/>
         <!-- Cache badge -->
-        <rect x="140" y="46" width="46" height="18" rx="5" fill="none" stroke="#51cf66" stroke-width="1.5" opacity="0.6"/>
-        <text x="163" y="58" font-size="6" font-family="monospace" fill="#51cf66" opacity="0.75" text-anchor="middle">CACHED</text>
-        <line x1="132" y1="55" x2="140" y2="55" stroke="#51cf66" stroke-width="1.5" opacity="0.5" stroke-dasharray="3 2"/>
+        <rect x="140" y="46" width="46" height="18" rx="5" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.6"/>
+        <text x="163" y="58" font-size="6" font-family="monospace" fill="currentColor" opacity="0.75" text-anchor="middle">CACHED</text>
+        <line x1="132" y1="55" x2="140" y2="55" stroke="currentColor" stroke-width="1.5" opacity="0.5" stroke-dasharray="3 2"/>
       </svg>
     </div>
     <ul class="privacy-list">
@@ -213,10 +214,66 @@
         <p class="feature-desc">Every tool runs on your device. No accounts, no sync servers, no data ever leaves your browser.</p>
       </div>
     </div>
+    <div class="hw-svg-wrap">
+      <!-- Phone shielded from cloud & trackers -->
+      <svg viewBox="0 0 240 110" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="hw-diagram">
+
+        <!-- ── Shield ── -->
+        <path d="M 82 5 L 130 5 L 130 62 Q 130 90 106 100 Q 82 90 82 62 Z"
+              fill="#51cf66" fill-opacity="0.05" stroke="#51cf66" stroke-width="1.8" stroke-opacity="0.5"/>
+
+        <!-- ── Phone ── -->
+        <rect x="89" y="14" width="34" height="58" rx="5" fill="none" stroke="currentColor" stroke-width="1.8" opacity="0.65"/>
+        <rect x="89" y="14" width="34" height="10" rx="5" fill="currentColor" opacity="0.06"/>
+        <rect x="89" y="20" width="34" height="4" fill="currentColor" opacity="0.05"/>
+        <rect x="97" y="17" width="12" height="2" rx="1" fill="currentColor" opacity="0.22"/>
+        <circle cx="120" cy="18" r="1.5" fill="currentColor" opacity="0.2"/>
+        <circle cx="106" cy="65" r="3" fill="none" stroke="currentColor" stroke-width="1" opacity="0.28"/>
+        <!-- lock icon on screen -->
+        <rect x="100" y="31" width="12" height="9" rx="1.5" fill="#51cf66" opacity="0.28"/>
+        <rect x="100" y="31" width="12" height="9" rx="1.5" fill="none" stroke="#51cf66" stroke-width="1" opacity="0.6"/>
+        <path d="M102 31 Q102 26 106 26 Q110 26 110 31" fill="none" stroke="#51cf66" stroke-width="1.8" stroke-linecap="round" opacity="0.7"/>
+        <circle cx="106" cy="36" r="1.5" fill="#51cf66" opacity="0.9"/>
+        <rect x="94" y="46" width="24" height="2" rx="1" fill="currentColor" opacity="0.1"/>
+        <rect x="96" y="51" width="20" height="2" rx="1" fill="currentColor" opacity="0.08"/>
+        <rect x="98" y="56" width="16" height="2" rx="1" fill="currentColor" opacity="0.08"/>
+
+        <!-- ── Cloud (left, blocked) ── -->
+        <ellipse cx="26" cy="40" rx="14" ry="9" fill="none" stroke="currentColor" stroke-width="1.4" opacity="0.38"/>
+        <ellipse cx="18" cy="45" rx="8" ry="5" fill="none" stroke="currentColor" stroke-width="1.4" opacity="0.32"/>
+        <ellipse cx="34" cy="45" rx="8" ry="5" fill="none" stroke="currentColor" stroke-width="1.4" opacity="0.32"/>
+        <text x="26" y="59" font-size="5" font-family="monospace" fill="currentColor" opacity="0.38" text-anchor="middle">CLOUD</text>
+        <!-- red X through cloud -->
+        <line x1="12" y1="31" x2="40" y2="49" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity="0.65"/>
+        <line x1="40" y1="31" x2="12" y2="49" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity="0.65"/>
+        <!-- dashed arrow to shield, stopped -->
+        <line x1="42" y1="44" x2="78" y2="54" stroke="currentColor" stroke-width="1.4" stroke-dasharray="4 3" opacity="0.28"/>
+        <polygon points="76,51 82,55 75,58" fill="currentColor" opacity="0.2"/>
+
+        <!-- ── Eye / Tracker (right, blocked) ── -->
+        <ellipse cx="214" cy="37" rx="16" ry="9" fill="none" stroke="currentColor" stroke-width="1.4" opacity="0.38"/>
+        <circle cx="214" cy="37" r="4.5" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.35"/>
+        <circle cx="214" cy="37" r="1.8" fill="currentColor" opacity="0.22"/>
+        <text x="214" y="57" font-size="5" font-family="monospace" fill="currentColor" opacity="0.38" text-anchor="middle">TRACKER</text>
+        <!-- red X through eye -->
+        <line x1="198" y1="28" x2="230" y2="46" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity="0.65"/>
+        <line x1="230" y1="28" x2="198" y2="46" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity="0.65"/>
+        <!-- dashed arrow to shield, stopped -->
+        <line x1="198" y1="42" x2="136" y2="55" stroke="currentColor" stroke-width="1.4" stroke-dasharray="4 3" opacity="0.28"/>
+        <polygon points="138,52 132,56 138,60" fill="currentColor" opacity="0.2"/>
+
+        <!-- ── On-device label ── -->
+        <text x="106" y="107" font-size="5.5" font-family="monospace" fill="#51cf66" stroke-opacity="0.7" text-anchor="middle" opacity="0.7">ON-DEVICE ONLY</text>
+      </svg>
+    </div>
     <ul class="privacy-list">
       <li>
         <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="#51cf66" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
-        <span><strong>Fully offline</strong> — cached as PWAs, work without internet</span>
+        <span><strong>Offline-capable</strong> — utility apps cached as PWAs, usable with no internet at all</span>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="#51cf66" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+        <span><strong>LAN / local network</strong> — hardware tools connect to your devices directly over WiFi, Bluetooth, USB or even NFC, never through a cloud relay</span>
       </li>
       <li>
         <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="#51cf66" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>

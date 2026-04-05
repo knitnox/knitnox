@@ -12,5 +12,8 @@ export default {
     paths: {
       base: '/apps/calculator',
     },
+    files: {
+      assets: 'public',
+    },
   },
 };

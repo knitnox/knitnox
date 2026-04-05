@@ -611,6 +611,8 @@ p {
   font-weight: 700;
   color: var(--text);
   line-height: 1;
+  padding-left: 2px;
+  padding-right: 2px;
 }
 
 .stat-label {

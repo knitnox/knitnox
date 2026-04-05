@@ -12,5 +12,8 @@ export default {
     paths: {
       base: '/apps/color-calculator',
     },
+    files: {
+      assets: 'public',
+    },
   },
 };

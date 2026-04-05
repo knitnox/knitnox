@@ -12,5 +12,8 @@ export default {
     paths: {
       base: '/apps/temp-converter',
     },
+    files: {
+      assets: 'public',
+    },
   },
 };

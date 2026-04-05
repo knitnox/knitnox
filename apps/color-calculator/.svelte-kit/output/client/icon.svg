@@ -1,0 +1,86 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg-gradient-color" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e6e9ef;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#d8dce5;stop-opacity:1" />
+    </linearGradient>
+
+    <linearGradient id="palette-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f0f3f9;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e6e9ef;stop-opacity:1" />
+    </linearGradient>
+
+    <filter id="shadow-dark" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="3" dy="3" result="offsetblur"/>
+      <feFlood flood-color="#c2c8d0"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="shadow-light" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="-3" dy="-3" result="offsetblur"/>
+      <feFlood flood-color="#ffffff"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="200" height="200" rx="40" fill="url(#bg-gradient-color)"/>
+
+  <!-- Main card body -->
+  <g filter="url(#shadow-dark)">
+    <rect x="30" y="30" width="140" height="140" rx="20" fill="#e6e9ef"/>
+  </g>
+  <g filter="url(#shadow-light)">
+    <rect x="30" y="30" width="140" height="140" rx="20" fill="none"/>
+  </g>
+
+  <!-- Color palette shape (artist palette) -->
+  <g transform="translate(50, 50)">
+    <!-- Palette base -->
+    <ellipse cx="50" cy="50" rx="45" ry="38" fill="url(#palette-gradient)" stroke="#c2c8d0" stroke-width="1" opacity="0.9"/>
+    
+    <!-- Thumb hole -->
+    <ellipse cx="20" cy="70" rx="8" ry="10" fill="#d0d4dc" stroke="#c2c8d0" stroke-width="1"/>
+    
+    <!-- Color spots (RGB) -->
+    <!-- Red -->
+    <circle cx="40" cy="35" r="10" fill="#ff5757" stroke="#d0d4dc" stroke-width="1.5"/>
+    <circle cx="40" cy="35" r="10" fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.3"/>
+    
+    <!-- Green -->
+    <circle cx="65" cy="30" r="10" fill="#51cf66" stroke="#d0d4dc" stroke-width="1.5"/>
+    <circle cx="65" cy="30" r="10" fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.3"/>
+    
+    <!-- Blue -->
+    <circle cx="85" cy="45" r="10" fill="#5a8dee" stroke="#d0d4dc" stroke-width="1.5"/>
+    <circle cx="85" cy="45" r="10" fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.3"/>
+    
+    <!-- Yellow -->
+    <circle cx="50" cy="55" r="9" fill="#ffd93d" stroke="#d0d4dc" stroke-width="1.5"/>
+    <circle cx="50" cy="55" r="9" fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.3"/>
+    
+    <!-- Purple -->
+    <circle cx="75" cy="60" r="9" fill="#a78bfa" stroke="#d0d4dc" stroke-width="1.5"/>
+    <circle cx="75" cy="60" r="9" fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.3"/>
+    
+    <!-- Orange -->
+    <circle cx="90" cy="70" r="8" fill="#ffa94d" stroke="#d0d4dc" stroke-width="1.5"/>
+    <circle cx="90" cy="70" r="8" fill="none" stroke="#ffffff" stroke-width="0.5" opacity="0.3"/>
+  </g>
+
+  <!-- HEX symbol indicator -->
+  <g transform="translate(130, 140)">
+    <rect x="0" y="0" width="35" height="20" rx="4" fill="#5a8dee" opacity="0.9"/>
+    <text x="17.5" y="14" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#ffffff" text-anchor="middle">#HEX</text>
+  </g>
+</svg>

@@ -6,13 +6,15 @@ class Settings {
 	model = $state(browser ? localStorage.getItem('model') || 'gpt-4o' : 'gpt-4o');
 	systemPrompt = $state(browser ? localStorage.getItem('systemPrompt') || 'You are a helpful assistant.' : 'You are a helpful assistant.');
 	enableThinking = $state(browser ? localStorage.getItem('enableThinking') !== 'false' : true);
-	contextWindow = $state(browser ? parseInt(localStorage.getItem('contextWindow') || '20') : 20);
+	contextWindow = $state(browser ? parseInt(localStorage.getItem('contextWindow') || '12') : 12);
+	maxAgentTurns = $state(browser ? parseInt(localStorage.getItem('maxAgentTurns') || '10') : 10);
 	supportsImages = $state(browser ? localStorage.getItem('supportsImages') === 'true' : false);
 	supportsAudio = $state(browser ? localStorage.getItem('supportsAudio') === 'true' : false);
 	supportsVideo = $state(browser ? localStorage.getItem('supportsVideo') === 'true' : false);
 	fontSize = $state(browser ? localStorage.getItem('fontSize') || '16' : '16');
 	fontFamily = $state(browser ? localStorage.getItem('fontFamily') || 'sans' : 'sans');
 	mcpServers = $state<string[]>(browser ? JSON.parse(localStorage.getItem('mcpServers') || '[]') : []);
+	disabledTools = $state<string[]>(browser ? JSON.parse(localStorage.getItem('disabledTools') || '[]') : []);
 	
 	totalInputTokens = $state(browser ? parseInt(localStorage.getItem('totalInputTokens') || '0') : 0);
 	totalOutputTokens = $state(browser ? parseInt(localStorage.getItem('totalOutputTokens') || '0') : 0);
@@ -41,6 +43,9 @@ class Settings {
 					localStorage.setItem('contextWindow', String(this.contextWindow));
 				});
 				$effect(() => {
+					localStorage.setItem('maxAgentTurns', String(this.maxAgentTurns));
+				});
+				$effect(() => {
 					localStorage.setItem('supportsImages', String(this.supportsImages));
 				});
 				$effect(() => {
@@ -57,6 +62,9 @@ class Settings {
 				});
 				$effect(() => {
 					localStorage.setItem('mcpServers', JSON.stringify(this.mcpServers));
+				});
+				$effect(() => {
+					localStorage.setItem('disabledTools', JSON.stringify(this.disabledTools));
 				});
 				$effect(() => {
 					localStorage.setItem('totalInputTokens', String(this.totalInputTokens));
@@ -82,12 +90,14 @@ class Settings {
 			systemPrompt: this.systemPrompt,
 			enableThinking: this.enableThinking,
 			contextWindow: this.contextWindow,
+			maxAgentTurns: this.maxAgentTurns,
 			supportsImages: this.supportsImages,
 			supportsAudio: this.supportsAudio,
 			supportsVideo: this.supportsVideo,
 			fontSize: this.fontSize,
 			fontFamily: this.fontFamily,
-			mcpServers: this.mcpServers
+			mcpServers: this.mcpServers,
+			disabledTools: this.disabledTools
 		};
 		const blob = new Blob([JSON.stringify(settingsData, null, 2)], { type: 'application/json' });
 		const url = URL.createObjectURL(blob);
@@ -107,12 +117,14 @@ class Settings {
 			if (data.systemPrompt !== undefined) this.systemPrompt = data.systemPrompt;
 			if (data.enableThinking !== undefined) this.enableThinking = data.enableThinking;
 			if (data.contextWindow !== undefined) this.contextWindow = data.contextWindow;
+			if (data.maxAgentTurns !== undefined) this.maxAgentTurns = data.maxAgentTurns;
 			if (data.supportsImages !== undefined) this.supportsImages = data.supportsImages;
 			if (data.supportsAudio !== undefined) this.supportsAudio = data.supportsAudio;
 			if (data.supportsVideo !== undefined) this.supportsVideo = data.supportsVideo;
 			if (data.fontSize !== undefined) this.fontSize = data.fontSize;
 			if (data.fontFamily !== undefined) this.fontFamily = data.fontFamily;
 			if (data.mcpServers !== undefined) this.mcpServers = data.mcpServers;
+			if (data.disabledTools !== undefined) this.disabledTools = data.disabledTools;
 			return true;
 		} catch (e) {
 			console.error('Failed to import settings:', e);

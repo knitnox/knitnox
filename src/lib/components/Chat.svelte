@@ -3,6 +3,8 @@
 	import { streamChat, generateChatTitle } from '$lib/openai.svelte';
 	import { settings } from '$lib/settings.svelte';
 	import { getAllTools, MCPClient } from '$lib/mcp.svelte';
+	import { localTools } from '$lib/tools.svelte';
+	import ToolsSettingsModal from './ToolsSettingsModal.svelte';
 	import { liveQuery } from 'dexie';
 	import { Send, User, Bot, Loader2, Wrench, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu } from '@lucide/svelte';
 	import { tick } from 'svelte';
@@ -53,6 +55,7 @@
 	let attachments = $state<Attachment[]>([]);
 	let fileInput = $state<HTMLInputElement | null>(null);
 	let isStreaming = $state(false);
+	let isToolsModalOpen = $state(false);
 	let messagesContainer: HTMLDivElement | null = $state(null);
 	
 	let streamingMessageId = $state<number | null>(null);
@@ -184,17 +187,32 @@
 
 	async function processChat() {
 		const mcpTools = await getAllTools(settings.mcpServers);
-		const openaiTools = mcpTools.map(({ tool }) => ({
-			type: 'function' as const,
-			function: {
-				name: tool.name,
-				description: tool.description,
-				parameters: tool.inputSchema
-			}
-		}));
+		const filteredMcpTools = mcpTools.filter(t => !settings.disabledTools.includes(t.tool.name));
+		const filteredLocalTools = localTools.filter(t => !settings.disabledTools.includes(t.name));
+
+		const openaiTools = [
+			...filteredMcpTools.map(({ tool }) => ({
+				type: 'function' as const,
+				function: {
+					name: tool.name,
+					description: tool.description,
+					parameters: tool.inputSchema
+				}
+			})),
+			...filteredLocalTools.map((tool) => ({
+				type: 'function' as const,
+				function: {
+					name: tool.name,
+					description: tool.description,
+					parameters: tool.parameters
+				}
+			}))
+		];
 
 		let keepGoing = true;
-		while (keepGoing) {
+		let agentTurn = 0;
+		while (keepGoing && agentTurn < settings.maxAgentTurns) {
+			agentTurn++;
 			const allMessages = await db.messages.where('chatId').equals(chatId!).toArray();
 			
 			// Context window logic:
@@ -202,21 +220,15 @@
 			// 2. For these messages, filter out 'thinking' (though they aren't separate messages in DB usually) 
 			//    and 'tool' roles/tool_calls UNLESS they are in the very last 2 messages.
 			
-			const windowSize = settings.contextWindow || 20;
-			const windowMessages = allMessages.slice(-windowSize);
+			const windowSize = settings.contextWindow || 0;
+			const windowMessages = windowSize === 0 ? allMessages : allMessages.slice(-windowSize);
 			
+			const remainingContext = windowSize === 0 ? 'Unlimited' : Math.max(0, windowSize - allMessages.length);
+			const turnInfo = `\n\n[System Info: Turn ${agentTurn}/${settings.maxAgentTurns} in agent loop. Remaining context slots: ${remainingContext}.]`;
+
 			const apiMessages = [
-				{ role: 'system', content: settings.systemPrompt },
-				...windowMessages.filter((m, idx) => {
-					// Always include the last 2 messages regardless of type (to preserve tool chain if it's recent)
-					if (idx >= windowMessages.length - 2) return true;
-					
-					// Otherwise only include user and assistant messages that AREN'T tool calls
-					if (m.role === 'user') return true;
-					if (m.role === 'assistant' && !m.toolCalls?.length) return true;
-					
-					return false;
-				}).map((m) => {
+				{ role: 'system', content: settings.systemPrompt + turnInfo },
+				...windowMessages.map((m) => {
 					if (m.attachments?.length) {
 						const content: any[] = [];
 						if (m.content) {
@@ -351,11 +363,24 @@
 					const toolName = tc.function.name;
 					const toolArgs = JSON.parse(tc.function.arguments);
 					
-					const toolInfo = mcpTools.find(t => t.tool.name === toolName);
-					if (toolInfo) {
-						const client = new MCPClient(toolInfo.serverUrl);
+					const mcpTool = filteredMcpTools.find(t => t.tool.name === toolName);
+					if (mcpTool) {
+						const client = new MCPClient(mcpTool.serverUrl);
 						const result = await client.callTool(toolName, toolArgs);
 						
+						await db.messages.add({
+							chatId: chatId!,
+							role: 'tool',
+							content: JSON.stringify(result),
+							createdAt: Date.now(),
+							toolCallId: tc.id
+						} as any);
+						continue;
+					}
+
+					const localTool = filteredLocalTools.find(t => t.name === toolName);
+					if (localTool) {
+						const result = await localTool.handler(toolArgs);
 						await db.messages.add({
 							chatId: chatId!,
 							role: 'tool',
@@ -395,20 +420,21 @@
 					{chatId ? (currentChat?.title || 'New Chat') : 'knitnox'}
 				</h1>
 				{#if chatId}
-					<div class="flex items-center gap-3 sm:gap-6 text-[9px] sm:text-[10px]">
-						<div class="flex flex-col items-end">
-							<span class="font-bold uppercase tracking-wider text-zinc-600 opacity-60">Last</span>
-							<span class="font-mono text-zinc-600 dark:text-zinc-400"
-								>{currentChat?.lastInputTokens || 0}<span class="opacity-40 ml-0.5">I</span> / {currentChat?.lastOutputTokens || 0}<span class="opacity-40 ml-0.5">O</span></span
-							>
+					<div class="flex items-center gap-4 text-[10px] text-zinc-500 dark:text-zinc-400">
+						<div class="flex flex-col items-end leading-tight">
+							<span class="text-[9px] font-bold uppercase tracking-wider opacity-50">Last Message</span>
+							<span class="font-mono">
+								{((currentChat?.lastInputTokens || 0) / 1000).toFixed(1)}k <span class="opacity-50">in</span> 
+								/ {((currentChat?.lastOutputTokens || 0) / 1000).toFixed(1)}k <span class="opacity-50">out</span>
+							</span>
 						</div>
-						<div class="flex flex-col items-end border-l border-zinc-200 pl-3 sm:pl-6 dark:border-zinc-800">
-							<span class="font-bold uppercase tracking-wider text-zinc-600 opacity-60">Total</span>
-							<span class="font-mono text-zinc-600 dark:text-zinc-400"
-								>{((currentChat?.totalInputTokens || 0) / 1000).toFixed(1)}k / {(
-									(currentChat?.totalOutputTokens || 0) / 1000
-								).toFixed(1)}k</span
-							>
+						<div class="h-6 w-px bg-zinc-200 dark:bg-zinc-800"></div>
+						<div class="flex flex-col items-end leading-tight">
+							<span class="text-[9px] font-bold uppercase tracking-wider opacity-50">Session Total</span>
+							<span class="font-mono">
+								{((currentChat?.totalInputTokens || 0) / 1000).toFixed(1)}k <span class="opacity-50">in</span>
+								/ {((currentChat?.totalOutputTokens || 0) / 1000).toFixed(1)}k <span class="opacity-50">out</span>
+							</span>
 						</div>
 					</div>
 				{/if}
@@ -641,6 +667,14 @@
 					}}
 				></textarea>
 				<button
+					type="button"
+					onclick={() => isToolsModalOpen = true}
+					class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+					title="Tool Settings"
+				>
+					<Wrench size={20} />
+				</button>
+				<button
 					type="submit"
 					disabled={(!input.trim() && attachments.length === 0) || isStreaming}
 					class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 transition-all cursor-pointer"
@@ -658,3 +692,5 @@
 		</p>
 	</div>
 </div>
+
+<ToolsSettingsModal bind:isOpen={isToolsModalOpen} />

@@ -13,6 +13,11 @@ class Settings {
 	fontSize = $state(browser ? localStorage.getItem('fontSize') || '16' : '16');
 	fontFamily = $state(browser ? localStorage.getItem('fontFamily') || 'sans' : 'sans');
 	mcpServers = $state<string[]>(browser ? JSON.parse(localStorage.getItem('mcpServers') || '[]') : []);
+	
+	totalInputTokens = $state(browser ? parseInt(localStorage.getItem('totalInputTokens') || '0') : 0);
+	totalOutputTokens = $state(browser ? parseInt(localStorage.getItem('totalOutputTokens') || '0') : 0);
+	lastInputTokens = $state(browser ? parseInt(localStorage.getItem('lastInputTokens') || '0') : 0);
+	lastOutputTokens = $state(browser ? parseInt(localStorage.getItem('lastOutputTokens') || '0') : 0);
 
 	constructor() {
 		if (browser) {
@@ -52,6 +57,18 @@ class Settings {
 				});
 				$effect(() => {
 					localStorage.setItem('mcpServers', JSON.stringify(this.mcpServers));
+				});
+				$effect(() => {
+					localStorage.setItem('totalInputTokens', String(this.totalInputTokens));
+				});
+				$effect(() => {
+					localStorage.setItem('totalOutputTokens', String(this.totalOutputTokens));
+				});
+				$effect(() => {
+					localStorage.setItem('lastInputTokens', String(this.lastInputTokens));
+				});
+				$effect(() => {
+					localStorage.setItem('lastOutputTokens', String(this.lastOutputTokens));
 				});
 			});
 		}

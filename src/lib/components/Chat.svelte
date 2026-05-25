@@ -271,7 +271,28 @@
 
 			let lastUpdate = Date.now();
 			for await (const chunk of streamChat(apiMessages, openaiTools)) {
-				if (chunk.type === 'thinking') {
+				if (chunk.type === 'usage') {
+					const usage = chunk.data;
+					// Global stats
+					settings.lastInputTokens = usage.prompt_tokens;
+					settings.lastOutputTokens = usage.completion_tokens;
+					settings.totalInputTokens += usage.prompt_tokens;
+					settings.totalOutputTokens += usage.completion_tokens;
+
+					// Session stats
+					if (chatId) {
+						db.chats.get(chatId).then((chat) => {
+							if (chat) {
+								db.chats.update(chatId!, {
+									lastInputTokens: usage.prompt_tokens,
+									lastOutputTokens: usage.completion_tokens,
+									totalInputTokens: (chat.totalInputTokens || 0) + usage.prompt_tokens,
+									totalOutputTokens: (chat.totalOutputTokens || 0) + usage.completion_tokens
+								});
+							}
+						});
+					}
+				} else if (chunk.type === 'thinking') {
 					streamingThinking += chunk.data;
 					
 					if (Date.now() - lastUpdate > 50) {
@@ -357,15 +378,31 @@
 </script>
 
 <div class="flex h-full flex-col bg-white dark:bg-zinc-900">
-	{#if chatId}
-		<header class="flex items-center justify-between border-b border-zinc-200 p-4 dark:border-zinc-800">
-			<div class="mx-auto flex w-full max-w-4xl items-center justify-between">
-				<h1 class="text-sm font-semibold truncate max-w-[200px]">
-					{currentChat?.title || 'New Chat'}
-				</h1>
-			</div>
-		</header>
-	{/if}
+	<header class="shrink-0 border-b border-zinc-200 bg-white/80 p-4 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/80">
+		<div class="mx-auto flex w-full max-w-4xl items-center justify-between">
+			<h1 class="max-w-[200px] truncate text-sm font-semibold">
+				{chatId ? (currentChat?.title || 'New Chat') : 'OpenWebUI-Lite'}
+			</h1>
+			{#if chatId}
+				<div class="flex items-center gap-6 text-[10px]">
+					<div class="flex flex-col items-end">
+						<span class="font-bold uppercase tracking-wider text-zinc-400 opacity-70">Last Prompt</span>
+						<span class="font-mono text-zinc-600 dark:text-zinc-400"
+							>{currentChat?.lastInputTokens || 0} <span class="text-[8px] opacity-40">IN</span> / {currentChat?.lastOutputTokens || 0} <span class="text-[8px] opacity-40">OUT</span></span
+						>
+					</div>
+					<div class="flex flex-col items-end border-l border-zinc-200 pl-6 dark:border-zinc-800">
+						<span class="font-bold uppercase tracking-wider text-zinc-400 opacity-70">Total Usage</span>
+						<span class="font-mono text-zinc-600 dark:text-zinc-400"
+							>{((currentChat?.totalInputTokens || 0) / 1000).toFixed(1)}k / {(
+								(currentChat?.totalOutputTokens || 0) / 1000
+							).toFixed(1)}k</span
+						>
+					</div>
+				</div>
+			{/if}
+		</div>
+	</header>
 
 	<div bind:this={messagesContainer} class="flex-1 overflow-y-auto p-4">
 		<div class="mx-auto max-w-4xl space-y-6">

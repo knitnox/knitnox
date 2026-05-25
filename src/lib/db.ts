@@ -4,6 +4,10 @@ export interface Chat {
 	id?: number;
 	title: string;
 	createdAt: number;
+	totalInputTokens?: number;
+	totalOutputTokens?: number;
+	lastInputTokens?: number;
+	lastOutputTokens?: number;
 }
 
 export interface Attachment {

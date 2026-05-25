@@ -46,10 +46,15 @@ export async function* streamChat(messages: { role: string; content: string }[],
 			messages: messages as any,
 			tools: tools?.length ? tools : undefined,
 			stream: true,
+			stream_options: { include_usage: true },
 			...(settings.enableThinking ? { include_reasoning: true } : {})
 		} as any);
 
 		for await (const chunk of stream) {
+			if (chunk.usage) {
+				yield { type: 'usage', data: chunk.usage };
+			}
+
 			const choice = chunk.choices?.[0];
 			if (!choice) continue;
 

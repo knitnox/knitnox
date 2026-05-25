@@ -135,6 +135,39 @@
 						></textarea>
 					</div>
 
+					<div class="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-800/50">
+						<h3 class="mb-3 text-sm font-bold uppercase tracking-wider text-zinc-500">Token Usage Statistics</h3>
+						<div class="grid grid-cols-2 gap-4">
+							<div class="space-y-1">
+								<p class="text-xs text-zinc-500 font-medium">TOTAL INPUT</p>
+								<p class="text-lg font-mono font-bold text-blue-600">{(settings.totalInputTokens).toLocaleString()}</p>
+							</div>
+							<div class="space-y-1">
+								<p class="text-xs text-zinc-500 font-medium">TOTAL OUTPUT</p>
+								<p class="text-lg font-mono font-bold text-green-600">{(settings.totalOutputTokens).toLocaleString()}</p>
+							</div>
+							<div class="space-y-1">
+								<p class="text-xs text-zinc-500 font-medium">LAST INPUT</p>
+								<p class="text-sm font-mono font-semibold">{settings.lastInputTokens}</p>
+							</div>
+							<div class="space-y-1">
+								<p class="text-xs text-zinc-500 font-medium">LAST OUTPUT</p>
+								<p class="text-sm font-mono font-semibold">{settings.lastOutputTokens}</p>
+							</div>
+						</div>
+						<button 
+							onclick={() => {
+								if (confirm('Are you sure you want to reset total token counts?')) {
+									settings.totalInputTokens = 0;
+									settings.totalOutputTokens = 0;
+								}
+							}}
+							class="mt-4 text-[10px] font-bold text-red-500 hover:text-red-600 uppercase tracking-tighter"
+						>
+							Reset All Time Totals
+						</button>
+					</div>
+
 					<div class="pt-4 border-t border-zinc-200 dark:border-zinc-800">
 						<label class="mb-2 block text-sm font-bold">MCP Servers</label>
 						<div class="space-y-2">

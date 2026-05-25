@@ -6,7 +6,7 @@
 	import { localTools } from '$lib/tools.svelte';
 	import ToolsSettingsModal from './ToolsSettingsModal.svelte';
 	import ToolInspectModal from './ToolInspectModal.svelte';
-	import Logo from './Logo.svelte';
+	import LandingPage from './LandingPage.svelte';
 	import { liveQuery } from 'dexie';
 	import { Send, User, Bot, Loader2, Wrench, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check } from '@lucide/svelte';
 	import { tick } from 'svelte';
@@ -490,160 +490,160 @@
 
 	<div bind:this={messagesContainer} class="flex-1 overflow-y-auto p-1.5 sm:p-4">
 		<div class="mx-auto max-w-4xl space-y-3 sm:space-y-6">
-			{#if (messagesList && messagesList.length > 0) || streamingMessageId || streamingError}
+			{#if (messagesList && messagesList.length > 0) || isStreaming || streamingError}
 				{#if messagesList && messagesList.length > 0}
 					{#each messagesList as message}
 						{#if message.role !== 'tool' && message.id !== streamingMessageId}
-						<div class="flex gap-3 sm:gap-4 {message.role === 'user' ? 'justify-end' : ''}">
-							<div
-								class="flex max-w-[95%] sm:max-w-[90%] gap-2 sm:gap-3 {message.role === 'user'
-									? 'flex-row-reverse'
-									: 'flex-row'}"
-							>
+							<div class="flex gap-3 sm:gap-4 {message.role === 'user' ? 'justify-end' : ''}">
 								<div
-									class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg {message.role ===
-									'user'
-										? 'bg-gray-600 text-white'
-										: 'bg-zinc-200 dark:bg-zinc-800'}"
+									class="flex max-w-[95%] sm:max-w-[90%] gap-2 sm:gap-3 {message.role === 'user'
+										? 'flex-row-reverse'
+										: 'flex-row'}"
 								>
-									{#if message.role === 'user'}
-										<User size={18} />
-									{:else}
-										<Bot size={18} />
-									{/if}
-								</div>
-								<div class="space-y-2 overflow-hidden">
-									{#if message.thinkingContent}
-										<details class="group rounded-xl border border-zinc-200 bg-zinc-50/50 p-2 dark:border-zinc-800 dark:bg-zinc-800/30">
-											<summary class="flex cursor-pointer list-none items-center gap-2 text-xs font-medium text-zinc-500">
-												<ChevronRight size={14} class="transition-transform group-open:rotate-90" />
-												<span>{message.thinkingDuration ? `Thought (${message.thinkingDuration.toFixed(1)}s)` : 'Thought'}</span>
-												
-												{#if message.toolCalls}
-													<div class="flex flex-wrap gap-1 ml-auto">
-														{#each message.toolCalls as tc}
-															{@const toolResult = messagesList.find(m => m.role === 'tool' && m.toolCallId === tc.id)}
-															<button 
-																onclick={(e) => {
-																	e.preventDefault();
-																	e.stopPropagation();
-																	inspectToolData = {
-																		isOpen: true,
-																		toolName: tc.function.name,
-																		args: JSON.parse(tc.function.arguments),
-																		result: toolResult ? JSON.parse(toolResult.content) : 'Pending...'
-																	};
-																}}
-																class="flex items-center gap-1 rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400"
-															>
-																<Wrench size={10} />
-																{tc.function.name}
-															</button>
+									<div
+										class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg {message.role ===
+										'user'
+											? 'bg-gray-600 text-white'
+											: 'bg-zinc-200 dark:bg-zinc-800'}"
+									>
+										{#if message.role === 'user'}
+											<User size={18} />
+										{:else}
+											<Bot size={18} />
+										{/if}
+									</div>
+									<div class="space-y-2 overflow-hidden">
+										{#if message.thinkingContent}
+											<details class="group rounded-xl border border-zinc-200 bg-zinc-50/50 p-2 dark:border-zinc-800 dark:bg-zinc-800/30">
+												<summary class="flex cursor-pointer list-none items-center gap-2 text-xs font-medium text-zinc-500">
+													<ChevronRight size={14} class="transition-transform group-open:rotate-90" />
+													<span>{message.thinkingDuration ? `Thought (${message.thinkingDuration.toFixed(1)}s)` : 'Thought'}</span>
+													
+													{#if message.toolCalls}
+														<div class="flex flex-wrap gap-1 ml-auto">
+															{#each message.toolCalls as tc}
+																{@const toolResult = messagesList.find(m => m.role === 'tool' && m.toolCallId === tc.id)}
+																<button 
+																	onclick={(e) => {
+																		e.preventDefault();
+																		e.stopPropagation();
+																		inspectToolData = {
+																			isOpen: true,
+																			toolName: tc.function.name,
+																			args: JSON.parse(tc.function.arguments),
+																			result: toolResult ? JSON.parse(toolResult.content) : 'Pending...'
+																		};
+																	}}
+																	class="flex items-center gap-1 rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400"
+																>
+																	<Wrench size={10} />
+																	{tc.function.name}
+																</button>
+															{/each}
+														</div>
+													{/if}
+												</summary>
+												<div 
+													use:autoscroll
+													class="mt-2 max-h-48 overflow-y-auto border-l-2 border-zinc-200 pl-3 text-xs italic text-zinc-600 dark:border-zinc-700 dark:text-zinc-400 custom-scrollbar whitespace-pre-wrap"
+												>
+													{message.thinkingContent}
+												</div>
+											</details>
+										{/if}
+
+										{#if !message.thinkingContent && message.toolCalls}
+											<div class="flex flex-wrap gap-1 mb-2">
+												{#each message.toolCalls as tc}
+													{@const toolResult = messagesList.find(m => m.role === 'tool' && m.toolCallId === tc.id)}
+													<button 
+														onclick={() => {
+															inspectToolData = {
+																isOpen: true,
+																toolName: tc.function.name,
+																args: JSON.parse(tc.function.arguments),
+																result: toolResult ? JSON.parse(toolResult.content) : 'Pending...'
+															};
+														}}
+														class="flex items-center gap-1 rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-100 dark:border-blue-800"
+													>
+														<Wrench size={10} />
+														{tc.function.name}
+													</button>
+												{/each}
+											</div>
+										{/if}
+
+										{#if message.content}
+											<div
+												class="rounded-2xl px-3 py-1.5 {message.role === 'user'
+													? 'bg-gray-600 text-white'
+													: 'bg-zinc-100 dark:bg-zinc-800 prose prose-sm dark:prose-invert max-w-none'}"
+											>
+												{#if message.attachments}
+													<div class="mb-2 flex flex-wrap gap-2">
+														{#each message.attachments as att}
+															<div class="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
+																{#if att.type === 'image'}
+																	<img src={att.data} alt={att.name} class="max-h-48 object-contain" />
+																{:else if att.type === 'audio'}
+																	<audio src={att.data} controls class="h-10 w-48"></audio>
+																{:else if att.type === 'video'}
+																	<video src={att.data} controls class="max-h-48 w-48"></video>
+																{:else}
+																	<div class="flex items-center gap-2 bg-zinc-50 p-2 dark:bg-zinc-900">
+																		<File size={16} />
+																		<span class="text-xs">{att.name}</span>
+																	</div>
+																{/if}
+															</div>
 														{/each}
 													</div>
 												{/if}
-											</summary>
-											<div 
-												use:autoscroll
-												class="mt-2 max-h-48 overflow-y-auto border-l-2 border-zinc-200 pl-3 text-xs italic text-zinc-600 dark:border-zinc-700 dark:text-zinc-400 custom-scrollbar whitespace-pre-wrap"
-											>
-												{message.thinkingContent}
-											</div>
-										</details>
-									{/if}
-
-									{#if !message.thinkingContent && message.toolCalls}
-										<div class="flex flex-wrap gap-1 mb-2">
-											{#each message.toolCalls as tc}
-												{@const toolResult = messagesList.find(m => m.role === 'tool' && m.toolCallId === tc.id)}
-												<button 
-													onclick={() => {
-														inspectToolData = {
-															isOpen: true,
-															toolName: tc.function.name,
-															args: JSON.parse(tc.function.arguments),
-															result: toolResult ? JSON.parse(toolResult.content) : 'Pending...'
-														};
-													}}
-													class="flex items-center gap-1 rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-100 dark:border-blue-800"
-												>
-													<Wrench size={10} />
-													{tc.function.name}
-												</button>
-											{/each}
-										</div>
-									{/if}
-
-									{#if message.content}
-										<div
-											class="rounded-2xl px-3 py-1.5 {message.role === 'user'
-												? 'bg-gray-600 text-white'
-												: 'bg-zinc-100 dark:bg-zinc-800 prose prose-sm dark:prose-invert max-w-none'}"
-										>
-											{#if message.attachments}
-												<div class="mb-2 flex flex-wrap gap-2">
-													{#each message.attachments as att}
-														<div class="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
-															{#if att.type === 'image'}
-																<img src={att.data} alt={att.name} class="max-h-48 object-contain" />
-															{:else if att.type === 'audio'}
-																<audio src={att.data} controls class="h-10 w-48"></audio>
-															{:else if att.type === 'video'}
-																<video src={att.data} controls class="max-h-48 w-48"></video>
+												
+												{#if message.role === 'user'}
+													<p class="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+												{:else}
+													<div class="markdown-content">
+														{#each marked.lexer(message.content) as token, i (i)}
+															{#if token.type === 'code'}
+																{@const codeId = `${message.id}-${i}`}
+																	<div class="group relative my-4 overflow-hidden rounded-xl border border-zinc-200 bg-[#1e1e1e] dark:border-zinc-800">
+																		<div class="flex items-center justify-between border-b border-white/5 bg-white/5 px-4 py-1.5 backdrop-blur-sm">
+																			<span class="text-[10px] font-mono font-medium text-zinc-500 uppercase tracking-wider">{token.lang || 'code'}</span>
+																			<button
+																				onclick={() => copyToClipboard(token.text, codeId)}
+																				class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-zinc-400 transition-colors hover:bg-white/10 hover:text-zinc-200"
+																			>
+																				{#if copiedStates[codeId]}
+																					<Check size={14} class="text-green-500" />
+																					<span class="text-green-500">Copied!</span>
+																				{:else}
+																					<Copy size={14} />
+																					<span>Copy</span>
+																				{/if}
+																			</button>
+																		</div>
+																		<div class="overflow-x-auto p-4">
+																			{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
+																		</div>
+																	</div>
 															{:else}
-																<div class="flex items-center gap-2 bg-zinc-50 p-2 dark:bg-zinc-900">
-																	<File size={16} />
-																	<span class="text-xs">{att.name}</span>
-																</div>
+																{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
 															{/if}
-														</div>
-													{/each}
-												</div>
-											{/if}
-											
-											{#if message.role === 'user'}
-												<p class="whitespace-pre-wrap leading-relaxed">{message.content}</p>
-											{:else}
-												<div class="markdown-content">
-													{#each marked.lexer(message.content) as token, i (i)}
-														{#if token.type === 'code'}
-															{@const codeId = `${message.id}-${i}`}
-																<div class="group relative my-4 overflow-hidden rounded-xl border border-zinc-200 bg-[#1e1e1e] dark:border-zinc-800">
-																	<div class="flex items-center justify-between border-b border-white/5 bg-white/5 px-4 py-1.5 backdrop-blur-sm">
-																		<span class="text-[10px] font-mono font-medium text-zinc-500 uppercase tracking-wider">{token.lang || 'code'}</span>
-																		<button
-																			onclick={() => copyToClipboard(token.text, codeId)}
-																			class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-zinc-400 transition-colors hover:bg-white/10 hover:text-zinc-200"
-																		>
-																			{#if copiedStates[codeId]}
-																				<Check size={14} class="text-green-500" />
-																				<span class="text-green-500">Copied!</span>
-																			{:else}
-																				<Copy size={14} />
-																				<span>Copy</span>
-																			{/if}
-																		</button>
-																	</div>
-																	<div class="overflow-x-auto p-4">
-																		{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
-																	</div>
-																</div>
-														{:else}
-															{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
-														{/if}
-													{/each}
-												</div>
-											{/if}
-										</div>
-									{/if}
+														{/each}
+													</div>
+												{/if}
+											</div>
+										{/if}
+									</div>
 								</div>
 							</div>
-						</div>
-					{/if}
-				{/each}
-			{/if}
+						{/if}
+					{/each}
+				{/if}
 
-			{#if streamingMessageId}
+				{#if streamingMessageId}
 					<div class="flex gap-4">
 						<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-200 dark:bg-zinc-800">
 							<Bot size={18} />
@@ -664,8 +664,8 @@
 									>
 										{streamingThinking}
 									</div>
-									</details>
-									{/if}
+								</details>
+							{/if}
 							{#if streamingContent}
 								<div class="rounded-2xl bg-zinc-100 px-3 py-1.5 dark:bg-zinc-800 prose prose-sm dark:prose-invert max-w-none">
 									<div class="markdown-content">
@@ -723,7 +723,7 @@
 							{/if}
 						</div>
 					</div>
-				{:else if isStreaming && messagesList[messagesList.length - 1]?.role === 'user'}
+				{:else if isStreaming}
 					<div class="flex gap-4">
 						<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-200 dark:bg-zinc-800">
 							<Bot size={18} />
@@ -745,7 +745,7 @@
 					</div>
 				{/if}
 			{:else}
-				<Logo />
+				<LandingPage />
 			{/if}
 		</div>
 	</div>

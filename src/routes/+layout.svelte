@@ -6,21 +6,28 @@
 
 	let { children } = $props();
 
-	let dynamicStyles = $derived.by(() => {
-		const family = settings.fontFamily === 'mono' ? 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' : 
-		               settings.fontFamily === 'serif' ? 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif' : 
-					   'ui-sans-serif, system-ui, sans-serif';
-		return `
-			:root {
-				--chat-font-size: ${settings.fontSize}px;
-				--chat-font-family: ${family};
-			}
-		`;
+	let family = $derived(
+		settings.fontFamily === 'mono' ? 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' : 
+		settings.fontFamily === 'serif' ? 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif' : 
+		'ui-sans-serif, system-ui, sans-serif'
+	);
+
+	$effect(() => {
+		document.documentElement.style.setProperty('--chat-font-size', `${settings.fontSize}px`);
+		document.documentElement.style.setProperty('--chat-font-family', family);
+		document.documentElement.style.fontSize = `${settings.fontSize}px`;
+		document.documentElement.style.fontFamily = family;
+		
+		// Also apply to body specifically to ensure standard CSS inheritance works as expected
+		document.body.style.fontSize = `${settings.fontSize}px`;
+		document.body.style.fontFamily = family;
 	});
 </script>
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
-	{@html `<style>${dynamicStyles}</style>`}
 </svelte:head>
+
+<svelte:body />
+
 {@render children()}

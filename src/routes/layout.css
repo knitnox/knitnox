@@ -1,14 +1,14 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 
-:root {
-	--chat-font-size: 16px;
-	--chat-font-family: ui-sans-serif, system-ui, sans-serif;
-}
-
 body {
 	font-size: var(--chat-font-size);
 	font-family: var(--chat-font-family);
+}
+
+.prose, .prose-sm {
+	font-size: var(--chat-font-size) !important;
+	font-family: var(--chat-font-family) !important;
 }
 
 /* Make code blocks more readable and respect font size */

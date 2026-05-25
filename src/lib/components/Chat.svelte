@@ -4,7 +4,7 @@
 	import { settings } from '$lib/settings.svelte';
 	import { getAllTools, MCPClient } from '$lib/mcp.svelte';
 	import { liveQuery } from 'dexie';
-	import { Send, User, Bot, Loader2, Wrench, ChevronRight, Trash2, Paperclip, File, X as CloseIcon } from '@lucide/svelte';
+	import { Send, User, Bot, Loader2, Wrench, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import { Marked } from 'marked';
 	import { markedHighlight } from 'marked-highlight';
@@ -44,7 +44,10 @@
 		};
 	}
 
-	let { chatId = $bindable() } = $props<{ chatId: number | null }>();
+	let { chatId = $bindable(), onToggleSidebar } = $props<{ 
+		chatId: number | null;
+		onToggleSidebar?: () => void;
+	}>();
 
 	let input = $state('');
 	let attachments = $state<Attachment[]>([]);
@@ -378,47 +381,56 @@
 </script>
 
 <div class="flex h-full flex-col bg-white dark:bg-zinc-900">
-	<header class="shrink-0 border-b border-zinc-200 bg-white/80 p-4 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/80">
-		<div class="mx-auto flex w-full max-w-4xl items-center justify-between">
-			<h1 class="max-w-[200px] truncate text-sm font-semibold">
-				{chatId ? (currentChat?.title || 'New Chat') : 'OpenWebUI-Lite'}
-			</h1>
-			{#if chatId}
-				<div class="flex items-center gap-6 text-[10px]">
-					<div class="flex flex-col items-end">
-						<span class="font-bold uppercase tracking-wider text-zinc-400 opacity-70">Last Prompt</span>
-						<span class="font-mono text-zinc-600 dark:text-zinc-400"
-							>{currentChat?.lastInputTokens || 0} <span class="text-[8px] opacity-40">IN</span> / {currentChat?.lastOutputTokens || 0} <span class="text-[8px] opacity-40">OUT</span></span
-						>
+	<header class="shrink-0 border-b border-zinc-200 bg-white/80 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/80">
+		<div class="flex h-12 items-center px-1 sm:px-4">
+			<button 
+				onclick={onToggleSidebar}
+				class="rounded-lg p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 shrink-0"
+				aria-label="Toggle Sidebar"
+			>
+				<Menu size={18} />
+			</button>
+			<div class="mx-auto flex w-full max-w-4xl items-center justify-between gap-2 pl-1 sm:pl-2">
+				<h1 class="truncate text-xs sm:text-sm font-semibold">
+					{chatId ? (currentChat?.title || 'New Chat') : 'OpenWebUI-Lite'}
+				</h1>
+				{#if chatId}
+					<div class="flex items-center gap-3 sm:gap-6 text-[9px] sm:text-[10px]">
+						<div class="flex flex-col items-end">
+							<span class="font-bold uppercase tracking-wider text-zinc-600 opacity-60">Last</span>
+							<span class="font-mono text-zinc-600 dark:text-zinc-400"
+								>{currentChat?.lastInputTokens || 0}<span class="opacity-40 ml-0.5">I</span> / {currentChat?.lastOutputTokens || 0}<span class="opacity-40 ml-0.5">O</span></span
+							>
+						</div>
+						<div class="flex flex-col items-end border-l border-zinc-200 pl-3 sm:pl-6 dark:border-zinc-800">
+							<span class="font-bold uppercase tracking-wider text-zinc-600 opacity-60">Total</span>
+							<span class="font-mono text-zinc-600 dark:text-zinc-400"
+								>{((currentChat?.totalInputTokens || 0) / 1000).toFixed(1)}k / {(
+									(currentChat?.totalOutputTokens || 0) / 1000
+								).toFixed(1)}k</span
+							>
+						</div>
 					</div>
-					<div class="flex flex-col items-end border-l border-zinc-200 pl-6 dark:border-zinc-800">
-						<span class="font-bold uppercase tracking-wider text-zinc-400 opacity-70">Total Usage</span>
-						<span class="font-mono text-zinc-600 dark:text-zinc-400"
-							>{((currentChat?.totalInputTokens || 0) / 1000).toFixed(1)}k / {(
-								(currentChat?.totalOutputTokens || 0) / 1000
-							).toFixed(1)}k</span
-						>
-					</div>
-				</div>
-			{/if}
+				{/if}
+			</div>
 		</div>
 	</header>
 
-	<div bind:this={messagesContainer} class="flex-1 overflow-y-auto p-4">
-		<div class="mx-auto max-w-4xl space-y-6">
+	<div bind:this={messagesContainer} class="flex-1 overflow-y-auto p-1.5 sm:p-4">
+		<div class="mx-auto max-w-4xl space-y-3 sm:space-y-6">
 			{#if messagesList}
 				{#each messagesList as message}
 					{#if message.role !== 'tool' && message.id !== streamingMessageId}
-						<div class="flex gap-4 {message.role === 'user' ? 'justify-end' : ''}">
+						<div class="flex gap-3 sm:gap-4 {message.role === 'user' ? 'justify-end' : ''}">
 							<div
-								class="flex max-w-[90%] gap-3 {message.role === 'user'
+								class="flex max-w-[95%] sm:max-w-[90%] gap-2 sm:gap-3 {message.role === 'user'
 									? 'flex-row-reverse'
 									: 'flex-row'}"
 							>
 								<div
 									class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg {message.role ===
 									'user'
-										? 'bg-blue-600 text-white'
+										? 'bg-gray-600 text-white'
 										: 'bg-zinc-200 dark:bg-zinc-800'}"
 								>
 									{#if message.role === 'user'}
@@ -442,9 +454,9 @@
 											</div>
 											</details>
 											{/if}									<div
-										class="rounded-2xl px-4 py-2 prose prose-sm dark:prose-invert max-w-none {message.role === 'user'
-											? 'bg-blue-600 text-white prose-p:text-white prose-code:text-white'
-											: 'bg-zinc-100 dark:bg-zinc-800'}"
+										class="rounded-2xl px-3 py-1.5 {message.role === 'user'
+											? 'bg-gray-600 text-white'
+											: 'bg-zinc-100 dark:bg-zinc-800 prose prose-sm dark:prose-invert max-w-none'}"
 									>
 										{#if message.attachments}
 											<div class="mb-2 flex flex-wrap gap-2">
@@ -515,7 +527,7 @@
 									</div>
 									</details>
 									{/if}							{#if streamingContent}
-								<div class="rounded-2xl bg-zinc-100 px-4 py-2 dark:bg-zinc-800 prose prose-sm dark:prose-invert max-w-none">
+								<div class="rounded-2xl bg-zinc-100 px-3 py-1.5 dark:bg-zinc-800 prose prose-sm dark:prose-invert max-w-none">
 									<div class="markdown-content">
 										{@html renderMarkdown(streamingContent)}
 									</div>
@@ -536,7 +548,7 @@
 							{/if}
 							
 							{#if !streamingContent && !streamingThinking && streamingToolCalls.filter(Boolean).length === 0}
-								<div class="flex items-center gap-2 rounded-2xl bg-zinc-100 px-4 py-2 dark:bg-zinc-800">
+								<div class="flex items-center gap-2 rounded-2xl bg-zinc-100 px-3 py-1.5 dark:bg-zinc-800">
 									<Loader2 size={18} class="animate-spin opacity-50" />
 								</div>
 							{/if}
@@ -547,7 +559,7 @@
 						<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-200 dark:bg-zinc-800">
 							<Bot size={18} />
 						</div>
-						<div class="flex items-center gap-2 rounded-2xl bg-zinc-100 px-4 py-2 dark:bg-zinc-800">
+						<div class="flex items-center gap-2 rounded-2xl bg-zinc-100 px-3 py-1.5 dark:bg-zinc-800">
 							<Loader2 size={18} class="animate-spin opacity-50" />
 						</div>
 					</div>
@@ -558,7 +570,7 @@
 						<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 text-red-600 dark:bg-red-900/30">
 							<Bot size={18} />
 						</div>
-						<div class="rounded-2xl bg-red-50 px-4 py-2 text-red-600 dark:bg-red-900/20">
+						<div class="rounded-2xl bg-red-50 px-3 py-1.5 text-red-600 dark:bg-red-900/20">
 							<p class="text-sm font-medium">Error: {streamingError}</p>
 						</div>
 					</div>
@@ -567,7 +579,7 @@
 		</div>
 	</div>
 
-	<div class="border-t border-zinc-200 p-4 dark:border-zinc-800">
+	<div class="border-t border-zinc-200 p-2 sm:p-4 dark:border-zinc-800">
 		<form onsubmit={handleSubmit} class="mx-auto max-w-4xl">
 			{#if attachments.length > 0}
 				<div class="mb-2 flex flex-wrap gap-2 px-2">
@@ -599,7 +611,7 @@
 					{/each}
 				</div>
 			{/if}
-			<div class="relative flex items-end gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 p-2 focus-within:ring-2 focus-within:ring-blue-500 dark:border-zinc-800 dark:bg-zinc-950">
+			<div class="relative flex items-end gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 p-1.5 sm:p-2 focus-within:ring-2 focus-within:ring-blue-500 dark:border-zinc-800 dark:bg-zinc-950">
 				{#if settings.supportsImages || settings.supportsAudio || settings.supportsVideo}
 					<input 
 						type="file" 

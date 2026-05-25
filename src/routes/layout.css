@@ -37,12 +37,20 @@ body {
 /* Adjust prose styles to be more centered and readable */
 .prose {
 	max-width: none !important;
-	line-height: 1.75 !important;
+	line-height: 1.6;
 }
 
 .prose p {
-	margin-top: 1.25em !important;
-	margin-bottom: 1.25em !important;
+	margin-top: 0.5em;
+	margin-bottom: 0.5em;
+}
+
+.prose p:first-child {
+	margin-top: 0;
+}
+
+.prose p:last-child {
+	margin-bottom: 0;
 }
 
 /* Custom, nice scrollbars */

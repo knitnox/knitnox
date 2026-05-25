@@ -6,8 +6,9 @@
 	import { localTools } from '$lib/tools.svelte';
 	import ToolsSettingsModal from './ToolsSettingsModal.svelte';
 	import ToolInspectModal from './ToolInspectModal.svelte';
+	import Logo from './Logo.svelte';
 	import { liveQuery } from 'dexie';
-	import { Send, User, Bot, Loader2, Wrench, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square } from '@lucide/svelte';
+	import { Send, User, Bot, Loader2, Wrench, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import { Marked } from 'marked';
 	import { markedHighlight } from 'marked-highlight';
@@ -76,7 +77,21 @@
 	let streamingTokens = $derived(marked.lexer(streamingContent));
 
 	let messagesList = $state<Message[]>([]);
-	let currentChat = $state<{ title: string } | null>(null);
+	let currentChat = $state<import('$lib/db').Chat | null>(null);
+
+	let copiedStates = $state<Record<string, boolean>>({});
+
+	async function copyToClipboard(text: string, id: string) {
+		try {
+			await navigator.clipboard.writeText(text);
+			copiedStates[id] = true;
+			setTimeout(() => {
+				copiedStates[id] = false;
+			}, 2000);
+		} catch (err) {
+			console.error('Failed to copy text: ', err);
+		}
+	}
 
 	function stopGeneration() {
 		if (abortController) {
@@ -475,9 +490,10 @@
 
 	<div bind:this={messagesContainer} class="flex-1 overflow-y-auto p-1.5 sm:p-4">
 		<div class="mx-auto max-w-4xl space-y-3 sm:space-y-6">
-			{#if messagesList}
-				{#each messagesList as message}
-					{#if message.role !== 'tool' && message.id !== streamingMessageId}
+			{#if (messagesList && messagesList.length > 0) || streamingMessageId || streamingError}
+				{#if messagesList && messagesList.length > 0}
+					{#each messagesList as message}
+						{#if message.role !== 'tool' && message.id !== streamingMessageId}
 						<div class="flex gap-3 sm:gap-4 {message.role === 'user' ? 'justify-end' : ''}">
 							<div
 								class="flex max-w-[95%] sm:max-w-[90%] gap-2 sm:gap-3 {message.role === 'user'
@@ -589,7 +605,33 @@
 												<p class="whitespace-pre-wrap leading-relaxed">{message.content}</p>
 											{:else}
 												<div class="markdown-content">
-													{@html renderMarkdown(message.content)}
+													{#each marked.lexer(message.content) as token, i (i)}
+														{#if token.type === 'code'}
+															{@const codeId = `${message.id}-${i}`}
+																<div class="group relative my-4 overflow-hidden rounded-xl border border-zinc-200 bg-[#1e1e1e] dark:border-zinc-800">
+																	<div class="flex items-center justify-between border-b border-white/5 bg-white/5 px-4 py-1.5 backdrop-blur-sm">
+																		<span class="text-[10px] font-mono font-medium text-zinc-500 uppercase tracking-wider">{token.lang || 'code'}</span>
+																		<button
+																			onclick={() => copyToClipboard(token.text, codeId)}
+																			class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-zinc-400 transition-colors hover:bg-white/10 hover:text-zinc-200"
+																		>
+																			{#if copiedStates[codeId]}
+																				<Check size={14} class="text-green-500" />
+																				<span class="text-green-500">Copied!</span>
+																			{:else}
+																				<Copy size={14} />
+																				<span>Copy</span>
+																			{/if}
+																		</button>
+																	</div>
+																	<div class="overflow-x-auto p-4">
+																		{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
+																	</div>
+																</div>
+														{:else}
+															{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
+														{/if}
+													{/each}
 												</div>
 											{/if}
 										</div>
@@ -599,8 +641,9 @@
 						</div>
 					{/if}
 				{/each}
+			{/if}
 
-				{#if streamingMessageId}
+			{#if streamingMessageId}
 					<div class="flex gap-4">
 						<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-200 dark:bg-zinc-800">
 							<Bot size={18} />
@@ -628,7 +671,31 @@
 									<div class="markdown-content">
 										{#each streamingTokens as token, i (i)}
 											<div class="token-container">
-												{@html DOMPurify.sanitize(marked.parseTokens([token]))}
+												{#if token.type === 'code'}
+													{@const codeId = `streaming-${i}`}
+													<div class="group relative my-4 overflow-hidden rounded-xl border border-zinc-200 bg-[#1e1e1e] dark:border-zinc-800">
+														<div class="flex items-center justify-between border-b border-white/5 bg-white/5 px-4 py-1.5 backdrop-blur-sm">
+															<span class="text-[10px] font-mono font-medium text-zinc-500 uppercase tracking-wider">{token.lang || 'code'}</span>
+															<button
+																onclick={() => copyToClipboard(token.text, codeId)}
+																class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-zinc-400 transition-colors hover:bg-white/10 hover:text-zinc-200"
+															>
+																{#if copiedStates[codeId]}
+																	<Check size={14} class="text-green-500" />
+																	<span class="text-green-500">Copied!</span>
+																{:else}
+																	<Copy size={14} />
+																	<span>Copy</span>
+																{/if}
+															</button>
+														</div>
+														<div class="overflow-x-auto p-4">
+															{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
+														</div>
+													</div>
+												{:else}
+													{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
+												{/if}
 											</div>
 										{/each}
 										<span class="inline-block w-1.5 h-4 ml-1 bg-zinc-400 dark:bg-zinc-500 animate-pulse align-middle"></span>
@@ -677,6 +744,8 @@
 						</div>
 					</div>
 				{/if}
+			{:else}
+				<Logo />
 			{/if}
 		</div>
 	</div>

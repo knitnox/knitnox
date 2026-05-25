@@ -38,7 +38,7 @@ export async function generateChatTitle(firstMessage: string) {
 	}
 }
 
-export async function* streamChat(messages: { role: string; content: string }[], tools?: any[], signal?: AbortSignal) {
+export async function* streamChat(messages: any[], tools?: any[], signal?: AbortSignal) {
 	try {
 		const openai = createOpenAIClient();
 		const stream = await openai.chat.completions.create({
@@ -50,7 +50,7 @@ export async function* streamChat(messages: { role: string; content: string }[],
 			...(settings.enableThinking ? { include_reasoning: true } : {})
 		} as any, { signal });
 
-		for await (const chunk of stream) {
+		for await (const chunk of (stream as any)) {
 			if (chunk.usage) {
 				yield { type: 'usage', data: chunk.usage };
 			}

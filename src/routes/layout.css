@@ -1,0 +1,84 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/typography';
+
+:root {
+	--chat-font-size: 16px;
+	--chat-font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+	font-size: var(--chat-font-size);
+	font-family: var(--chat-font-family);
+}
+
+/* Make code blocks more readable and respect font size */
+.prose pre {
+	background-color: #1e1e1e !important;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 0.75rem !important;
+	padding: 1.25rem !important;
+	margin: 1.5rem 0 !important;
+}
+
+.prose code {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+	font-size: 0.95em !important; /* Relative to parent font size */
+	line-height: 1.6 !important;
+}
+
+/* Ensure code inside pre blocks is clear */
+.prose pre code {
+	background-color: transparent !important;
+	padding: 0 !important;
+	border: none !important;
+	color: #e5e7eb !important;
+}
+
+/* Adjust prose styles to be more centered and readable */
+.prose {
+	max-width: none !important;
+	line-height: 1.75 !important;
+}
+
+.prose p {
+	margin-top: 1.25em !important;
+	margin-bottom: 1.25em !important;
+}
+
+/* Custom, nice scrollbars */
+::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+	background: #d4d4d8;
+	border-radius: 10px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+	background: #3f3f46;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: #a1a1aa;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+	background: #52525b;
+}
+
+/* Scrollbar styling for Firefox */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: #d4d4d8 transparent;
+}
+
+.dark * {
+	scrollbar-color: #3f3f46 transparent;
+}
+

@@ -71,6 +71,63 @@ This application acts as a native MCP Client. It:
 
 ---
 
+## 🛠 Tool Management System
+
+knitnox features a robust, extensible tool system that supports both **Built-in (Local) Tools** and dynamic **MCP Tools**.
+
+### 1. Adding/Removing Local Tools
+Local tools are defined in `src/lib/tools.svelte.ts`. To add a new tool:
+
+1.  **Open `src/lib/tools.svelte.ts`.**
+2.  **Add a new tool object** to the `localTools` array:
+    ```typescript
+    {
+        name: 'my_tool_name',
+        description: 'Describe what the tool does',
+        parameters: {
+            type: 'object',
+            properties: {
+                param1: { type: 'string', description: 'Parameter description' }
+            },
+            required: ['param1']
+        },
+        handler: async (args: { param1: string }) => {
+            // Your logic here
+            return { result: `Handled ${args.param1}` };
+        }
+    }
+    ```
+3.  The tool will automatically appear in the **Tool Settings Modal**.
+
+### 2. Managing MCP Tools
+MCP tools are loaded dynamically from the servers configured in the main **Settings Modal**.
+- **To add:** Enter an SSE endpoint URL (e.g., `http://localhost:8000/sse`) in the "MCP Servers" section of Settings.
+- **To remove:** Delete the URL from the settings list.
+
+### 3. Turning Tools On/Off (User-Facing)
+Users can enable or disable specific tools without deleting them:
+- Click the **Wrench Icon** 🔧 next to the message input.
+- A slide-up modal will show all "Built-in" and "MCP" tools.
+- Toggle the switch to enable/disable. Disabled tools will not be sent to the LLM.
+
+### 4. Inspecting Tool Executions
+To see the technical details of a tool call:
+- Look for the **blue tool badges** (e.g., `[🔧 popup]`) near the "Thought" or content of a message.
+- **Click the badge** to open the **Tool Execution Details** modal.
+- View the exact **Arguments** sent to the tool and the **Result** returned.
+
+---
+
+## ⚙️ Agent Loop & Context Control
+
+You can control the "Agentic" behavior of the system in the main **Settings Modal**:
+
+- **Context Window (Messages):** Limits how many previous messages are sent to the LLM (default: `12`). Set to `0` for unlimited.
+- **Max Agent Turns:** Sets a hard limit on how many consecutive tool calls the LLM can make in a single response cycle (default: `10`). This prevents infinite loops and controls costs.
+- **System Info Injection:** The system automatically informs the LLM of its remaining turns and context space, allowing it to adapt its strategy in real-time.
+
+---
+
 ## 🛠 Project Structure
 
 - `src/lib/settings.svelte.ts`: Uses Svelte 5 **Runes** (`$state`) to manage global settings with automatic `localStorage` synchronization.

@@ -5,8 +5,9 @@
 	import { getAllTools, MCPClient } from '$lib/mcp.svelte';
 	import { localTools } from '$lib/tools.svelte';
 	import ToolsSettingsModal from './ToolsSettingsModal.svelte';
+	import ToolInspectModal from './ToolInspectModal.svelte';
 	import { liveQuery } from 'dexie';
-	import { Send, User, Bot, Loader2, Wrench, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu } from '@lucide/svelte';
+	import { Send, User, Bot, Loader2, Wrench, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import { Marked } from 'marked';
 	import { markedHighlight } from 'marked-highlight';
@@ -32,7 +33,7 @@
 		const update = () => {
 			node.scrollTo({
 				top: node.scrollHeight,
-				behavior: 'smooth'
+				behavior: 'auto'
 			});
 		};
 		
@@ -56,6 +57,13 @@
 	let fileInput = $state<HTMLInputElement | null>(null);
 	let isStreaming = $state(false);
 	let isToolsModalOpen = $state(false);
+	let abortController = $state<AbortController | null>(null);
+	let inspectToolData = $state<{ isOpen: boolean; toolName: string; args: any; result: any }>({
+		isOpen: false,
+		toolName: '',
+		args: null,
+		result: null
+	});
 	let messagesContainer: HTMLDivElement | null = $state(null);
 	
 	let streamingMessageId = $state<number | null>(null);
@@ -65,8 +73,17 @@
 	let streamingError = $state<string | null>(null);
 	let streamingStartTime = $state<number>(0);
 
+	let streamingTokens = $derived(marked.lexer(streamingContent));
+
 	let messagesList = $state<Message[]>([]);
 	let currentChat = $state<{ title: string } | null>(null);
+
+	function stopGeneration() {
+		if (abortController) {
+			abortController.abort();
+			abortController = null;
+		}
+	}
 
 	$effect(() => {
 		const id = chatId;
@@ -284,64 +301,78 @@
 			streamingToolCalls = [];
 			streamingStartTime = Date.now();
 
-			let lastUpdate = Date.now();
-			for await (const chunk of streamChat(apiMessages, openaiTools)) {
-				if (chunk.type === 'usage') {
-					const usage = chunk.data;
-					// Global stats
-					settings.lastInputTokens = usage.prompt_tokens;
-					settings.lastOutputTokens = usage.completion_tokens;
-					settings.totalInputTokens += usage.prompt_tokens;
-					settings.totalOutputTokens += usage.completion_tokens;
+			abortController = new AbortController();
 
-					// Session stats
-					if (chatId) {
-						db.chats.get(chatId).then((chat) => {
-							if (chat) {
-								db.chats.update(chatId!, {
-									lastInputTokens: usage.prompt_tokens,
-									lastOutputTokens: usage.completion_tokens,
-									totalInputTokens: (chat.totalInputTokens || 0) + usage.prompt_tokens,
-									totalOutputTokens: (chat.totalOutputTokens || 0) + usage.completion_tokens
-								});
-							}
-						});
+			let lastUpdate = Date.now();
+			try {
+				for await (const chunk of streamChat(apiMessages, openaiTools, abortController.signal)) {
+					if (chunk.type === 'usage') {
+						const usage = chunk.data;
+						// Global stats
+						settings.lastInputTokens = usage.prompt_tokens;
+						settings.lastOutputTokens = usage.completion_tokens;
+						settings.totalInputTokens += usage.prompt_tokens;
+						settings.totalOutputTokens += usage.completion_tokens;
+
+						// Session stats
+						if (chatId) {
+							db.chats.get(chatId).then((chat) => {
+								if (chat) {
+									db.chats.update(chatId!, {
+										lastInputTokens: usage.prompt_tokens,
+										lastOutputTokens: usage.completion_tokens,
+										totalInputTokens: (chat.totalInputTokens || 0) + usage.prompt_tokens,
+										totalOutputTokens: (chat.totalOutputTokens || 0) + usage.completion_tokens
+									});
+								}
+							});
+						}
+					} else if (chunk.type === 'thinking') {
+						streamingThinking += chunk.data;
+						
+						if (Date.now() - lastUpdate > 50) {
+							db.messages.update(messageId, { thinkingContent: streamingThinking });
+							lastUpdate = Date.now();
+						}
+					} else if (chunk.type === 'content') {
+						if (!assistantContent && streamingThinking) {
+							// First content chunk after thinking
+							const duration = (Date.now() - streamingStartTime) / 1000;
+							db.messages.update(messageId, { thinkingDuration: duration });
+						}
+						assistantContent += chunk.data;
+						streamingContent = assistantContent;
+						
+						// Update DB at most every 50ms for performance, or if it's the first chunk
+						if (Date.now() - lastUpdate > 50 || assistantContent.length < 5) {
+							db.messages.update(messageId, { content: assistantContent });
+							lastUpdate = Date.now();
+						}
+					} else if (chunk.type === 'tool_call') {
+						const tc = chunk.data as any;
+						if (!streamingToolCalls[tc.index]) {
+							streamingToolCalls[tc.index] = {
+								id: tc.id,
+								type: 'function',
+								function: { name: '', arguments: '' }
+							};
+						}
+						if (tc.function?.name) streamingToolCalls[tc.index].function.name += tc.function.name;
+						if (tc.function?.arguments) streamingToolCalls[tc.index].function.arguments += tc.function.arguments;
+						
+						db.messages.update(messageId, { toolCalls: $state.snapshot(streamingToolCalls) });
 					}
-				} else if (chunk.type === 'thinking') {
-					streamingThinking += chunk.data;
-					
-					if (Date.now() - lastUpdate > 50) {
-						db.messages.update(messageId, { thinkingContent: streamingThinking });
-						lastUpdate = Date.now();
-					}
-				} else if (chunk.type === 'content') {
-					if (!assistantContent && streamingThinking) {
-						// First content chunk after thinking
-						const duration = (Date.now() - streamingStartTime) / 1000;
-						db.messages.update(messageId, { thinkingDuration: duration });
-					}
-					assistantContent += chunk.data;
-					streamingContent = assistantContent;
-					
-					// Update DB at most every 50ms for performance, or if it's the first chunk
-					if (Date.now() - lastUpdate > 50 || assistantContent.length < 5) {
-						db.messages.update(messageId, { content: assistantContent });
-						lastUpdate = Date.now();
-					}
-				} else if (chunk.type === 'tool_call') {
-					const tc = chunk.data as any;
-					if (!streamingToolCalls[tc.index]) {
-						streamingToolCalls[tc.index] = {
-							id: tc.id,
-							type: 'function',
-							function: { name: '', arguments: '' }
-						};
-					}
-					if (tc.function?.name) streamingToolCalls[tc.index].function.name += tc.function.name;
-					if (tc.function?.arguments) streamingToolCalls[tc.index].function.arguments += tc.function.arguments;
-					
-					db.messages.update(messageId, { toolCalls: $state.snapshot(streamingToolCalls) });
 				}
+			} catch (err: any) {
+				if (err.name === 'AbortError') {
+					assistantContent += '\n\n[Stopped by user]';
+					streamingContent = assistantContent;
+					keepGoing = false;
+				} else {
+					throw err;
+				}
+			} finally {
+				abortController = null;
 			}
 			// Final update to ensure everything is saved
 			await db.messages.update(messageId, { 
@@ -471,6 +502,30 @@
 											<summary class="flex cursor-pointer list-none items-center gap-2 text-xs font-medium text-zinc-500">
 												<ChevronRight size={14} class="transition-transform group-open:rotate-90" />
 												<span>{message.thinkingDuration ? `Thought (${message.thinkingDuration.toFixed(1)}s)` : 'Thought'}</span>
+												
+												{#if message.toolCalls}
+													<div class="flex flex-wrap gap-1 ml-auto">
+														{#each message.toolCalls as tc}
+															{@const toolResult = messagesList.find(m => m.role === 'tool' && m.toolCallId === tc.id)}
+															<button 
+																onclick={(e) => {
+																	e.preventDefault();
+																	e.stopPropagation();
+																	inspectToolData = {
+																		isOpen: true,
+																		toolName: tc.function.name,
+																		args: JSON.parse(tc.function.arguments),
+																		result: toolResult ? JSON.parse(toolResult.content) : 'Pending...'
+																	};
+																}}
+																class="flex items-center gap-1 rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400"
+															>
+																<Wrench size={10} />
+																{tc.function.name}
+															</button>
+														{/each}
+													</div>
+												{/if}
 											</summary>
 											<div 
 												use:autoscroll
@@ -478,33 +533,58 @@
 											>
 												{message.thinkingContent}
 											</div>
-											</details>
-											{/if}									<div
-										class="rounded-2xl px-3 py-1.5 {message.role === 'user'
-											? 'bg-gray-600 text-white'
-											: 'bg-zinc-100 dark:bg-zinc-800 prose prose-sm dark:prose-invert max-w-none'}"
-									>
-										{#if message.attachments}
-											<div class="mb-2 flex flex-wrap gap-2">
-												{#each message.attachments as att}
-													<div class="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
-														{#if att.type === 'image'}
-															<img src={att.data} alt={att.name} class="max-h-48 object-contain" />
-														{:else if att.type === 'audio'}
-															<audio src={att.data} controls class="h-10 w-48"></audio>
-														{:else if att.type === 'video'}
-															<video src={att.data} controls class="max-h-48 w-48"></video>
-														{:else}
-															<div class="flex items-center gap-2 bg-zinc-50 p-2 dark:bg-zinc-900">
-																<File size={16} />
-																<span class="text-xs">{att.name}</span>
-															</div>
-														{/if}
-													</div>
-												{/each}
-											</div>
-										{/if}
-										{#if message.content}
+										</details>
+									{/if}
+
+									{#if !message.thinkingContent && message.toolCalls}
+										<div class="flex flex-wrap gap-1 mb-2">
+											{#each message.toolCalls as tc}
+												{@const toolResult = messagesList.find(m => m.role === 'tool' && m.toolCallId === tc.id)}
+												<button 
+													onclick={() => {
+														inspectToolData = {
+															isOpen: true,
+															toolName: tc.function.name,
+															args: JSON.parse(tc.function.arguments),
+															result: toolResult ? JSON.parse(toolResult.content) : 'Pending...'
+														};
+													}}
+													class="flex items-center gap-1 rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-100 dark:border-blue-800"
+												>
+													<Wrench size={10} />
+													{tc.function.name}
+												</button>
+											{/each}
+										</div>
+									{/if}
+
+									{#if message.content}
+										<div
+											class="rounded-2xl px-3 py-1.5 {message.role === 'user'
+												? 'bg-gray-600 text-white'
+												: 'bg-zinc-100 dark:bg-zinc-800 prose prose-sm dark:prose-invert max-w-none'}"
+										>
+											{#if message.attachments}
+												<div class="mb-2 flex flex-wrap gap-2">
+													{#each message.attachments as att}
+														<div class="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
+															{#if att.type === 'image'}
+																<img src={att.data} alt={att.name} class="max-h-48 object-contain" />
+															{:else if att.type === 'audio'}
+																<audio src={att.data} controls class="h-10 w-48"></audio>
+															{:else if att.type === 'video'}
+																<video src={att.data} controls class="max-h-48 w-48"></video>
+															{:else}
+																<div class="flex items-center gap-2 bg-zinc-50 p-2 dark:bg-zinc-900">
+																	<File size={16} />
+																	<span class="text-xs">{att.name}</span>
+																</div>
+															{/if}
+														</div>
+													{/each}
+												</div>
+											{/if}
+											
 											{#if message.role === 'user'}
 												<p class="whitespace-pre-wrap leading-relaxed">{message.content}</p>
 											{:else}
@@ -512,16 +592,6 @@
 													{@html renderMarkdown(message.content)}
 												</div>
 											{/if}
-										{/if}
-									</div>
-									{#if message.toolCalls}
-										<div class="space-y-2">
-											{#each message.toolCalls as tc}
-												<div class="flex items-center gap-2 rounded-lg bg-zinc-50 px-3 py-1.5 text-xs font-medium dark:bg-zinc-800/50">
-													<Wrench size={14} class="text-blue-500" />
-													<span>Using tool: <span class="text-blue-500">{tc.function.name}</span></span>
-												</div>
-											{/each}
 										</div>
 									{/if}
 								</div>
@@ -552,10 +622,16 @@
 										{streamingThinking}
 									</div>
 									</details>
-									{/if}							{#if streamingContent}
+									{/if}
+							{#if streamingContent}
 								<div class="rounded-2xl bg-zinc-100 px-3 py-1.5 dark:bg-zinc-800 prose prose-sm dark:prose-invert max-w-none">
 									<div class="markdown-content">
-										{@html renderMarkdown(streamingContent)}
+										{#each streamingTokens as token, i (i)}
+											<div class="token-container">
+												{@html DOMPurify.sanitize(marked.parseTokens([token]))}
+											</div>
+										{/each}
+										<span class="inline-block w-1.5 h-4 ml-1 bg-zinc-400 dark:bg-zinc-500 animate-pulse align-middle"></span>
 									</div>
 								</div>
 							{/if}
@@ -674,17 +750,24 @@
 				>
 					<Wrench size={20} />
 				</button>
-				<button
-					type="submit"
-					disabled={(!input.trim() && attachments.length === 0) || isStreaming}
-					class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 transition-all cursor-pointer"
-				>
-					{#if isStreaming}
-						<Loader2 size={18} class="animate-spin" />
-					{:else}
+				{#if isStreaming}
+					<button
+						type="button"
+						onclick={stopGeneration}
+						class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-500 text-white shadow-sm hover:bg-red-600 transition-all cursor-pointer"
+						title="Stop Generation"
+					>
+						<Square size={16} fill="currentColor" />
+					</button>
+				{:else}
+					<button
+						type="submit"
+						disabled={(!input.trim() && attachments.length === 0)}
+						class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 transition-all cursor-pointer"
+					>
 						<Send size={18} />
-					{/if}
-				</button>
+					</button>
+				{/if}
 			</div>
 		</form>
 		<p class="mt-2 text-center text-xs text-zinc-500">
@@ -694,3 +777,40 @@
 </div>
 
 <ToolsSettingsModal bind:isOpen={isToolsModalOpen} />
+<ToolInspectModal 
+	bind:isOpen={inspectToolData.isOpen} 
+	toolName={inspectToolData.toolName}
+	args={inspectToolData.args}
+	result={inspectToolData.result}
+/>
+
+<style>
+	@keyframes token-fade-in {
+		from {
+			opacity: 0;
+			transform: translateY(4px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	.token-container {
+		animation: token-fade-in 0.3s ease-out forwards;
+	}
+
+	/* Optional: make the cursor more visible */
+	.animate-pulse {
+		animation: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+	}
+
+	@keyframes pulse {
+		0%, 100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.3;
+		}
+	}
+</style>

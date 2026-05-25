@@ -13,7 +13,7 @@ export function createOpenAIClient() {
 		dangerouslyAllowBrowser: true,
 		defaultHeaders: isOpenRouter ? {
 			'HTTP-Referer': window.location.origin,
-			'X-Title': 'OpenWebUI-Lite'
+			'X-Title': 'knitnox'
 		} : undefined
 	});
 }

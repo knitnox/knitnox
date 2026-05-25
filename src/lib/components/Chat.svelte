@@ -392,7 +392,7 @@
 			</button>
 			<div class="mx-auto flex w-full max-w-4xl items-center justify-between gap-2 pl-1 sm:pl-2">
 				<h1 class="truncate text-xs sm:text-sm font-semibold">
-					{chatId ? (currentChat?.title || 'New Chat') : 'OpenWebUI-Lite'}
+					{chatId ? (currentChat?.title || 'New Chat') : 'knitnox'}
 				</h1>
 				{#if chatId}
 					<div class="flex items-center gap-3 sm:gap-6 text-[9px] sm:text-[10px]">
@@ -654,7 +654,7 @@
 			</div>
 		</form>
 		<p class="mt-2 text-center text-xs text-zinc-500">
-			OpenWebUI-Lite can make mistakes. Check important info.
+			knitnox can make mistakes. Check important info.
 		</p>
 	</div>
 </div>

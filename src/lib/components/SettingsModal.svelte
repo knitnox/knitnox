@@ -1,12 +1,31 @@
 <script lang="ts">
 	import { settings } from '$lib/settings.svelte';
-	import { X } from '@lucide/svelte';
+	import { X, Download, Upload } from '@lucide/svelte';
 
 
 	let { isOpen = $bindable(false) } = $props();
+	let importInput = $state<HTMLInputElement | null>(null);
 
 	function close() {
 		isOpen = false;
+	}
+
+	function handleImport(e: Event) {
+		const target = e.target as HTMLInputElement;
+		const file = target.files?.[0];
+		if (!file) return;
+
+		const reader = new FileReader();
+		reader.onload = (e) => {
+			const content = e.target?.result as string;
+			if (settings.importSettings(content)) {
+				alert('Settings imported successfully!');
+			} else {
+				alert('Failed to import settings. Please check the file format.');
+			}
+		};
+		reader.readAsText(file);
+		target.value = ''; // Reset
 	}
 </script>
 
@@ -192,6 +211,33 @@
 								class="text-sm text-blue-600 hover:text-blue-700 font-medium"
 							>
 								+ Add MCP Server
+							</button>
+						</div>
+					</div>
+
+					<div class="pt-4 border-t border-zinc-200 dark:border-zinc-800">
+						<label class="mb-2 block text-sm font-bold">Data Management</label>
+						<div class="flex gap-2">
+							<button 
+								onclick={() => settings.exportSettings()}
+								class="flex flex-1 items-center justify-center gap-2 rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+							>
+								<Download size={16} />
+								Export Settings
+							</button>
+							<input 
+								type="file" 
+								accept=".json" 
+								class="hidden" 
+								bind:this={importInput} 
+								onchange={handleImport} 
+							/>
+							<button 
+								onclick={() => importInput?.click()}
+								class="flex flex-1 items-center justify-center gap-2 rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+							>
+								<Upload size={16} />
+								Import Settings
 							</button>
 						</div>
 					</div>

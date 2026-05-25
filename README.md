@@ -1,12 +1,12 @@
-# OpenWebUI-Lite (Svelte 5 + MCP)
+# knitnox (Svelte 5 + MCP)
 
-A high-performance, lightweight, and completely browser-based LLM interface built with **Svelte 5**, **Tailwind CSS 4**, and **Dexie.js**. OpenWebUI-Lite is designed for developers and power users who want a private, "Bring Your Own API" experience with first-class support for **MCP (Model Context Protocol)**.
+A high-performance, lightweight, and completely browser-based LLM interface built with **Svelte 5**, **Tailwind CSS 4**, and **Dexie.js**. knitnox is designed for developers and power users who want a private, "Bring Your Own API" experience with first-class support for **MCP (Model Context Protocol)**.
 
 ---
 
 ## 🎨 UI/UX Philosophy
 
-OpenWebUI-Lite prioritizes a **clean, focused, and responsive** experience. 
+knitnox prioritizes a **clean, focused, and responsive** experience. 
 
 ### Core UI Characteristics:
 - **Minimalist Aesthetic:** Inspired by modern chat interfaces, using a zinc/white color palette that respects system dark mode.
@@ -51,7 +51,7 @@ A comprehensive panel for persistent user configuration.
 ## 🚀 Key Functionalities
 
 ### 1. **Advanced Streaming & Reasoning**
-Unlike standard interfaces, OpenWebUI-Lite understands **reasoning tokens**. It separates a model's "thinking" from its "final answer," allowing you to see the logic behind the response in an expandable, non-cluttered way.
+Unlike standard interfaces, knitnox understands **reasoning tokens**. It separates a model's "thinking" from its "final answer," allowing you to see the logic behind the response in an expandable, non-cluttered way.
 
 ### 2. **MCP (Model Context Protocol) Integration**
 This application acts as a native MCP Client. It:
@@ -90,5 +90,8 @@ This application acts as a native MCP Client. It:
 ---
 
 ## 📝 License
+
+MIT
+e
 
 MIT

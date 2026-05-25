@@ -73,6 +73,52 @@ class Settings {
 			});
 		}
 	}
+
+	exportSettings() {
+		const settingsData = {
+			baseUrl: this.baseUrl,
+			apiKey: this.apiKey,
+			model: this.model,
+			systemPrompt: this.systemPrompt,
+			enableThinking: this.enableThinking,
+			contextWindow: this.contextWindow,
+			supportsImages: this.supportsImages,
+			supportsAudio: this.supportsAudio,
+			supportsVideo: this.supportsVideo,
+			fontSize: this.fontSize,
+			fontFamily: this.fontFamily,
+			mcpServers: this.mcpServers
+		};
+		const blob = new Blob([JSON.stringify(settingsData, null, 2)], { type: 'application/json' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `knitnox-settings-${new Date().toISOString().split('T')[0]}.json`;
+		a.click();
+		URL.revokeObjectURL(url);
+	}
+
+	importSettings(jsonString: string) {
+		try {
+			const data = JSON.parse(jsonString);
+			if (data.baseUrl !== undefined) this.baseUrl = data.baseUrl;
+			if (data.apiKey !== undefined) this.apiKey = data.apiKey;
+			if (data.model !== undefined) this.model = data.model;
+			if (data.systemPrompt !== undefined) this.systemPrompt = data.systemPrompt;
+			if (data.enableThinking !== undefined) this.enableThinking = data.enableThinking;
+			if (data.contextWindow !== undefined) this.contextWindow = data.contextWindow;
+			if (data.supportsImages !== undefined) this.supportsImages = data.supportsImages;
+			if (data.supportsAudio !== undefined) this.supportsAudio = data.supportsAudio;
+			if (data.supportsVideo !== undefined) this.supportsVideo = data.supportsVideo;
+			if (data.fontSize !== undefined) this.fontSize = data.fontSize;
+			if (data.fontFamily !== undefined) this.fontFamily = data.fontFamily;
+			if (data.mcpServers !== undefined) this.mcpServers = data.mcpServers;
+			return true;
+		} catch (e) {
+			console.error('Failed to import settings:', e);
+			return false;
+		}
+	}
 }
 
 export const settings = new Settings();

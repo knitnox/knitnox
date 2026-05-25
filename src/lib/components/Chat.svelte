@@ -363,20 +363,6 @@
 				<h1 class="text-sm font-semibold truncate max-w-[200px]">
 					{currentChat?.title || 'New Chat'}
 				</h1>
-				<button
-					onclick={async () => {
-						if (confirm('Delete this chat?')) {
-							const id = chatId;
-							chatId = null;
-							await db.chats.delete(id!);
-							await db.messages.where('chatId').equals(id!).delete();
-						}
-					}}
-					class="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100 hover:text-red-500 dark:hover:bg-zinc-800 transition-colors"
-					aria-label="Delete chat"
-				>
-					<Trash2 size={18} />
-				</button>
 			</div>
 		</header>
 	{/if}

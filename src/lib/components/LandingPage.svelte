@@ -26,28 +26,28 @@
 
 	<!-- Features Grid -->
 	<div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full">
-		<div class="feature-card">
+		<div class="feature-card border border-zinc-200 dark:border-white/10">
 			<div class="icon-box text-blue-600 bg-blue-50 dark:bg-blue-900/20">
 				<Shield size={24} />
 			</div>
-			<h3>Privacy First</h3>
-			<p>All chat history is stored locally in your browser via IndexedDB. Your keys and data stay on your machine.</p>
+			<h3 class="text-zinc-900 dark:text-white">Privacy First</h3>
+			<p class="text-zinc-600 dark:text-zinc-400">All chat history is stored locally in your browser via IndexedDB. Your keys and data stay on your machine.</p>
 		</div>
 
-		<div class="feature-card">
+		<div class="feature-card border border-zinc-200 dark:border-white/10">
 			<div class="icon-box text-orange-500 bg-orange-50 dark:bg-orange-900/20">
 				<Wrench size={24} />
 			</div>
-			<h3>MCP Integrated</h3>
-			<p>Connect to any Model Context Protocol server. Dynamically discover and execute tools directly from the chat.</p>
+			<h3 class="text-zinc-900 dark:text-white">MCP Integrated</h3>
+			<p class="text-zinc-600 dark:text-zinc-400">Connect to any Model Context Protocol server. Dynamically discover and execute tools directly from the chat.</p>
 		</div>
 
-		<div class="feature-card">
-			<div class="icon-box text-purple-600 bg-purple-50 dark:bg-purple-900/20">
+		<div class="feature-card border border-zinc-200 dark:border-white/10">
+			<div class="icon-box text-purple-600 bg-blue-50 dark:bg-blue-900/20">
 				<Zap size={24} />
 			</div>
-			<h3>Rich Reasoning</h3>
-			<p>Native support for reasoning tokens. Watch the model's internal monologue in expandable "Thought" blocks.</p>
+			<h3 class="text-zinc-900 dark:text-white">Rich Reasoning</h3>
+			<p class="text-zinc-600 dark:text-zinc-400">Native support for reasoning tokens. Watch the model's internal monologue in expandable "Thought" blocks.</p>
 		</div>
 	</div>
 </div>
@@ -107,18 +107,16 @@
 		padding: 24px;
 		border-radius: 20px;
 		background: transparent;
-		border: 1px solid rgba(255, 255, 255, 0.8);
 		transition: all 0.3s ease;
 	}
 
 	:global(.dark) .feature-card {
 		background: transparent;
-		border: 1px solid rgba(255, 255, 255, 0.2);
 	}
 
 	.feature-card:hover {
 		transform: translateY(-4px);
-		background: rgba(255, 255, 255, 0.3);
+		background: rgba(0, 0, 0, 0.02);
 		box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
 	}
 
@@ -141,13 +139,11 @@
 		font-size: 1.25rem;
 		font-weight: 700;
 		margin-bottom: 8px;
-		color: white;
 	}
 
 	.feature-card p {
 		font-size: 0.95rem;
 		line-height: 1.6;
-		color: rgba(255, 255, 255, 0.9);
 	}
 
 	/* Removed theme-specific overrides for card text to keep it white */

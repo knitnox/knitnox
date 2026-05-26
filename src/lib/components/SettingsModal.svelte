@@ -150,28 +150,44 @@
 
 					<div>
 						<label class="mb-2 block text-sm font-medium">Display & Typography</label>
-						<div class="grid grid-cols-2 gap-4 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-							<div>
-								<label class="mb-1 block text-xs font-medium text-zinc-500 uppercase">Font Size (px)</label>
-								<input
-									type="number"
-									bind:value={settings.fontSize}
-									min="12"
-									max="24"
-									class="w-full rounded-md border border-zinc-300 bg-transparent px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700"
-								/>
+						<div class="grid grid-cols-1 gap-4 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+							<div class="grid grid-cols-2 gap-4">
+								<div>
+									<label class="mb-1 block text-xs font-medium text-zinc-500 uppercase">Font Size (px)</label>
+									<input
+										type="number"
+										bind:value={settings.fontSize}
+										min="12"
+										max="24"
+										class="w-full rounded-md border border-zinc-300 bg-transparent px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700"
+									/>
+								</div>
+								<div>
+									<label class="mb-1 block text-xs font-medium text-zinc-500 uppercase">Font Family</label>
+									<select
+										bind:value={settings.fontFamily}
+										class="w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+									>
+										<option value="sans" class="bg-white dark:bg-zinc-800">Sans-serif</option>
+										<option value="serif" class="bg-white dark:bg-zinc-800">Serif</option>
+										<option value="mono" class="bg-white dark:bg-zinc-800">Monospace</option>
+									</select>
+								</div>
 							</div>
 							<div>
-								<label class="mb-1 block text-xs font-medium text-zinc-500 uppercase">Font Family</label>
-								<select
-									bind:value={settings.fontFamily}
-									class="w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-								>
-									<option value="sans" class="bg-white dark:bg-zinc-800">Sans-serif</option>
-									<option value="serif" class="bg-white dark:bg-zinc-800">Serif</option>
-									<option value="mono" class="bg-white dark:bg-zinc-800">Monospace</option>
-								</select>
-							</div>						</div>
+								<label class="mb-1 block text-xs font-medium text-zinc-500 uppercase">Theme</label>
+								<div class="flex gap-1 rounded-lg bg-zinc-100 p-1 dark:bg-zinc-800">
+									{#each ['system', 'light', 'dark'] as t}
+										<button
+											onclick={() => settings.theme = t as any}
+											class="flex-1 rounded-md py-1 text-xs font-medium transition-all {settings.theme === t ? 'bg-white shadow-sm dark:bg-zinc-700 dark:text-white' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}"
+										>
+											{t.charAt(0).toUpperCase() + t.slice(1)}
+										</button>
+									{/each}
+								</div>
+							</div>
+						</div>
 					</div>
 
 					<div>

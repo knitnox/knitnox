@@ -543,83 +543,87 @@
 								<div
 									class="flex max-w-[95%] sm:max-w-[90%] gap-2 sm:gap-3 {message.role === 'user'
 										? 'flex-row-reverse'
-										: 'flex-row'}"
+										: 'flex-col'}"
 								>
-									<div
-										class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg {message.role ===
-										'user'
-											? 'bg-gray-600 text-white'
-											: 'bg-zinc-200 dark:bg-zinc-800'}"
-									>
-										{#if message.role === 'user'}
-											<User size={18} />
-										{:else}
-											<Bot size={18} />
-										{/if}
-									</div>
-									<div class="space-y-2 overflow-hidden">
-										{#if message.thinkingContent}
-											<details class="group rounded-xl border border-zinc-200 bg-zinc-50/50 p-2 dark:border-zinc-800 dark:bg-zinc-800/30">
-												<summary class="flex cursor-pointer list-none items-center gap-2 text-xs font-medium text-zinc-500">
-													<ChevronRight size={14} class="transition-transform group-open:rotate-90" />
-													<span>{message.thinkingDuration ? `Thought (${message.thinkingDuration.toFixed(1)}s)` : 'Thought'}</span>
-													
-													{#if message.toolCalls}
-														<div class="flex flex-wrap gap-1 ml-auto">
-															{#each message.toolCalls as tc}
-																{@const toolResult = messagesList.find(m => m.role === 'tool' && m.toolCallId === tc.id)}
-																<button 
-																	onclick={(e) => {
-																		e.preventDefault();
-																		e.stopPropagation();
-																		inspectToolData = {
-																			isOpen: true,
-																			toolName: tc.function.name,
-																			args: JSON.parse(tc.function.arguments),
-																			result: toolResult ? JSON.parse(toolResult.content) : 'Pending...'
-																		};
-																	}}
-																	class="flex items-center gap-1 rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400"
-																>
-																	<Wrench size={10} />
-																	{tc.function.name}
-																</button>
-															{/each}
-														</div>
-													{/if}
-												</summary>
-												<div 
-													use:autoscroll
-													class="mt-2 max-h-48 overflow-y-auto border-l-2 border-zinc-200 pl-3 text-xs italic text-zinc-600 dark:border-zinc-700 dark:text-zinc-400 custom-scrollbar whitespace-pre-wrap"
-												>
-													{message.thinkingContent}
-												</div>
-											</details>
-										{/if}
-
-										{#if !message.thinkingContent && message.toolCalls}
-											<div class="flex flex-wrap gap-1 mb-2">
-												{#each message.toolCalls as tc}
-													{@const toolResult = messagesList.find(m => m.role === 'tool' && m.toolCallId === tc.id)}
-													<button 
-														onclick={() => {
-															inspectToolData = {
-																isOpen: true,
-																toolName: tc.function.name,
-																args: JSON.parse(tc.function.arguments),
-																result: toolResult ? JSON.parse(toolResult.content) : 'Pending...'
-															};
-														}}
-														class="flex items-center gap-1 rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-100 dark:border-blue-800"
+									<div class="flex items-start gap-2 sm:gap-3 {message.role === 'user' ? 'flex-row' : 'flex-row'}">
+										<div
+											class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg {message.role ===
+											'user'
+												? 'bg-gray-600 text-white'
+												: 'bg-zinc-200 dark:bg-zinc-800'}"
+										>
+											{#if message.role === 'user'}
+												<User size={18} />
+											{:else}
+												<Bot size={18} />
+											{/if}
+										</div>
+										<div class="overflow-hidden {message.role === 'assistant' ? 'flex-1' : ''}">
+											{#if message.thinkingContent}
+												<details class="group rounded-xl border border-zinc-200 bg-zinc-50/50 p-2 dark:border-zinc-800 dark:bg-zinc-800/30">
+													<summary class="flex cursor-pointer list-none items-center gap-2 text-xs font-medium text-zinc-500">
+														<ChevronRight size={14} class="transition-transform group-open:rotate-90" />
+														<span>{message.thinkingDuration ? `Thought (${message.thinkingDuration.toFixed(1)}s)` : 'Thought'}</span>
+														
+														{#if message.toolCalls}
+															<div class="flex flex-wrap gap-1 ml-auto">
+																{#each message.toolCalls as tc}
+																	{@const toolResult = messagesList.find(m => m.role === 'tool' && m.toolCallId === tc.id)}
+																	<button 
+																		onclick={(e) => {
+																			e.preventDefault();
+																			e.stopPropagation();
+																			inspectToolData = {
+																				isOpen: true,
+																				toolName: tc.function.name,
+																				args: JSON.parse(tc.function.arguments),
+																				result: toolResult ? JSON.parse(toolResult.content) : 'Pending...'
+																			};
+																		}}
+																		class="flex items-center gap-1 rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400"
+																	>
+																		<Wrench size={10} />
+																		{tc.function.name}
+																	</button>
+																{/each}
+															</div>
+														{/if}
+													</summary>
+													<div 
+														use:autoscroll
+														class="mt-2 max-h-48 overflow-y-auto border-l-2 border-zinc-200 pl-3 text-xs italic text-zinc-600 dark:border-zinc-700 dark:text-zinc-400 custom-scrollbar whitespace-pre-wrap"
 													>
-														<Wrench size={10} />
-														{tc.function.name}
-													</button>
-												{/each}
-											</div>
-										{/if}
+														{message.thinkingContent}
+													</div>
+												</details>
+											{/if}
 
-										{#if message.content}
+											{#if !message.thinkingContent && message.role === 'assistant' && message.toolCalls}
+												<div class="flex flex-wrap gap-1 mb-2">
+													{#each message.toolCalls as tc}
+														{@const toolResult = messagesList.find(m => m.role === 'tool' && m.toolCallId === tc.id)}
+														<button 
+															onclick={() => {
+																inspectToolData = {
+																	isOpen: true,
+																	toolName: tc.function.name,
+																	args: JSON.parse(tc.function.arguments),
+																	result: toolResult ? JSON.parse(toolResult.content) : 'Pending...'
+																};
+															}}
+															class="flex items-center gap-1 rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] font-bold text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-100 dark:border-blue-800"
+														>
+															<Wrench size={10} />
+															{tc.function.name}
+														</button>
+													{/each}
+												</div>
+											{/if}
+										</div>
+									</div>
+
+									{#if message.content}
+										<div class="space-y-2">
 											<div
 												class="rounded-2xl px-3 py-1.5 {message.role === 'user'
 													? 'bg-gray-600 text-white'
@@ -680,8 +684,8 @@
 													</div>
 												{/if}
 											</div>
-										{/if}
-									</div>
+										</div>
+									{/if}
 								</div>
 							</div>
 						{/if}
@@ -689,83 +693,90 @@
 				{/if}
 
 				{#if streamingMessageId}
-					<div class="flex gap-4">
-						<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-200 dark:bg-zinc-800">
-							<Bot size={18} />
-						</div>
-						<div class="space-y-2 overflow-hidden max-w-[90%]">
-							{#if streamingThinking}
-								<details open class="group rounded-xl border border-zinc-200 bg-zinc-50/50 p-2 dark:border-zinc-800 dark:bg-zinc-800/30">
-									<summary class="flex cursor-pointer list-none items-center gap-2 text-xs font-medium text-zinc-500">
-										<ChevronRight size={14} class="transition-transform group-open:rotate-90" />
-										<span class="flex items-center gap-2">
-											Thinking...
-											<Loader2 size={12} class="animate-spin" />
-										</span>
-									</summary>
-									<div 
-										use:autoscroll
-										class="mt-2 max-h-48 overflow-y-auto border-l-2 border-zinc-200 pl-3 text-xs italic text-zinc-600 dark:border-zinc-700 dark:text-zinc-400 custom-scrollbar whitespace-pre-wrap"
-									>
-										{streamingThinking}
-									</div>
-								</details>
-							{/if}
-							{#if streamingContent}
-								<div class="rounded-2xl bg-zinc-100 px-3 py-1.5 dark:bg-zinc-800 prose prose-sm dark:prose-invert max-w-none">
-									<div class="markdown-content">
-										{#each streamingTokens as token, i (i)}
-											<div class="token-container">
-												{#if token.type === 'code'}
-													{@const codeId = `streaming-${i}`}
-													<div class="group relative my-4 overflow-hidden rounded-xl border border-zinc-200 bg-[#1e1e1e] dark:border-zinc-800">
-														<div class="flex items-center justify-between border-b border-white/5 bg-white/5 px-4 py-1.5 backdrop-blur-sm">
-															<span class="text-[10px] font-mono font-medium text-zinc-500 uppercase tracking-wider">{token.lang || 'code'}</span>
-															<button
-																onclick={() => copyToClipboard(token.text, codeId)}
-																class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-zinc-400 transition-colors hover:bg-white/10 hover:text-zinc-200"
-															>
-																{#if copiedStates[codeId]}
-																	<Check size={14} class="text-green-500" />
-																	<span class="text-green-500">Copied!</span>
-																{:else}
-																	<Copy size={14} />
-																	<span>Copy</span>
-																{/if}
-															</button>
-														</div>
-														<div class="overflow-x-auto p-4">
-															{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
-														</div>
-													</div>
-												{:else}
-													{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
-												{/if}
+					<div class="flex gap-3 sm:gap-4">
+						<div class="flex max-w-[95%] sm:max-w-[90%] gap-2 sm:gap-3 flex-col">
+							<div class="flex items-start gap-2 sm:gap-3 flex-row">
+								<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-200 dark:bg-zinc-800">
+									<Bot size={18} />
+								</div>
+								<div class="overflow-hidden flex-1">
+									{#if streamingThinking}
+										<details open class="group rounded-xl border border-zinc-200 bg-zinc-50/50 p-2 dark:border-zinc-800 dark:bg-zinc-800/30">
+											<summary class="flex cursor-pointer list-none items-center gap-2 text-xs font-medium text-zinc-500">
+												<ChevronRight size={14} class="transition-transform group-open:rotate-90" />
+												<span class="flex items-center gap-2">
+													Thinking...
+													<Loader2 size={12} class="animate-spin" />
+												</span>
+											</summary>
+											<div 
+												use:autoscroll
+												class="mt-2 max-h-48 overflow-y-auto border-l-2 border-zinc-200 pl-3 text-xs italic text-zinc-600 dark:border-zinc-700 dark:text-zinc-400 custom-scrollbar whitespace-pre-wrap"
+											>
+												{streamingThinking}
 											</div>
+										</details>
+									{/if}
+								</div>
+							</div>
+
+							<div class="space-y-2">
+								{#if streamingContent}
+									<div class="rounded-2xl bg-zinc-100 px-3 py-1.5 dark:bg-zinc-800 prose prose-sm dark:prose-invert max-w-none">
+										<div class="markdown-content">
+											{#each streamingTokens as token, i (i)}
+												<div class="token-container">
+													{#if token.type === 'code'}
+														{@const codeId = `streaming-${i}`}
+														<div class="group relative my-4 overflow-hidden rounded-xl border border-zinc-200 bg-[#1e1e1e] dark:border-zinc-800">
+															<div class="flex items-center justify-between border-b border-white/5 bg-white/5 px-4 py-1.5 backdrop-blur-sm">
+																<span class="text-[10px] font-mono font-medium text-zinc-500 uppercase tracking-wider">{token.lang || 'code'}</span>
+																<button
+																	onclick={() => copyToClipboard(token.text, codeId)}
+																	class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-zinc-400 transition-colors hover:bg-white/10 hover:text-zinc-200"
+																>
+																	{#if copiedStates[codeId]}
+																		<Check size={14} class="text-green-500" />
+																		<span class="text-green-500">Copied!</span>
+																	{:else}
+																		<Copy size={14} />
+																		<span>Copy</span>
+																	{/if}
+																</button>
+															</div>
+															<div class="overflow-x-auto p-4">
+																{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
+															</div>
+														</div>
+													{:else}
+														{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
+													{/if}
+												</div>
+											{/each}
+											<span class="inline-block w-1.5 h-4 ml-1 bg-zinc-400 dark:bg-zinc-500 animate-pulse align-middle"></span>
+										</div>
+									</div>
+								{/if}
+								
+								{#if streamingToolCalls.length > 0}
+									<div class="space-y-2">
+										{#each streamingToolCalls as tc}
+											{#if tc}
+												<div class="flex items-center gap-2 rounded-lg bg-zinc-50 px-3 py-1.5 text-xs font-medium dark:bg-zinc-800/50">
+													<Wrench size={14} class="text-blue-500" />
+													<span>Using tool: <span class="text-blue-500">{tc.function.name || '...'}</span></span>
+												</div>
+											{/if}
 										{/each}
-										<span class="inline-block w-1.5 h-4 ml-1 bg-zinc-400 dark:bg-zinc-500 animate-pulse align-middle"></span>
 									</div>
-								</div>
-							{/if}
-							
-							{#if streamingToolCalls.length > 0}
-								<div class="space-y-2">
-									{#each streamingToolCalls as tc}
-										{#if tc}
-											<div class="flex items-center gap-2 rounded-lg bg-zinc-50 px-3 py-1.5 text-xs font-medium dark:bg-zinc-800/50">
-												<Wrench size={14} class="text-blue-500" />
-												<span>Using tool: <span class="text-blue-500">{tc.function.name || '...'}</span></span>
-											</div>
-										{/if}
-									{/each}
-								</div>
-							{/if}
-							
-							{#if !streamingContent && !streamingThinking && streamingToolCalls.filter(Boolean).length === 0}
-								<div class="flex items-center gap-2 rounded-2xl bg-zinc-100 px-3 py-1.5 dark:bg-zinc-800">
-									<Loader2 size={18} class="animate-spin opacity-50" />
-								</div>
-							{/if}
+								{/if}
+								
+								{#if !streamingContent && !streamingThinking && streamingToolCalls.filter(Boolean).length === 0}
+									<div class="flex items-center gap-2 rounded-2xl bg-zinc-100 px-3 py-1.5 dark:bg-zinc-800">
+										<Loader2 size={18} class="animate-spin opacity-50" />
+									</div>
+								{/if}
+							</div>
 						</div>
 					</div>
 				{:else if isStreaming}
@@ -797,7 +808,7 @@
 
 	<div class="border-t border-zinc-200 p-2 sm:p-4 dark:border-zinc-800">
 		{#if chatId}
-			<div class="mx-auto max-w-4xl px-2 mb-1.5 flex items-center gap-1.5 text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">
+			<div class="mx-auto max-w-4xl px-2 mb-1.5 flex items-center gap-1.5 text-[8px] sm:text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">
 				<span>Last i/o: {((currentChat?.lastInputTokens || 0) / 1000).toFixed(1)}k in / {((currentChat?.lastOutputTokens || 0) / 1000).toFixed(1)}k out</span>
 				<span class="opacity-30">|</span>
 				<span>Session Total: {((currentChat?.totalInputTokens || 0) / 1000).toFixed(1)}k in / {((currentChat?.totalOutputTokens || 0) / 1000).toFixed(1)}k out</span>
@@ -891,7 +902,7 @@
 				{/if}
 			</div>
 		</form>
-		<p class="mt-2 text-center text-xs text-zinc-500 flex items-center justify-center gap-1.5">
+		<p class="mt-2 text-center text-xs text-zinc-500 hidden sm:flex items-center justify-center gap-1.5">
 			<span>knitnox</span>
 			{#if isCheckingSettings}
 				<SettingsIcon size={14} class="animate-spin opacity-50" />

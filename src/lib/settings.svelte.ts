@@ -14,6 +14,7 @@ class Settings {
 	enableCompression = $state(browser ? localStorage.getItem('enableCompression') !== 'false' : true);
 	fontSize = $state(browser ? localStorage.getItem('fontSize') || '16' : '16');
 	fontFamily = $state(browser ? localStorage.getItem('fontFamily') || 'sans' : 'sans');
+	theme = $state<'system' | 'light' | 'dark'>(browser ? (localStorage.getItem('theme') as any) || 'system' : 'system');
 	mcpServers = $state<string[]>(browser ? JSON.parse(localStorage.getItem('mcpServers') || '[]') : []);
 	disabledTools = $state<string[]>(browser ? JSON.parse(localStorage.getItem('disabledTools') || '[]') : []);
 	
@@ -65,6 +66,9 @@ class Settings {
 					localStorage.setItem('fontFamily', this.fontFamily);
 				});
 				$effect(() => {
+					localStorage.setItem('theme', this.theme);
+				});
+				$effect(() => {
 					localStorage.setItem('mcpServers', JSON.stringify(this.mcpServers));
 				});
 				$effect(() => {
@@ -101,6 +105,7 @@ class Settings {
 			enableCompression: this.enableCompression,
 			fontSize: this.fontSize,
 			fontFamily: this.fontFamily,
+			theme: this.theme,
 			mcpServers: this.mcpServers,
 			disabledTools: this.disabledTools
 		};
@@ -129,6 +134,7 @@ class Settings {
 			if (data.enableCompression !== undefined) this.enableCompression = data.enableCompression;
 			if (data.fontSize !== undefined) this.fontSize = data.fontSize;
 			if (data.fontFamily !== undefined) this.fontFamily = data.fontFamily;
+			if (data.theme !== undefined) this.theme = data.theme;
 			if (data.mcpServers !== undefined) this.mcpServers = data.mcpServers;
 			if (data.disabledTools !== undefined) this.disabledTools = data.disabledTools;
 			return true;

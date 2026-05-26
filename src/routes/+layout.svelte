@@ -22,6 +22,29 @@
 		// Also apply to body specifically to ensure standard CSS inheritance works as expected
 		document.body.style.fontSize = `${settings.fontSize}px`;
 		document.body.style.fontFamily = family;
+
+		// Theme handling
+		const applyTheme = () => {
+			const isDark = 
+				settings.theme === 'dark' || 
+				(settings.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+			
+			if (isDark) {
+				document.documentElement.classList.add('dark');
+			} else {
+				document.documentElement.classList.remove('dark');
+			}
+		};
+
+		applyTheme();
+
+		// Listen for system theme changes if in 'system' mode
+		const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+		const handler = () => {
+			if (settings.theme === 'system') applyTheme();
+		};
+		mediaQuery.addEventListener('change', handler);
+		return () => mediaQuery.removeEventListener('change', handler);
 	});
 </script>
 

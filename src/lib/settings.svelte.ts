@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import LZString from 'lz-string';
 
 class Settings {
 	baseUrl = $state(browser ? localStorage.getItem('baseUrl') || 'https://api.openai.com/v1' : 'https://api.openai.com/v1');
@@ -96,8 +97,8 @@ class Settings {
 		}
 	}
 
-	exportSettings() {
-		const settingsData = {
+	getSettingsData() {
+		return {
 			baseUrl: this.baseUrl,
 			apiKey: this.apiKey,
 			model: this.model,
@@ -115,6 +116,10 @@ class Settings {
 			mcpServers: this.mcpServers,
 			disabledTools: this.disabledTools
 		};
+	}
+
+	exportSettings() {
+		const settingsData = this.getSettingsData();
 		const blob = new Blob([JSON.stringify(settingsData, null, 2)], { type: 'application/json' });
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
@@ -124,28 +129,49 @@ class Settings {
 		URL.revokeObjectURL(url);
 	}
 
+	importSettingsData(data: any) {
+		if (data.baseUrl !== undefined) this.baseUrl = data.baseUrl;
+		if (data.apiKey !== undefined) this.apiKey = data.apiKey;
+		if (data.model !== undefined) this.model = data.model;
+		if (data.systemPrompt !== undefined) this.systemPrompt = data.systemPrompt;
+		if (data.enableThinking !== undefined) this.enableThinking = data.enableThinking;
+		if (data.contextWindow !== undefined) this.contextWindow = data.contextWindow;
+		if (data.maxAgentTurns !== undefined) this.maxAgentTurns = data.maxAgentTurns;
+		if (data.supportsImages !== undefined) this.supportsImages = data.supportsImages;
+		if (data.supportsAudio !== undefined) this.supportsAudio = data.supportsAudio;
+		if (data.supportsVideo !== undefined) this.supportsVideo = data.supportsVideo;
+		if (data.enableCompression !== undefined) this.enableCompression = data.enableCompression;
+		if (data.fontSize !== undefined) this.fontSize = data.fontSize;
+		if (data.fontFamily !== undefined) this.fontFamily = data.fontFamily;
+		if (data.theme !== undefined) this.theme = data.theme;
+		if (data.mcpServers !== undefined) this.mcpServers = data.mcpServers;
+		if (data.disabledTools !== undefined) this.disabledTools = data.disabledTools;
+		return true;
+	}
+
 	importSettings(jsonString: string) {
 		try {
 			const data = JSON.parse(jsonString);
-			if (data.baseUrl !== undefined) this.baseUrl = data.baseUrl;
-			if (data.apiKey !== undefined) this.apiKey = data.apiKey;
-			if (data.model !== undefined) this.model = data.model;
-			if (data.systemPrompt !== undefined) this.systemPrompt = data.systemPrompt;
-			if (data.enableThinking !== undefined) this.enableThinking = data.enableThinking;
-			if (data.contextWindow !== undefined) this.contextWindow = data.contextWindow;
-			if (data.maxAgentTurns !== undefined) this.maxAgentTurns = data.maxAgentTurns;
-			if (data.supportsImages !== undefined) this.supportsImages = data.supportsImages;
-			if (data.supportsAudio !== undefined) this.supportsAudio = data.supportsAudio;
-			if (data.supportsVideo !== undefined) this.supportsVideo = data.supportsVideo;
-			if (data.enableCompression !== undefined) this.enableCompression = data.enableCompression;
-			if (data.fontSize !== undefined) this.fontSize = data.fontSize;
-			if (data.fontFamily !== undefined) this.fontFamily = data.fontFamily;
-			if (data.theme !== undefined) this.theme = data.theme;
-			if (data.mcpServers !== undefined) this.mcpServers = data.mcpServers;
-			if (data.disabledTools !== undefined) this.disabledTools = data.disabledTools;
-			return true;
+			return this.importSettingsData(data);
 		} catch (e) {
 			console.error('Failed to import settings:', e);
+			return false;
+		}
+	}
+
+	getQRCodeData() {
+		const data = this.getSettingsData();
+		return LZString.compressToEncodedURIComponent(JSON.stringify(data));
+	}
+
+	importFromQRCodeData(compressed: string) {
+		try {
+			const json = LZString.decompressFromEncodedURIComponent(compressed);
+			if (!json) return false;
+			const data = JSON.parse(json);
+			return this.importSettingsData(data);
+		} catch (e) {
+			console.error('Failed to import from QR code:', e);
 			return false;
 		}
 	}

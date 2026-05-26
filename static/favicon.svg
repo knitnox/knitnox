@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <mask id="ring">
+      <!-- outer filled area -->
+      <rect x="72" y="72" width="368" height="368" rx="88" fill="white"/>
+      <!-- inner cutout -->
+      <rect x="160" y="160" width="192" height="192" rx="44" fill="black"/>
+    </mask>
+  </defs>
+
+  <!-- White rounded-square background -->
+  <rect width="512" height="512" rx="112" fill="#ffffff"/>
+
+  <!-- Orange O (rounded-square ring) -->
+  <rect x="72" y="72" width="368" height="368" rx="88" fill="#f59e0b" mask="url(#ring)"/>
+</svg>

@@ -564,6 +564,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>{chatId ? (currentChat?.title || 'New Chat') : 'knitnox'}</title>
+</svelte:head>
+
 <div class="relative flex h-full flex-col bg-white dark:bg-zinc-900 overflow-hidden">
 	<header class="shrink-0 border-b border-zinc-200 bg-white/80 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/80">
 		<div class="flex h-14 items-center px-1 sm:px-4">
@@ -577,11 +581,19 @@
 			<div class="mx-auto flex w-full max-w-4xl items-center justify-between gap-2 pl-1 sm:pl-2">
 				<div class="flex flex-col min-w-0 leading-tight">
 					<div class="flex items-center gap-2.5 mb-0.5">
-						<h1 class="truncate text-lg sm:text-base font-bold tracking-tight">
-							{chatId ? (currentChat?.title || 'New Chat') : 'knitnox'}
-						</h1>
+						{#if chatId}
+							<h1 class="truncate text-lg sm:text-base font-bold tracking-tight">
+								{currentChat?.title || 'New Chat'}
+							</h1>
+						{:else}
+							<h1 class="logo-title-nav">
+								{#each 'Knitnox'.split('') as char}
+									<span>{char}</span>
+								{/each}
+							</h1>
+						{/if}
 					</div>
-					<div class="flex items-center gap-1.5 ml-0.5">
+					<div class="flex items-center gap-1.5">
 						{#if isCheckingSettings}
 							<SettingsIcon size={12} class="animate-spin opacity-50" />
 						{:else if settings.model?.trim()}
@@ -1069,5 +1081,41 @@
 	.matrix-text {
 		text-shadow: 0 0 5px rgba(113, 113, 122, 0.2);
 		letter-spacing: 0.15em;
+	}
+
+	.logo-title-nav {
+		margin: 0;
+		font-size: 1.25rem;
+		font-family: 'Orbitron', sans-serif;
+		font-weight: 900;
+		letter-spacing: 2px;
+		color: var(--logo-text, #09090b);
+		display: flex;
+		align-items: center;
+		transition: color 0.3s;
+	}
+
+	:global(.dark) .logo-title-nav {
+		color: #ffffff;
+	}
+
+	.logo-title-nav span {
+		display: inline-block;
+	}
+
+	.logo-title-nav span:nth-child(6) {
+		animation: bulbGlowSmall 2s ease-in-out infinite;
+		color: #ffa500;
+	}
+
+	@keyframes bulbGlowSmall {
+		0%, 100% { 
+			text-shadow: 0 0 5px rgba(255, 165, 0, 0.4),
+						 0 0 10px rgba(255, 165, 0, 0.2);
+		}
+		50% { 
+			text-shadow: 0 0 8px rgba(255, 165, 0, 0.6),
+						 0 0 15px rgba(255, 165, 0, 0.3);
+		}
 	}
 </style>

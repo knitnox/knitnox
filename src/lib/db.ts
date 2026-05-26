@@ -8,6 +8,8 @@ export interface Chat {
 	totalOutputTokens?: number;
 	lastInputTokens?: number;
 	lastOutputTokens?: number;
+	summary?: string;
+	lastSummaryCount?: number;
 }
 
 export interface Attachment {
@@ -37,7 +39,7 @@ export class MyDatabase extends Dexie {
 
 	constructor() {
 		super('ChatDB');
-		this.version(2).stores({
+		this.version(3).stores({
 			chats: '++id, title, createdAt',
 			messages: '++id, chatId, role, createdAt'
 		}).upgrade(tx => {

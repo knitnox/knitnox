@@ -11,6 +11,7 @@ class Settings {
 	supportsImages = $state(browser ? localStorage.getItem('supportsImages') === 'true' : false);
 	supportsAudio = $state(browser ? localStorage.getItem('supportsAudio') === 'true' : false);
 	supportsVideo = $state(browser ? localStorage.getItem('supportsVideo') === 'true' : false);
+	enableCompression = $state(browser ? localStorage.getItem('enableCompression') !== 'false' : true);
 	fontSize = $state(browser ? localStorage.getItem('fontSize') || '16' : '16');
 	fontFamily = $state(browser ? localStorage.getItem('fontFamily') || 'sans' : 'sans');
 	mcpServers = $state<string[]>(browser ? JSON.parse(localStorage.getItem('mcpServers') || '[]') : []);
@@ -55,6 +56,9 @@ class Settings {
 					localStorage.setItem('supportsVideo', String(this.supportsVideo));
 				});
 				$effect(() => {
+					localStorage.setItem('enableCompression', String(this.enableCompression));
+				});
+				$effect(() => {
 					localStorage.setItem('fontSize', this.fontSize);
 				});
 				$effect(() => {
@@ -94,6 +98,7 @@ class Settings {
 			supportsImages: this.supportsImages,
 			supportsAudio: this.supportsAudio,
 			supportsVideo: this.supportsVideo,
+			enableCompression: this.enableCompression,
 			fontSize: this.fontSize,
 			fontFamily: this.fontFamily,
 			mcpServers: this.mcpServers,
@@ -121,6 +126,7 @@ class Settings {
 			if (data.supportsImages !== undefined) this.supportsImages = data.supportsImages;
 			if (data.supportsAudio !== undefined) this.supportsAudio = data.supportsAudio;
 			if (data.supportsVideo !== undefined) this.supportsVideo = data.supportsVideo;
+			if (data.enableCompression !== undefined) this.enableCompression = data.enableCompression;
 			if (data.fontSize !== undefined) this.fontSize = data.fontSize;
 			if (data.fontFamily !== undefined) this.fontFamily = data.fontFamily;
 			if (data.mcpServers !== undefined) this.mcpServers = data.mcpServers;

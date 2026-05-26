@@ -81,6 +81,19 @@
 						</button>
 					</div>
 
+					<div class="flex items-center justify-between">
+						<div class="space-y-0.5">
+							<span class="text-sm font-medium">Message Compression</span>
+							<p class="text-[10px] text-zinc-500">Summarizes history when context is full.</p>
+						</div>
+						<button 
+							onclick={() => settings.enableCompression = !settings.enableCompression}
+							class="relative h-6 w-11 rounded-full transition-colors {settings.enableCompression ? 'bg-blue-600' : 'bg-zinc-300 dark:bg-zinc-700'}"
+						>
+							<div class="absolute top-1 left-1 h-4 w-4 rounded-full bg-white transition-transform {settings.enableCompression ? 'translate-x-5' : ''}"></div>
+						</button>
+					</div>
+
 					<div>
 						<div class="mb-1 flex items-center justify-between">
 							<label class="text-sm font-medium">Context Window (Messages)</label>

@@ -3,6 +3,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import 'highlight.js/styles/github-dark.css';
 	import { settings } from '$lib/settings.svelte';
+	import Toaster from '$lib/components/Toaster.svelte';
 
 	let { children } = $props();
 
@@ -34,3 +35,4 @@
 <svelte:body />
 
 {@render children()}
+<Toaster />

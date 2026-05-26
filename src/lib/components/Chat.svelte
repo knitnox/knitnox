@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { db, type Message, type Attachment } from '$lib/db';
-	import { streamChat, generateChatTitle } from '$lib/openai.svelte';
+	import { streamChat, generateChatTitle, summarizeChat } from '$lib/openai.svelte';
 	import { settings } from '$lib/settings.svelte';
+	import { toast } from '$lib/toast.svelte';
 	import { getAllTools, MCPClient } from '$lib/mcp.svelte';
 	import { localTools } from '$lib/tools.svelte';
 	import ToolsSettingsModal from './ToolsSettingsModal.svelte';
@@ -255,11 +256,39 @@
 			const windowSize = settings.contextWindow || 0;
 			const windowMessages = windowSize === 0 ? allMessages : allMessages.slice(-windowSize);
 			
-			const remainingContext = windowSize === 0 ? 'Unlimited' : Math.max(0, windowSize - allMessages.length);
-			const turnInfo = `\n\n[System Info: Turn ${agentTurn}/${settings.maxAgentTurns} in agent loop. Remaining context slots: ${remainingContext}.]`;
+			// Periodic Compression Logic:
+			// Trigger whenever we've added (windowSize - 2) new messages since the last compression.
+			if (settings.enableCompression && windowSize > 3) {
+				const threshold = windowSize - 2;
+				const chat = await db.chats.get(chatId!);
+				const lastSummaryCount = chat?.lastSummaryCount || 0;
+				const currentCount = allMessages.length;
+
+				if (currentCount >= threshold && (currentCount - lastSummaryCount) >= threshold) {
+					const toastId = toast.add('Updating long-term memory...', 'info', 0);
+					try {
+						const newSummary = await summarizeChat(windowMessages, chat?.summary);
+						if (chatId) {
+							await db.chats.update(chatId, { 
+								summary: newSummary,
+								lastSummaryCount: currentCount
+							});
+						}
+						toast.remove(toastId);
+						toast.add('Memory updated successfully!', 'success');
+					} catch (e) {
+						console.error('Compression error:', e);
+						toast.remove(toastId);
+						toast.add('Failed to update memory.', 'error');
+					}
+				}
+			}
+
+			const memory = currentChat?.summary ? `\n\n[Long-term Memory/Summary of earlier conversation]:\n${currentChat.summary}` : '';
+			const turnInfo = `\n\n[System Info: Turn ${agentTurn}/${settings.maxAgentTurns} in agent loop.]`;
 
 			const apiMessages = [
-				{ role: 'system', content: settings.systemPrompt + turnInfo },
+				{ role: 'system', content: settings.systemPrompt + memory + turnInfo },
 				...windowMessages.map((m) => {
 					if (m.attachments?.length) {
 						const content: any[] = [];

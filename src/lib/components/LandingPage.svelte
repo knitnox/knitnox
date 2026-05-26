@@ -3,12 +3,17 @@
 
 <div class="flex flex-col items-center justify-center min-h-[70vh] px-4 py-12 transition-colors duration-300">
 	<!-- Logo Section -->
-	<div class="mb-12">
+	<div class="mb-4 flex flex-col items-center">
 		<h1 class="logo-title">
 			{#each 'Knitnox'.split('') as char}
 				<span>{char}</span>
 			{/each}
 		</h1>
+		<div class="logo-divider">
+			<span class="line"></span>
+			<span class="star">⛤</span>
+			<span class="line"></span>
+		</div>
 	</div>
 
 	<!-- Hero Text -->
@@ -79,5 +84,27 @@
 			font-size: 2.5rem;
 			letter-spacing: 4px;
 		}
+	}
+
+	.logo-divider {
+		display: flex;
+		align-items: center;
+		gap: 1.5rem;
+		margin-top: -0.5rem;
+		width: 100%;
+		max-width: 400px;
+		opacity: 0.6;
+	}
+
+	.logo-divider .line {
+		flex: 1;
+		height: 1px;
+		background: linear-gradient(to right, transparent, var(--logo-text), transparent);
+	}
+
+	.logo-divider .star {
+		font-size: 1.5rem;
+		color: var(--logo-accent);
+		animation: bulbGlow 2s ease-in-out infinite;
 	}
 </style>

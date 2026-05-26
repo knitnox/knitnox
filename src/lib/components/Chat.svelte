@@ -586,10 +586,8 @@
 								{currentChat?.title || 'New Chat'}
 							</h1>
 						{:else}
-							<h1 class="logo-title-nav">
-								{#each 'Knitnox'.split('') as char}
-									<span>{char}</span>
-								{/each}
+							<h1 class="text-lg sm:text-base font-bold tracking-tight">
+								Knitnox
 							</h1>
 						{/if}
 					</div>
@@ -1081,41 +1079,5 @@
 	.matrix-text {
 		text-shadow: 0 0 5px rgba(113, 113, 122, 0.2);
 		letter-spacing: 0.15em;
-	}
-
-	.logo-title-nav {
-		margin: 0;
-		font-size: 1.25rem;
-		font-family: 'Orbitron', sans-serif;
-		font-weight: 900;
-		letter-spacing: 2px;
-		color: var(--logo-text, #09090b);
-		display: flex;
-		align-items: center;
-		transition: color 0.3s;
-	}
-
-	:global(.dark) .logo-title-nav {
-		color: #ffffff;
-	}
-
-	.logo-title-nav span {
-		display: inline-block;
-	}
-
-	.logo-title-nav span:nth-child(6) {
-		animation: bulbGlowSmall 2s ease-in-out infinite;
-		color: #ffa500;
-	}
-
-	@keyframes bulbGlowSmall {
-		0%, 100% { 
-			text-shadow: 0 0 5px rgba(255, 165, 0, 0.4),
-						 0 0 10px rgba(255, 165, 0, 0.2);
-		}
-		50% { 
-			text-shadow: 0 0 8px rgba(255, 165, 0, 0.6),
-						 0 0 15px rgba(255, 165, 0, 0.3);
-		}
 	}
 </style>

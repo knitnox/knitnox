@@ -102,25 +102,25 @@
 					{:else}
 						<button
 							onclick={() => onSelectChat(chat.id!)}
-							class="flex flex-1 items-center gap-2.5 px-2.5 py-1.5 text-left text-xs cursor-pointer min-w-0"
+							class="flex flex-1 items-center gap-2.5 px-3 py-2 text-left text-sm cursor-pointer min-w-0"
 						>
-							<MessageSquare size={14} class="shrink-0 opacity-60" />
+							<MessageSquare size={16} class="shrink-0 opacity-60" />
 							<span class="truncate flex-1 pr-12">{chat.title}</span>
 						</button>
-						<div class="absolute right-0.5 flex items-center gap-0.5">
+						<div class="absolute right-1 flex items-center gap-0.5">
 							<button
 								onclick={(e) => startEditing(chat.id!, chat.title, e)}
-								class="text-zinc-400 hover:text-blue-600 p-1 cursor-pointer rounded-md hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
+								class="text-zinc-400 hover:text-blue-600 p-1.5 cursor-pointer rounded-md hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
 								aria-label="Edit title"
 							>
-								<Edit2 size={12} />
+								<Edit2 size={14} />
 							</button>
 							<button
 								onclick={(e) => deleteChat(chat.id!, e)}
-								class="text-zinc-400 hover:text-red-600 p-1 cursor-pointer rounded-md hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
+								class="text-zinc-400 hover:text-red-600 p-1.5 cursor-pointer rounded-md hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
 								aria-label="Delete chat"
 							>
-								<Trash2 size={12} />
+								<Trash2 size={14} />
 							</button>
 						</div>
 					{/if}
@@ -132,9 +132,9 @@
 	<div class="mt-auto border-t border-zinc-200 p-2 dark:border-zinc-800">
 		<button
 			onclick={onOpenSettings}
-			class="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs font-medium hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors cursor-pointer"
+			class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors cursor-pointer"
 		>
-			<SettingsIcon size={16} />
+			<SettingsIcon size={18} />
 			Settings
 		</button>
 	</div>

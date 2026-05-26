@@ -9,7 +9,7 @@
 	import ToolInspectModal from './ToolInspectModal.svelte';
 	import LandingPage from './LandingPage.svelte';
 	import { liveQuery } from 'dexie';
-	import { Send, User, Bot, Loader2, Wrench, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check, Settings as SettingsIcon, Brain, MessageSquare } from '@lucide/svelte';
+	import { SendHorizontal, User, Bot, Loader2, Wrench, Toolbox, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check, Settings as SettingsIcon, Brain, MessageSquare } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import { Marked } from 'marked';
 	import { markedHighlight } from 'marked-highlight';
@@ -84,18 +84,27 @@
 	let attachments = $state<Attachment[]>([]);
 	let fileInput = $state<HTMLInputElement | null>(null);
 	let textareaElement = $state<HTMLTextAreaElement | null>(null);
-	let isInputLarge = $state(false);
 
 	$effect(() => {
 		if (textareaElement && input !== undefined) {
+			// Pre-calculated style to avoid jumping
+			const style = window.getComputedStyle(textareaElement);
+			const borderTop = parseFloat(style.borderTopWidth);
+			const borderBottom = parseFloat(style.borderBottomWidth);
+			const paddingTop = parseFloat(style.paddingTop);
+			const paddingBottom = parseFloat(style.paddingBottom);
+			
 			textareaElement.style.height = 'auto';
-			const height = textareaElement.scrollHeight;
-			// Use a stable base height to prevent jumping
-			textareaElement.style.height = (height < 38 ? 38 : height) + 'px';
-			// Only trigger large layout if it's clearly multi-line (threshold increased)
-			isInputLarge = height > 45;
+			const scrollHeight = textareaElement.scrollHeight;
+			
+			// If we're using border-box (default in Tailwind), we don't need to add borders manually
+			// but scrollHeight doesn't include borders if box-sizing is border-box in some browsers.
+			// However, setting height to scrollHeight is usually enough.
+			textareaElement.style.height = (scrollHeight < 38 ? 38 : scrollHeight) + 'px';
 		}
 	});
+
+	const isMobile = typeof window !== 'undefined' && /Mobi|Android|iPad|iPhone/i.test(navigator.userAgent);
 
 	let isStreaming = $state(false);
 	let isToolsModalOpen = $state(false);
@@ -555,7 +564,7 @@
 	});
 </script>
 
-<div class="flex h-full flex-col bg-white dark:bg-zinc-900">
+<div class="relative flex h-full flex-col bg-white dark:bg-zinc-900 overflow-hidden">
 	<header class="shrink-0 border-b border-zinc-200 bg-white/80 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/80">
 		<div class="flex h-14 items-center px-1 sm:px-4">
 			<button 
@@ -568,7 +577,7 @@
 			<div class="mx-auto flex w-full max-w-4xl items-center justify-between gap-2 pl-1 sm:pl-2">
 				<div class="flex flex-col min-w-0 leading-tight">
 					<div class="flex items-center gap-2.5 mb-0.5">
-						<h1 class="truncate text-sm sm:text-base font-bold tracking-tight">
+						<h1 class="truncate text-lg sm:text-base font-bold tracking-tight">
 							{chatId ? (currentChat?.title || 'New Chat') : 'knitnox'}
 						</h1>
 					</div>
@@ -596,7 +605,7 @@
 		</div>
 	</header>
 
-	<div bind:this={messagesContainer} use:autoscroll class="flex-1 overflow-y-auto p-1.5 sm:p-4">
+	<div bind:this={messagesContainer} use:autoscroll class="flex-1 overflow-y-auto p-1.5 sm:p-4 pb-36 sm:pb-40">
 		<div class="mx-auto max-w-4xl space-y-3 sm:space-y-6">
 			{#if (messagesList && messagesList.length > 0) || isStreaming || streamingError}
 				{#if messagesList && messagesList.length > 0}
@@ -891,127 +900,131 @@
 		</div>
 	</div>
 
-	<div class="border-t border-zinc-200 p-2 sm:p-4 dark:border-zinc-800">
-		{#if chatId}
-			<div class="mx-auto max-w-4xl px-2 mb-1.5 flex items-center gap-1.5 text-[8px] sm:text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">
-				<span>Last i/o: {((currentChat?.lastInputTokens || 0) / 1000).toFixed(1)}k in / {((currentChat?.lastOutputTokens || 0) / 1000).toFixed(1)}k out</span>
-				<span class="opacity-30">|</span>
-				<span>Session Total: {((currentChat?.totalInputTokens || 0) / 1000).toFixed(1)}k in / {((currentChat?.totalOutputTokens || 0) / 1000).toFixed(1)}k out</span>
-			</div>
-		{/if}
-		<form onsubmit={handleSubmit} class="mx-auto max-w-4xl">
-			{#if attachments.length > 0}
-				<div class="mb-2 flex flex-wrap gap-2 px-2">
-					{#each attachments as att, i}
-						<div class="relative group">
-							<div class="h-16 w-16 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900">
-								{#if att.type === 'image'}
-									<img src={att.data} alt="preview" class="h-full w-full object-cover" />
-								{:else if att.type === 'audio'}
-									<div class="flex h-full w-full items-center justify-center">
-										<File size={20} class="text-blue-500" />
-									</div>
-								{:else if att.type === 'video'}
-									<video src={att.data} class="h-full w-full object-cover"></video>
-								{:else}
-									<div class="flex h-full w-full items-center justify-center">
-										<File size={20} />
-									</div>
-								{/if}
+	<div class="absolute bottom-0 left-0 right-0 w-full p-2 sm:p-4 pt-12 pb-3 sm:pb-6 pointer-events-none bg-gradient-to-t from-white via-white/95 to-transparent dark:from-zinc-900 dark:via-zinc-900/95">
+		<div class="pointer-events-auto">
+			{#if chatId}
+				<div class="mx-auto max-w-4xl px-2 mb-2 flex items-center gap-2 text-[10px] sm:text-xs text-zinc-500 dark:text-zinc-400 font-mono">
+					<span>Last: {((currentChat?.lastInputTokens || 0) / 1000).toFixed(2)}k in / {((currentChat?.lastOutputTokens || 0) / 1000).toFixed(2)}k out</span>
+					<span class="opacity-30">|</span>
+					<span>Total: {((currentChat?.totalInputTokens || 0) / 1000).toFixed(2)}k in / {((currentChat?.totalOutputTokens || 0) / 1000).toFixed(2)}k out</span>
+				</div>
+			{/if}
+			<form onsubmit={handleSubmit} class="mx-auto max-w-4xl">
+				{#if attachments.length > 0}
+					<div class="mb-2 flex flex-wrap gap-2 px-2">
+						{#each attachments as att, i}
+							<div class="relative group">
+								<div class="h-16 w-16 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900">
+									{#if att.type === 'image'}
+										<img src={att.data} alt="preview" class="h-full w-full object-cover" />
+									{:else if att.type === 'audio'}
+										<div class="flex h-full w-full items-center justify-center">
+											<File size={20} class="text-blue-500" />
+										</div>
+									{:else if att.type === 'video'}
+										<video src={att.data} class="h-full w-full object-cover"></video>
+									{:else}
+										<div class="flex h-full w-full items-center justify-center">
+											<File size={20} />
+										</div>
+									{/if}
+								</div>
+								<button 
+									type="button"
+									onclick={() => removeAttachment(i)}
+									class="absolute -top-1.5 -right-1.5 rounded-full bg-zinc-800 p-0.5 text-white shadow-sm hover:bg-zinc-700 dark:bg-white dark:text-zinc-800"
+								>
+									<CloseIcon size={12} />
+								</button>
 							</div>
-							<button 
+						{/each}
+					</div>
+				{/if}
+				
+				<div class="flex flex-col rounded-2xl border-2 border-dotted border-zinc-300 bg-zinc-50 p-1.5 focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20 dark:border-zinc-700 dark:bg-zinc-900 transition-all">
+					<div class="relative flex items-center">
+						{#if settings.supportsImages || settings.supportsAudio || settings.supportsVideo}
+							<input 
+								type="file" 
+								multiple 
+								class="hidden" 
+								accept={acceptedMimeTypes}
+								bind:this={fileInput}
+								onchange={handleFileChange}
+							/>
+							<button
 								type="button"
-								onclick={() => removeAttachment(i)}
-								class="absolute -top-1.5 -right-1.5 rounded-full bg-zinc-800 p-0.5 text-white shadow-sm hover:bg-zinc-700 dark:bg-white dark:text-zinc-800"
+								onclick={() => fileInput?.click()}
+								class="ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800 transition-all"
+								title="Attach Files"
 							>
-								<CloseIcon size={12} />
+								<Paperclip size={20} />
+							</button>
+						{/if}
+						
+						<textarea
+							bind:this={textareaElement}
+							bind:value={input}
+							rows="1"
+							placeholder="Message..."
+							class="flex-1 bg-transparent px-2 py-2 outline-none resize-none min-h-[44px] max-h-64 text-base sm:text-sm leading-relaxed"
+							onkeydown={(e) => {
+								if (e.key === 'Enter') {
+									if (isMobile) return;
+									if (!e.shiftKey) {
+										e.preventDefault();
+										handleSubmit(e as any);
+									}
+								}
+							}}
+						></textarea>
+					</div>
+					
+					<div class="flex items-center justify-between mt-0.5 px-0.5">
+						<div class="flex items-center gap-0.5">
+							<button
+								type="button"
+								onclick={() => isToolsModalOpen = true}
+								class="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800 transition-all"
+								title="Tool Settings"
+							>
+								<Toolbox size={20} />
+							</button>
+							<button
+								type="button"
+								onclick={onOpenSettings}
+								class="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800 transition-all"
+								title="General Settings"
+							>
+								<Wrench size={20} />
 							</button>
 						</div>
-					{/each}
+
+						<div class="flex items-center gap-2">
+							{#if isStreaming}
+								<button
+									type="button"
+									onclick={stopGeneration}
+									class="flex h-9 w-9 items-center justify-center rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all cursor-pointer"
+									title="Stop Generation"
+								>
+									<Square size={16} fill="currentColor" />
+								</button>
+							{:else}
+								<button
+									type="submit"
+									disabled={(!input.trim() && attachments.length === 0)}
+									class="flex h-9 w-9 items-center justify-center rounded-xl text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
+									title="Send Message"
+								>
+									<SendHorizontal size={26} strokeWidth={2.5} />
+								</button>
+							{/if}
+						</div>
+					</div>
 				</div>
-			{/if}
-			<div class="relative flex flex-wrap items-end gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 p-1.5 sm:p-2 focus-within:ring-2 focus-within:ring-blue-500 dark:border-zinc-800 dark:bg-zinc-950">
-				<div class="flex flex-1 items-end gap-2 {isInputLarge ? 'min-w-full' : 'min-w-[100px]'}">
-					<textarea
-						bind:this={textareaElement}
-						bind:value={input}
-						rows="1"
-						placeholder="Message..."
-						class="flex-1 bg-transparent px-2 py-1 outline-none resize-none min-h-[38px] h-[38px] max-h-48 text-base sm:text-sm"
-						onkeydown={(e) => {
-							if (e.key === 'Enter' && !e.shiftKey) {
-								e.preventDefault();
-								handleSubmit(e as any);
-							}
-						}}
-					></textarea>
-				</div>
-				<div class="flex items-center gap-2 ml-auto h-9">
-					{#if settings.supportsImages || settings.supportsAudio || settings.supportsVideo}
-						<input 
-							type="file" 
-							multiple 
-							class="hidden" 
-							accept={acceptedMimeTypes}
-							bind:this={fileInput}
-							onchange={handleFileChange}
-						/>
-						<button
-							type="button"
-							onclick={() => fileInput?.click()}
-							class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-							title="Attach Files"
-						>
-							<Paperclip size={20} />
-						</button>
-					{/if}
-					<button
-						type="button"
-						onclick={() => isToolsModalOpen = true}
-						class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-						title="Tool Settings"
-					>
-						<Wrench size={20} />
-					</button>
-					{#if isStreaming}
-						<button
-							type="button"
-							onclick={stopGeneration}
-							class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-500 text-white shadow-sm hover:bg-red-600 transition-all cursor-pointer"
-							title="Stop Generation"
-						>
-							<Square size={16} fill="currentColor" />
-						</button>
-					{:else}
-						<button
-							type="submit"
-							disabled={(!input.trim() && attachments.length === 0)}
-							class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 transition-all cursor-pointer"
-						>
-							<Send size={18} />
-						</button>
-					{/if}
-				</div>
-			</div>
-		</form>
-		<p class="mt-2 text-center text-xs text-zinc-500 hidden sm:flex items-center justify-center gap-1.5">
-			<span>knitnox</span>
-			{#if isCheckingSettings}
-				<SettingsIcon size={14} class="animate-spin opacity-50" />
-			{:else if settings.model?.trim()}
-				<span class="text-[11px] font-mono text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded-sm tracking-widest matrix-text">
-					({settings.model})
-				</span>
-			{:else}
-				<button 
-					onclick={onOpenSettings}
-					class="text-[11px] font-bold text-blue-600 hover:underline cursor-pointer"
-				>
-					(Open Settings)
-				</button>
-			{/if}
-			<span>can make mistakes. Check important info.</span>
-		</p>
+			</form>
+		</div>
 	</div>
 </div>
 

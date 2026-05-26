@@ -26,7 +26,7 @@ export async function generateChatTitle(firstMessage: string) {
 			messages: [
 				{
 					role: 'system',
-					content: 'Generate a very short, 3-5 word title for a chat session based on the first message provided by the user. Use meaningful markdown or a relevant emoji at the beginning of the title to make it look nice and easy to spot. Respond ONLY with the title text.'
+					content: 'Generate a very short, 3-5 word title for a chat session based on the first message provided by the user. The title should be concise and in title case. Avoid using generic titles like "Chat Session" or "Conversation". Focus on the main topic or theme introduced in the first message.'
 				},
 				{ role: 'user', content: firstMessage }
 			]

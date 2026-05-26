@@ -9,7 +9,7 @@
 	import ToolInspectModal from './ToolInspectModal.svelte';
 	import LandingPage from './LandingPage.svelte';
 	import { liveQuery } from 'dexie';
-	import { Send, User, Bot, Loader2, Wrench, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check, Settings as SettingsIcon } from '@lucide/svelte';
+	import { Send, User, Bot, Loader2, Wrench, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check, Settings as SettingsIcon, Brain } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import { Marked } from 'marked';
 	import { markedHighlight } from 'marked-highlight';
@@ -77,6 +77,10 @@
 	let streamingStartTime = $state<number>(0);
 
 	let streamingTokens = $derived(marked.lexer(streamingContent));
+
+	function toTitleCase(str: string) {
+		return str.replace(/\b\w/g, (l) => l.toUpperCase());
+	}
 
 	let messagesList = $state<Message[]>([]);
 	let currentChat = $state<import('$lib/db').Chat | null>(null);
@@ -501,42 +505,30 @@
 				<Menu size={18} />
 			</button>
 			<div class="mx-auto flex w-full max-w-4xl items-center justify-between gap-2 pl-1 sm:pl-2">
-				<h1 class="truncate text-xs sm:text-sm font-semibold flex items-center gap-2">
-					{chatId ? (currentChat?.title || 'New Chat') : 'knitnox'}
-					{#if isCheckingSettings}
-						<SettingsIcon size={14} class="animate-spin opacity-50" />
-					{:else if settings.model?.trim()}
-						<span class="text-[10px] font-mono opacity-50 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded uppercase tracking-tighter">
-							({settings.model})
-						</span>
-					{:else}
-						<button 
-							onclick={onOpenSettings}
-							class="text-[10px] font-bold text-blue-600 hover:underline cursor-pointer"
-						>
-							(Open Settings)
-						</button>
-					{/if}
-				</h1>
-				{#if chatId}
-					<div class="flex items-center gap-4 text-[10px] text-zinc-500 dark:text-zinc-400">
-						<div class="flex flex-col items-end leading-tight">
-							<span class="text-[9px] font-bold uppercase tracking-wider opacity-50">Last Message</span>
-							<span class="font-mono">
-								{((currentChat?.lastInputTokens || 0) / 1000).toFixed(1)}k <span class="opacity-50">in</span> 
-								/ {((currentChat?.lastOutputTokens || 0) / 1000).toFixed(1)}k <span class="opacity-50">out</span>
-							</span>
-						</div>
-						<div class="h-6 w-px bg-zinc-200 dark:bg-zinc-800"></div>
-						<div class="flex flex-col items-end leading-tight">
-							<span class="text-[9px] font-bold uppercase tracking-wider opacity-50">Session Total</span>
-							<span class="font-mono">
-								{((currentChat?.totalInputTokens || 0) / 1000).toFixed(1)}k <span class="opacity-50">in</span>
-								/ {((currentChat?.totalOutputTokens || 0) / 1000).toFixed(1)}k <span class="opacity-50">out</span>
-							</span>
-						</div>
+				<div class="flex flex-col min-w-0 leading-tight">
+					<h1 class="truncate text-xs sm:text-sm font-semibold">
+						{chatId ? (currentChat?.title || 'New Chat') : 'knitnox'}
+					</h1>
+					<div class="flex items-center gap-1.5">
+						{#if isCheckingSettings}
+							<SettingsIcon size={12} class="animate-spin opacity-50" />
+						{:else if settings.model?.trim()}
+							<div class="flex items-center gap-1 text-zinc-400">
+								<Brain size={12} />
+								<span class="text-[9px] font-mono tracking-widest matrix-text">
+									model: {toTitleCase(settings.model)}
+								</span>
+							</div>
+						{:else}
+							<button 
+								onclick={onOpenSettings}
+								class="text-[9px] font-bold text-blue-600 hover:underline cursor-pointer"
+							>
+								Open Settings
+							</button>
+						{/if}
 					</div>
-				{/if}
+				</div>
 			</div>
 		</div>
 	</header>
@@ -804,6 +796,13 @@
 	</div>
 
 	<div class="border-t border-zinc-200 p-2 sm:p-4 dark:border-zinc-800">
+		{#if chatId}
+			<div class="mx-auto max-w-4xl px-2 mb-1.5 flex items-center gap-1.5 text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">
+				<span>Last i/o: {((currentChat?.lastInputTokens || 0) / 1000).toFixed(1)}k in / {((currentChat?.lastOutputTokens || 0) / 1000).toFixed(1)}k out</span>
+				<span class="opacity-30">|</span>
+				<span>Session Total: {((currentChat?.totalInputTokens || 0) / 1000).toFixed(1)}k in / {((currentChat?.totalOutputTokens || 0) / 1000).toFixed(1)}k out</span>
+			</div>
+		{/if}
 		<form onsubmit={handleSubmit} class="mx-auto max-w-4xl">
 			{#if attachments.length > 0}
 				<div class="mb-2 flex flex-wrap gap-2 px-2">
@@ -897,7 +896,7 @@
 			{#if isCheckingSettings}
 				<SettingsIcon size={14} class="animate-spin opacity-50" />
 			{:else if settings.model?.trim()}
-				<span class="text-[10px] font-mono text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded-sm uppercase tracking-widest matrix-text">
+				<span class="text-[10px] font-mono text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded-sm tracking-widest matrix-text">
 					({settings.model})
 				</span>
 			{:else}

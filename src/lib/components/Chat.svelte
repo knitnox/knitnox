@@ -83,6 +83,20 @@
 	let input = $state('');
 	let attachments = $state<Attachment[]>([]);
 	let fileInput = $state<HTMLInputElement | null>(null);
+	let textareaElement = $state<HTMLTextAreaElement | null>(null);
+	let isInputLarge = $state(false);
+
+	$effect(() => {
+		if (textareaElement && input !== undefined) {
+			textareaElement.style.height = 'auto';
+			const height = textareaElement.scrollHeight;
+			// Use a stable base height to prevent jumping
+			textareaElement.style.height = (height < 38 ? 38 : height) + 'px';
+			// Only trigger large layout if it's clearly multi-line (threshold increased)
+			isInputLarge = height > 45;
+		}
+	});
+
 	let isStreaming = $state(false);
 	let isToolsModalOpen = $state(false);
 	let abortController = $state<AbortController | null>(null);
@@ -868,61 +882,68 @@
 					{/each}
 				</div>
 			{/if}
-			<div class="relative flex items-end gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 p-1.5 sm:p-2 focus-within:ring-2 focus-within:ring-blue-500 dark:border-zinc-800 dark:bg-zinc-950">
-				{#if settings.supportsImages || settings.supportsAudio || settings.supportsVideo}
-					<input 
-						type="file" 
-						multiple 
-						class="hidden" 
-						accept={acceptedMimeTypes}
-						bind:this={fileInput}
-						onchange={handleFileChange}
-					/>
+			<div class="relative flex flex-wrap items-end gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 p-1.5 sm:p-2 focus-within:ring-2 focus-within:ring-blue-500 dark:border-zinc-800 dark:bg-zinc-950">
+				<div class="flex flex-1 items-end gap-2 {isInputLarge ? 'min-w-full' : 'min-w-[100px]'}">
+					<textarea
+						bind:this={textareaElement}
+						bind:value={input}
+						rows="1"
+						placeholder="Message..."
+						class="flex-1 bg-transparent px-2 py-1 outline-none resize-none min-h-[38px] h-[38px] max-h-48 text-base sm:text-sm"
+						onkeydown={(e) => {
+							if (e.key === 'Enter' && !e.shiftKey) {
+								e.preventDefault();
+								handleSubmit(e as any);
+							}
+						}}
+					></textarea>
+				</div>
+				<div class="flex items-center gap-2 ml-auto h-9">
+					{#if settings.supportsImages || settings.supportsAudio || settings.supportsVideo}
+						<input 
+							type="file" 
+							multiple 
+							class="hidden" 
+							accept={acceptedMimeTypes}
+							bind:this={fileInput}
+							onchange={handleFileChange}
+						/>
+						<button
+							type="button"
+							onclick={() => fileInput?.click()}
+							class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+							title="Attach Files"
+						>
+							<Paperclip size={20} />
+						</button>
+					{/if}
 					<button
 						type="button"
-						onclick={() => fileInput?.click()}
+						onclick={() => isToolsModalOpen = true}
 						class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+						title="Tool Settings"
 					>
-						<Paperclip size={20} />
+						<Wrench size={20} />
 					</button>
-				{/if}
-				<textarea
-					bind:value={input}
-					placeholder="Message..."
-					class="flex-1 bg-transparent px-2 py-1 outline-none resize-none min-h-[40px] max-h-48 text-base sm:text-sm"
-					onkeydown={(e) => {
-						if (e.key === 'Enter' && !e.shiftKey) {
-							e.preventDefault();
-							handleSubmit(e as any);
-						}
-					}}
-				></textarea>
-				<button
-					type="button"
-					onclick={() => isToolsModalOpen = true}
-					class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-					title="Tool Settings"
-				>
-					<Wrench size={20} />
-				</button>
-				{#if isStreaming}
-					<button
-						type="button"
-						onclick={stopGeneration}
-						class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-500 text-white shadow-sm hover:bg-red-600 transition-all cursor-pointer"
-						title="Stop Generation"
-					>
-						<Square size={16} fill="currentColor" />
-					</button>
-				{:else}
-					<button
-						type="submit"
-						disabled={(!input.trim() && attachments.length === 0)}
-						class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 transition-all cursor-pointer"
-					>
-						<Send size={18} />
-					</button>
-				{/if}
+					{#if isStreaming}
+						<button
+							type="button"
+							onclick={stopGeneration}
+							class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-500 text-white shadow-sm hover:bg-red-600 transition-all cursor-pointer"
+							title="Stop Generation"
+						>
+							<Square size={16} fill="currentColor" />
+						</button>
+					{:else}
+						<button
+							type="submit"
+							disabled={(!input.trim() && attachments.length === 0)}
+							class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 transition-all cursor-pointer"
+						>
+							<Send size={18} />
+						</button>
+					{/if}
+				</div>
 			</div>
 		</form>
 		<p class="mt-2 text-center text-xs text-zinc-500 hidden sm:flex items-center justify-center gap-1.5">

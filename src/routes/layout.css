@@ -14,10 +14,10 @@ body {
 /* Make code blocks more readable and respect font size */
 .prose pre {
 	background-color: #1e1e1e !important;
-	border: 1px solid rgba(255, 255, 255, 0.1);
+	border: none !important;
 	border-radius: 0.75rem !important;
-	padding: 1.25rem !important;
-	margin: 1.5rem 0 !important;
+	padding: 0.75rem !important;
+	margin: 0.5rem 0 !important;
 }
 
 .prose code {

@@ -33,15 +33,25 @@ export interface Message {
 	thinkingDuration?: number;
 }
 
+export interface Knowledge {
+	id?: number;
+	content: string;
+	category?: string;
+	createdAt: number;
+	updatedAt: number;
+}
+
 export class MyDatabase extends Dexie {
 	chats!: Table<Chat>;
 	messages!: Table<Message>;
+	knowledge!: Table<Knowledge>;
 
 	constructor() {
 		super('ChatDB');
-		this.version(3).stores({
+		this.version(4).stores({
 			chats: '++id, title, createdAt',
-			messages: '++id, chatId, role, createdAt'
+			messages: '++id, chatId, role, createdAt',
+			knowledge: '++id, content, createdAt, updatedAt'
 		}).upgrade(tx => {
 			// Optional: handle data migration if needed
 		});

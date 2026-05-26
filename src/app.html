@@ -4,6 +4,35 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
 		<meta name="text-scale" content="scale" />
+		<script>
+			(function () {
+				try {
+					const theme = localStorage.getItem('theme') || 'system';
+					const isDark =
+						theme === 'dark' ||
+						(theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+					if (isDark) {
+						document.documentElement.classList.add('dark');
+					} else {
+						document.documentElement.classList.remove('dark');
+					}
+
+					const fontSize = localStorage.getItem('fontSize') || '16';
+					const fontFamily = localStorage.getItem('fontFamily') || 'sans';
+					const family =
+						fontFamily === 'mono'
+							? 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace'
+							: fontFamily === 'serif'
+								? 'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif'
+								: 'ui-sans-serif, system-ui, sans-serif';
+
+					document.documentElement.style.setProperty('--chat-font-size', fontSize + 'px');
+					document.documentElement.style.setProperty('--chat-font-family', family);
+					document.documentElement.style.fontSize = fontSize + 'px';
+					document.documentElement.style.fontFamily = family;
+				} catch (e) {}
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

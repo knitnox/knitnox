@@ -4,6 +4,7 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
+	base: process.env.NODE_ENV === 'production' ? '/knitnox/' : '',
 	server: {
 		host: true
 	}

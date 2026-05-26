@@ -75,14 +75,14 @@
 						</h3>
 						<div class="grid gap-2">
 							{#each localTools as tool}
-								<div class="flex items-center justify-between rounded-xl border border-zinc-100 bg-zinc-50/50 p-3 dark:border-zinc-800 dark:bg-zinc-800/30">
-									<div class="flex flex-col">
-										<span class="text-sm font-semibold">{tool.name}</span>
+								<div class="flex items-center justify-between gap-4 rounded-xl border border-zinc-100 bg-zinc-50/50 p-3 dark:border-zinc-800 dark:bg-zinc-800/30">
+									<div class="flex flex-1 flex-col overflow-hidden">
+										<span class="truncate text-sm font-semibold">{tool.name}</span>
 										<span class="text-xs text-zinc-500">{tool.description}</span>
 									</div>
 									<button 
 										onclick={() => toggleTool(tool.name)}
-										class="relative h-6 w-11 rounded-full transition-colors {!settings.disabledTools.includes(tool.name) ? 'bg-blue-600' : 'bg-zinc-300 dark:bg-zinc-700'}"
+										class="relative h-6 w-11 flex-shrink-0 rounded-full transition-colors {!settings.disabledTools.includes(tool.name) ? 'bg-blue-600' : 'bg-zinc-300 dark:bg-zinc-700'}"
 									>
 										<div class="absolute top-1 left-1 h-4 w-4 rounded-full bg-white transition-transform {!settings.disabledTools.includes(tool.name) ? 'translate-x-5' : ''}"></div>
 									</button>

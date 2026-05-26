@@ -75,29 +75,8 @@ This application acts as a native MCP Client. It:
 
 knitnox features a robust, extensible tool system that supports both **Built-in (Local) Tools** and dynamic **MCP Tools**.
 
-### 1. Adding/Removing Local Tools
-Local tools are defined in `src/lib/tools.svelte.ts`. To add a new tool:
-
-1.  **Open `src/lib/tools.svelte.ts`.**
-2.  **Add a new tool object** to the `localTools` array:
-    ```typescript
-    {
-        name: 'my_tool_name',
-        description: 'Describe what the tool does',
-        parameters: {
-            type: 'object',
-            properties: {
-                param1: { type: 'string', description: 'Parameter description' }
-            },
-            required: ['param1']
-        },
-        handler: async (args: { param1: string }) => {
-            // Your logic here
-            return { result: `Handled ${args.param1}` };
-        }
-    }
-    ```
-3.  The tool will automatically appear in the **Tool Settings Modal**.
+### 1. Built-in Tools
+The primary built-in tool is `knowledge`, which allows the LLM to store and retrieve user facts, preferences, and notes persistently. This tool is defined in `src/lib/tools.svelte.ts`.
 
 ### 2. Managing MCP Tools
 MCP tools are loaded dynamically from the servers configured in the main **Settings Modal**.
@@ -112,7 +91,7 @@ Users can enable or disable specific tools without deleting them:
 
 ### 4. Inspecting Tool Executions
 To see the technical details of a tool call:
-- Look for the **blue tool badges** (e.g., `[🔧 popup]`) near the "Thought" or content of a message.
+- Look for the **blue tool badges** (e.g., `[🔧 knowledge]`) near the "Thought" or content of a message.
 - **Click the badge** to open the **Tool Execution Details** modal.
 - View the exact **Arguments** sent to the tool and the **Result** returned.
 

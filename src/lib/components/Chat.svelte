@@ -9,7 +9,7 @@
 	import ToolInspectModal from './ToolInspectModal.svelte';
 	import LandingPage from './LandingPage.svelte';
 	import { liveQuery } from 'dexie';
-	import { Send, User, Bot, Loader2, Wrench, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check, Settings as SettingsIcon, Brain } from '@lucide/svelte';
+	import { Send, User, Bot, Loader2, Wrench, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check, Settings as SettingsIcon, Brain, MessageSquare } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import { Marked } from 'marked';
 	import { markedHighlight } from 'marked-highlight';
@@ -137,13 +137,33 @@
 
 	async function copyToClipboard(text: string, id: string) {
 		try {
-			await navigator.clipboard.writeText(text);
+			if (navigator.clipboard && window.isSecureContext) {
+				await navigator.clipboard.writeText(text);
+			} else {
+				// Fallback for non-secure contexts (like mobile local testing)
+				const textArea = document.createElement("textarea");
+				textArea.value = text;
+				textArea.style.position = "fixed";
+				textArea.style.left = "-999999px";
+				textArea.style.top = "-999999px";
+				document.body.appendChild(textArea);
+				textArea.focus();
+				textArea.select();
+				try {
+					document.execCommand('copy');
+				} catch (err) {
+					console.error('Fallback copy failed', err);
+				}
+				document.body.removeChild(textArea);
+			}
+			
 			copiedStates[id] = true;
 			setTimeout(() => {
 				copiedStates[id] = false;
 			}, 2000);
 		} catch (err) {
 			console.error('Failed to copy text: ', err);
+			toast.add('Failed to copy to clipboard', 'error');
 		}
 	}
 
@@ -337,9 +357,13 @@
 
 			const memory = currentChat?.summary ? `\n\n[Long-term Memory/Summary of earlier conversation]:\n${currentChat.summary}` : '';
 			const turnInfo = `\n\n[System Info: Turn ${agentTurn}/${settings.maxAgentTurns} in agent loop.]`;
+			
+			// Inject knowledge base count as a hint to the LLM
+			const knowledgeCount = await db.knowledge.count();
+			const knowledgeHint = knowledgeCount > 0 ? `\n\n[Knowledge Base Info: There are ${knowledgeCount} items in your persistent knowledge base. Search it if you need facts about the user.]` : '';
 
 			const apiMessages = [
-				{ role: 'system', content: settings.systemPrompt + memory + turnInfo },
+				{ role: 'system', content: settings.systemPrompt + memory + turnInfo + knowledgeHint },
 				...windowMessages.map((m) => {
 					if (m.attachments?.length) {
 						const content: any[] = [];
@@ -533,33 +557,35 @@
 
 <div class="flex h-full flex-col bg-white dark:bg-zinc-900">
 	<header class="shrink-0 border-b border-zinc-200 bg-white/80 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/80">
-		<div class="flex h-12 items-center px-1 sm:px-4">
+		<div class="flex h-14 items-center px-1 sm:px-4">
 			<button 
 				onclick={onToggleSidebar}
 				class="rounded-lg p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 shrink-0"
 				aria-label="Toggle Sidebar"
 			>
-				<Menu size={18} />
+				<Menu size={20} />
 			</button>
 			<div class="mx-auto flex w-full max-w-4xl items-center justify-between gap-2 pl-1 sm:pl-2">
 				<div class="flex flex-col min-w-0 leading-tight">
-					<h1 class="truncate text-xs sm:text-sm font-semibold">
-						{chatId ? (currentChat?.title || 'New Chat') : 'knitnox'}
-					</h1>
-					<div class="flex items-center gap-1.5">
+					<div class="flex items-center gap-2.5 mb-0.5">
+						<h1 class="truncate text-sm sm:text-base font-bold tracking-tight">
+							{chatId ? (currentChat?.title || 'New Chat') : 'knitnox'}
+						</h1>
+					</div>
+					<div class="flex items-center gap-1.5 ml-0.5">
 						{#if isCheckingSettings}
 							<SettingsIcon size={12} class="animate-spin opacity-50" />
 						{:else if settings.model?.trim()}
 							<div class="flex items-center gap-1 text-zinc-400">
-								<Brain size={12} />
-								<span class="text-[9px] font-mono tracking-widest matrix-text">
-									model: {toTitleCase(settings.model)}
+								<Brain size={14} />
+								<span class="text-[11px] font-mono tracking-widest matrix-text">
+									{toTitleCase(settings.model)}
 								</span>
 							</div>
 						{:else}
 							<button 
 								onclick={onOpenSettings}
-								class="text-[9px] font-bold text-blue-600 hover:underline cursor-pointer"
+								class="text-[11px] font-bold text-blue-600 hover:underline cursor-pointer"
 							>
 								Open Settings
 							</button>
@@ -695,22 +721,33 @@
 															{#if token.type === 'code'}
 																{@const codeId = `${message.id}-${i}`}
 																	<div class="group relative my-2 overflow-hidden rounded-xl bg-[#1e1e1e]">
-																		<div class="flex items-center justify-between bg-white/5 px-3 py-1 backdrop-blur-sm">
+																		<div class="hidden items-center justify-between bg-white/5 px-3 py-1 backdrop-blur-sm sm:flex">
 																			<span class="text-[10px] font-mono font-medium text-zinc-500 uppercase tracking-wider">{token.lang || 'code'}</span>
 																			<button
 																				onclick={() => copyToClipboard(token.text, codeId)}
-																				class="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-zinc-400 transition-colors hover:bg-white/10 hover:text-zinc-200"
+																				class="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-zinc-400 transition-all hover:bg-white/20 hover:text-white active:scale-95"
 																			>
 																				{#if copiedStates[codeId]}
 																					<Check size={12} class="text-green-500" />
-																					<span class="text-green-500 text-[10px]">Copied!</span>
+																					<span class="text-green-500 text-[10px] font-bold">Copied!</span>
 																				{:else}
 																					<Copy size={12} />
 																					<span class="text-[10px]">Copy</span>
 																				{/if}
 																			</button>
 																		</div>
-																		<div class="overflow-x-auto p-2">
+																		<button
+																			onclick={() => copyToClipboard(token.text, codeId)}
+																			class="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900/90 text-zinc-400 backdrop-blur-md transition-all active:scale-90 sm:hidden border border-white/10"
+																			aria-label="Copy code"
+																		>
+																			{#if copiedStates[codeId]}
+																				<Check size={16} class="text-green-500" />
+																			{:else}
+																				<Copy size={16} class="hover:text-white" />
+																			{/if}
+																		</button>
+																		<div class="overflow-x-auto p-3 sm:p-2">
 																			{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
 																		</div>
 																	</div>
@@ -766,22 +803,33 @@
 													{#if token.type === 'code'}
 														{@const codeId = `streaming-${i}`}
 														<div class="group relative my-2 overflow-hidden rounded-xl bg-[#1e1e1e]">
-															<div class="flex items-center justify-between bg-white/5 px-3 py-1 backdrop-blur-sm">
+															<div class="hidden items-center justify-between bg-white/5 px-3 py-1 backdrop-blur-sm sm:flex">
 																<span class="text-[10px] font-mono font-medium text-zinc-500 uppercase tracking-wider">{token.lang || 'code'}</span>
 																<button
 																	onclick={() => copyToClipboard(token.text, codeId)}
-																	class="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-zinc-400 transition-colors hover:bg-white/10 hover:text-zinc-200"
+																	class="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-zinc-400 transition-all hover:bg-white/20 hover:text-white active:scale-95"
 																>
 																	{#if copiedStates[codeId]}
 																		<Check size={12} class="text-green-500" />
-																		<span class="text-green-500 text-[10px]">Copied!</span>
+																		<span class="text-green-500 text-[10px] font-bold">Copied!</span>
 																	{:else}
 																		<Copy size={12} />
 																		<span class="text-[10px]">Copy</span>
 																	{/if}
 																</button>
 															</div>
-															<div class="overflow-x-auto p-2">
+															<button
+																onclick={() => copyToClipboard(token.text, codeId)}
+																class="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900/90 text-zinc-400 backdrop-blur-md transition-all active:scale-90 sm:hidden border border-white/10"
+																aria-label="Copy code"
+															>
+																{#if copiedStates[codeId]}
+																	<Check size={16} class="text-green-500" />
+																{:else}
+																	<Copy size={16} class="hover:text-white" />
+																{/if}
+															</button>
+															<div class="overflow-x-auto p-3 sm:p-2">
 																{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
 															</div>
 														</div>
@@ -951,13 +999,13 @@
 			{#if isCheckingSettings}
 				<SettingsIcon size={14} class="animate-spin opacity-50" />
 			{:else if settings.model?.trim()}
-				<span class="text-[10px] font-mono text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded-sm tracking-widest matrix-text">
+				<span class="text-[11px] font-mono text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded-sm tracking-widest matrix-text">
 					({settings.model})
 				</span>
 			{:else}
 				<button 
 					onclick={onOpenSettings}
-					class="text-[10px] font-bold text-blue-600 hover:underline cursor-pointer"
+					class="text-[11px] font-bold text-blue-600 hover:underline cursor-pointer"
 				>
 					(Open Settings)
 				</button>

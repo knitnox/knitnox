@@ -4,7 +4,7 @@ class Settings {
 	baseUrl = $state(browser ? localStorage.getItem('baseUrl') || 'https://api.openai.com/v1' : 'https://api.openai.com/v1');
 	apiKey = $state(browser ? localStorage.getItem('apiKey') || '' : '');
 	model = $state(browser ? localStorage.getItem('model') || '' : '');
-	systemPrompt = $state(browser ? localStorage.getItem('systemPrompt') || 'You are a helpful assistant.' : 'You are a helpful assistant.');
+	systemPrompt = $state(browser ? localStorage.getItem('systemPrompt') || 'You are a helpful assistant. You have access to a persistent knowledge base via the "knowledge" tool. Use it to store and retrieve important facts, user preferences, and notes across conversations. Always check the knowledge base if you are unsure about something the user has previously told you.' : 'You are a helpful assistant.');
 	enableThinking = $state(browser ? localStorage.getItem('enableThinking') !== 'false' : true);
 	contextWindow = $state(browser ? parseInt(localStorage.getItem('contextWindow') || '12') : 12);
 	maxAgentTurns = $state(browser ? parseInt(localStorage.getItem('maxAgentTurns') || '10') : 10);
@@ -25,6 +25,12 @@ class Settings {
 
 	constructor() {
 		if (browser) {
+			// Migration: If the user has the old default prompt, update it to the new one
+			const currentPrompt = localStorage.getItem('systemPrompt');
+			if (currentPrompt === 'You are a helpful assistant.') {
+				this.systemPrompt = 'You are a helpful assistant. You have access to a persistent knowledge base via the "knowledge" tool. Use it to store and retrieve important facts, user preferences, and notes across conversations. Always check the knowledge base if you are unsure about something the user has previously told you.';
+			}
+
 			$effect.root(() => {
 				$effect(() => {
 					localStorage.setItem('baseUrl', this.baseUrl);

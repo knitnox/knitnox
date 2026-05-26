@@ -1,6 +1,8 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 body {
 	font-size: var(--chat-font-size);
 	font-family: var(--chat-font-family);
@@ -43,12 +45,21 @@ body {
 }
 
 /* Ensure code inside pre blocks is clear and doesn't have the inline styles */
-.prose pre code {
+.prose pre code,
+.dark .prose pre code {
 	background-color: transparent !important;
 	padding: 0 !important;
 	border: none !important;
 	color: #e5e7eb !important;
 	font-size: inherit !important;
+}
+
+/* Remove redundant styling when pre is inside our custom markdown-content wrapper */
+.markdown-content pre {
+	background-color: transparent !important;
+	margin: 0 !important;
+	padding: 0 !important;
+	border: none !important;
 }
 
 /* Adjust prose styles to be more centered and readable */

@@ -45,6 +45,7 @@
 		<Chat 
 			bind:chatId={currentChatId} 
 			onToggleSidebar={() => isSidebarOpen = !isSidebarOpen}
+			onOpenSettings={handleOpenSettings}
 		/>
 	</main>
 

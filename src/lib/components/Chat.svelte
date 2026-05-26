@@ -9,7 +9,7 @@
 	import ToolInspectModal from './ToolInspectModal.svelte';
 	import LandingPage from './LandingPage.svelte';
 	import { liveQuery } from 'dexie';
-	import { Send, User, Bot, Loader2, Wrench, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check } from '@lucide/svelte';
+	import { Send, User, Bot, Loader2, Wrench, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check, Settings as SettingsIcon } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import { Marked } from 'marked';
 	import { markedHighlight } from 'marked-highlight';
@@ -49,9 +49,10 @@
 		};
 	}
 
-	let { chatId = $bindable(), onToggleSidebar } = $props<{ 
+	let { chatId = $bindable(), onToggleSidebar, onOpenSettings } = $props<{ 
 		chatId: number | null;
 		onToggleSidebar?: () => void;
+		onOpenSettings?: () => void;
 	}>();
 
 	let input = $state('');
@@ -79,6 +80,15 @@
 
 	let messagesList = $state<Message[]>([]);
 	let currentChat = $state<import('$lib/db').Chat | null>(null);
+
+	let isCheckingSettings = $state(true);
+
+	$effect(() => {
+		const timer = setTimeout(() => {
+			isCheckingSettings = false;
+		}, 1000);
+		return () => clearTimeout(timer);
+	});
 
 	let copiedStates = $state<Record<string, boolean>>({});
 
@@ -491,8 +501,22 @@
 				<Menu size={18} />
 			</button>
 			<div class="mx-auto flex w-full max-w-4xl items-center justify-between gap-2 pl-1 sm:pl-2">
-				<h1 class="truncate text-xs sm:text-sm font-semibold">
+				<h1 class="truncate text-xs sm:text-sm font-semibold flex items-center gap-2">
 					{chatId ? (currentChat?.title || 'New Chat') : 'knitnox'}
+					{#if isCheckingSettings}
+						<SettingsIcon size={14} class="animate-spin opacity-50" />
+					{:else if settings.model?.trim()}
+						<span class="text-[10px] font-mono opacity-50 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded uppercase tracking-tighter">
+							({settings.model})
+						</span>
+					{:else}
+						<button 
+							onclick={onOpenSettings}
+							class="text-[10px] font-bold text-blue-600 hover:underline cursor-pointer"
+						>
+							(Open Settings)
+						</button>
+					{/if}
 				</h1>
 				{#if chatId}
 					<div class="flex items-center gap-4 text-[10px] text-zinc-500 dark:text-zinc-400">
@@ -868,8 +892,23 @@
 				{/if}
 			</div>
 		</form>
-		<p class="mt-2 text-center text-xs text-zinc-500">
-			knitnox can make mistakes. Check important info.
+		<p class="mt-2 text-center text-xs text-zinc-500 flex items-center justify-center gap-1.5">
+			<span>knitnox</span>
+			{#if isCheckingSettings}
+				<SettingsIcon size={14} class="animate-spin opacity-50" />
+			{:else if settings.model?.trim()}
+				<span class="text-[10px] font-mono text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded-sm uppercase tracking-widest matrix-text">
+					({settings.model})
+				</span>
+			{:else}
+				<button 
+					onclick={onOpenSettings}
+					class="text-[10px] font-bold text-blue-600 hover:underline cursor-pointer"
+				>
+					(Open Settings)
+				</button>
+			{/if}
+			<span>can make mistakes. Check important info.</span>
 		</p>
 	</div>
 </div>
@@ -910,5 +949,10 @@
 		50% {
 			opacity: 0.3;
 		}
+	}
+
+	.matrix-text {
+		text-shadow: 0 0 5px rgba(113, 113, 122, 0.2);
+		letter-spacing: 0.15em;
 	}
 </style>

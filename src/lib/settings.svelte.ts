@@ -3,7 +3,7 @@ import { browser } from '$app/environment';
 class Settings {
 	baseUrl = $state(browser ? localStorage.getItem('baseUrl') || 'https://api.openai.com/v1' : 'https://api.openai.com/v1');
 	apiKey = $state(browser ? localStorage.getItem('apiKey') || '' : '');
-	model = $state(browser ? localStorage.getItem('model') || 'gpt-4o' : 'gpt-4o');
+	model = $state(browser ? localStorage.getItem('model') || '' : '');
 	systemPrompt = $state(browser ? localStorage.getItem('systemPrompt') || 'You are a helpful assistant.' : 'You are a helpful assistant.');
 	enableThinking = $state(browser ? localStorage.getItem('enableThinking') !== 'false' : true);
 	contextWindow = $state(browser ? parseInt(localStorage.getItem('contextWindow') || '12') : 12);

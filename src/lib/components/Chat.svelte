@@ -8,8 +8,9 @@
 	import ToolsSettingsModal from './ToolsSettingsModal.svelte';
 	import ToolInspectModal from './ToolInspectModal.svelte';
 	import LandingPage from './LandingPage.svelte';
+	import ConfirmModal from './ConfirmModal.svelte';
 	import { liveQuery } from 'dexie';
-	import { SendHorizontal, User, Bot, Loader2, Wrench, Toolbox, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check, Settings as SettingsIcon, Brain, MessageSquare, PlusCircle } from '@lucide/svelte';
+	import { SendHorizontal, User, Bot, Loader2, Wrench, Toolbox, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check, Settings as SettingsIcon, Brain, MessageSquare, PlusCircle, Pencil } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import { Marked } from 'marked';
 	import { markedHighlight } from 'marked-highlight';
@@ -135,6 +136,29 @@
 	let currentChat = $state<import('$lib/db').Chat | null>(null);
 
 	let isCheckingSettings = $state(true);
+	
+	let confirmModal = $state({
+		isOpen: false,
+		title: '',
+		message: '',
+		confirmText: 'Confirm',
+		isDanger: false,
+		onConfirm: () => {}
+	});
+
+	function confirmDelete(message: Message) {
+		confirmModal = {
+			isOpen: true,
+			title: 'Delete Message',
+			message: 'Are you sure you want to delete this message? All subsequent messages in this chat will also be deleted.',
+			confirmText: 'Delete',
+			isDanger: true,
+			onConfirm: () => deleteMessageAndAfter(message)
+		};
+	}
+	
+	let editingMessageId = $state<number | null>(null);
+	let editingContent = $state('');
 
 	$effect(() => {
 		const timer = setTimeout(() => {
@@ -251,6 +275,70 @@
 
 	function removeAttachment(index: number) {
 		attachments = attachments.filter((_, i) => i !== index);
+	}
+
+	async function handleEdit(message: Message) {
+		editingMessageId = message.id!;
+		editingContent = message.content;
+		await tick();
+		const el = document.querySelector('textarea[data-editing="true"]') as HTMLTextAreaElement;
+		if (el) el.focus();
+	}
+
+	function cancelEdit() {
+		editingMessageId = null;
+		editingContent = '';
+	}
+
+	async function handleEditSubmit() {
+		if (!editingMessageId || !editingContent.trim() || isStreaming) return;
+
+		const messageId = editingMessageId;
+		const newContent = editingContent.trim();
+		
+		editingMessageId = null;
+		editingContent = '';
+		streamingError = null;
+
+		// Delete all subsequent messages
+		const allMessages = await db.messages.where('chatId').equals(chatId!).toArray();
+		const messageIndex = allMessages.findIndex(m => m.id === messageId);
+		if (messageIndex === -1) return;
+
+		const idsToDelete = allMessages.slice(messageIndex + 1).map(m => m.id!);
+		if (idsToDelete.length > 0) {
+			await db.messages.bulkDelete(idsToDelete);
+		}
+
+		// Update the edited message
+		await db.messages.update(messageId, {
+			content: newContent,
+		});
+
+		isStreaming = true;
+		scrollToBottom();
+
+		try {
+			await processChat();
+		} catch (error: any) {
+			console.error(error);
+			streamingError = error.message || 'An error occurred';
+		} finally {
+			isStreaming = false;
+		}
+	}
+
+	async function deleteMessageAndAfter(message: Message) {
+		if (isStreaming) return;
+		
+		const allMessages = await db.messages.where('chatId').equals(chatId!).toArray();
+		const messageIndex = allMessages.findIndex(m => m.id === message.id);
+		if (messageIndex === -1) return;
+
+		const idsToDelete = allMessages.slice(messageIndex).map(m => m.id!);
+		if (idsToDelete.length > 0) {
+			await db.messages.bulkDelete(idsToDelete);
+		}
 	}
 
 	async function handleSubmit(e: SubmitEvent) {
@@ -631,7 +719,7 @@
 				{#if messagesList && messagesList.length > 0}
 					{#each messagesList as message}
 						{#if message.role !== 'tool' && message.id !== streamingMessageId}
-							<div class="flex gap-3 sm:gap-4 {message.role === 'user' ? 'justify-end' : ''}">
+							<div class="group/message flex gap-3 sm:gap-4 {message.role === 'user' ? 'justify-end' : ''}">
 								<div
 									class="flex w-full gap-2 sm:gap-3 {message.role === 'user'
 										? 'flex-row-reverse'
@@ -650,7 +738,18 @@
 												<Bot size={18} />
 											{/if}
 										</div>
-										<div class="overflow-hidden {message.role === 'assistant' ? 'flex-1' : ''}">
+										<div class="{message.role === 'assistant' ? 'flex-1' : ''} group relative min-h-[1.5rem]">
+											{#if message.role === 'assistant'}
+												<div class="absolute -top-2 -right-2 opacity-0 group-hover/message:opacity-100 flex items-center gap-1 bg-white dark:bg-zinc-800 rounded-md px-1 py-0.5 border border-zinc-200 dark:border-zinc-700 z-30 transition-all shadow-md ring-1 ring-black/5">
+													<button
+														onclick={() => confirmDelete(message)}
+														class="p-1 text-zinc-500 hover:text-red-500 transition-colors"
+														title="Delete from here"
+													>
+														<Trash2 size={12} />
+													</button>
+												</div>
+											{/if}
 											{#if message.thinkingContent}
 												<details class="group rounded-xl border border-zinc-200 bg-zinc-50/50 p-2 dark:border-zinc-800 dark:bg-zinc-800/30">
 													<summary class="flex cursor-pointer list-none items-center gap-2 text-xs font-medium text-zinc-500">
@@ -715,7 +814,7 @@
 									</div>
 
 									{#if message.content}
-										<div class="space-y-2">
+										<div class="space-y-2 {message.role === 'user' && editingMessageId === message.id ? 'flex-1 min-w-0' : ''}">
 											<div
 												class="rounded-2xl px-3 py-1.5 {message.role === 'user'
 													? 'bg-gray-600 text-white'
@@ -743,7 +842,40 @@
 												{/if}
 
 												{#if message.role === 'user'}
-													<p class="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+													{#if editingMessageId === message.id}
+														<div class="flex flex-col gap-2 w-full">
+															<textarea
+																bind:value={editingContent}
+																data-editing="true"
+																class="w-full bg-zinc-700 text-white rounded-lg p-2 outline-none border border-zinc-500 focus:border-blue-400 min-h-[100px]"
+																onkeydown={(e) => {
+																	if (e.key === 'Enter' && !e.shiftKey) {
+																		e.preventDefault();
+																		handleEditSubmit();
+																	}
+																	if (e.key === 'Escape') cancelEdit();
+																}}
+															></textarea>
+															<div class="flex justify-end gap-2">
+																<button
+																	onclick={cancelEdit}
+																	class="px-2 py-1 text-xs font-medium hover:bg-white/10 rounded transition-colors"
+																>
+																	Cancel
+																</button>
+																<button
+																	onclick={handleEditSubmit}
+																	class="px-2 py-1 text-xs font-medium bg-blue-600 hover:bg-blue-500 rounded transition-colors"
+																>
+																	Save
+																</button>
+															</div>
+														</div>
+													{:else}
+														<div class="px-2 py-1">
+															<p class="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+														</div>
+													{/if}
 												{:else}
 													<div class="markdown-content">
 														{#each marked.lexer(message.content) as token, i (i)}
@@ -787,6 +919,24 @@
 													</div>
 												{/if}
 											</div>
+											{#if message.role === 'user' && editingMessageId !== message.id}
+												<div class="flex justify-end items-center gap-3 pr-2 -mt-1 -mb-1">
+													<button
+														onclick={() => handleEdit(message)}
+														class="text-white opacity-50 hover:opacity-100 transition-opacity drop-shadow-md"
+														title="Edit"
+													>
+														<Pencil size={18} />
+													</button>
+													<button
+														onclick={() => confirmDelete(message)}
+														class="text-white opacity-50 hover:opacity-100 hover:text-red-400 transition-colors drop-shadow-md"
+														title="Delete"
+													>
+														<Trash2 size={18} />
+													</button>
+												</div>
+											{/if}
 										</div>
 									{/if}
 								</div>
@@ -1053,6 +1203,14 @@
 	toolName={inspectToolData.toolName}
 	args={inspectToolData.args}
 	result={inspectToolData.result}
+/>
+<ConfirmModal
+	bind:isOpen={confirmModal.isOpen}
+	title={confirmModal.title}
+	message={confirmModal.message}
+	confirmText={confirmModal.confirmText}
+	isDanger={confirmModal.isDanger}
+	onConfirm={confirmModal.onConfirm}
 />
 
 <style>

@@ -4,20 +4,28 @@
 	import QRCode from 'qrcode';
 	import jsQR from 'jsqr';
 	import { fade, fly } from 'svelte/transition';
+	import { tick } from 'svelte';
 
 	let { isOpen = $bindable(false) } = $props();
 	let importInput = $state<HTMLInputElement | null>(null);
 	let qrImportInput = $state<HTMLInputElement | null>(null);
 
 	let showExportQR = $state(false);
+	let showCameraScanner = $state(false);
+	let videoElement = $state<HTMLVideoElement | null>(null);
+	let stream: MediaStream | null = null;
+	let animationFrameId: number;
+
 	let exportTagName = $state('');
 	let jsonExportName = $state('');
 	let generatedQRUrl = $state('');
 
 	function close() {
+		stopCamera();
 		isOpen = false;
 		setTimeout(() => {
 			showExportQR = false;
+			showCameraScanner = false;
 		}, 300);
 	}
 
@@ -37,6 +45,67 @@
 		};
 		reader.readAsText(file);
 		target.value = ''; // Reset
+	}
+
+	async function startCamera() {
+		showCameraScanner = true;
+		await tick();
+		try {
+			stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+			if (videoElement) {
+				videoElement.srcObject = stream;
+				videoElement.setAttribute("playsinline", "true");
+				videoElement.play();
+				requestAnimationFrame(scanLoop);
+			}
+		} catch (err) {
+			console.error("Error accessing camera:", err);
+			alert("Could not access the camera. Please check permissions.");
+			showCameraScanner = false;
+		}
+	}
+
+	function stopCamera() {
+		if (stream) {
+			stream.getTracks().forEach(track => track.stop());
+			stream = null;
+		}
+		if (animationFrameId) {
+			cancelAnimationFrame(animationFrameId);
+		}
+		showCameraScanner = false;
+	}
+
+	function scanLoop() {
+		if (!videoElement || videoElement.readyState !== videoElement.HAVE_ENOUGH_DATA) {
+			if (showCameraScanner) animationFrameId = requestAnimationFrame(scanLoop);
+			return;
+		}
+
+		const canvas = document.createElement('canvas');
+		canvas.width = videoElement.videoWidth;
+		canvas.height = videoElement.videoHeight;
+		const ctx = canvas.getContext('2d');
+		if (!ctx) return;
+
+		ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+		const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+		
+		const code = jsQR(imageData.data, imageData.width, imageData.height, {
+			inversionAttempts: "dontInvert",
+		});
+
+		if (code) {
+			if (settings.importFromQRCodeData(code.data)) {
+				stopCamera();
+				alert('Settings loaded successfully!');
+				close();
+			} else {
+				if (showCameraScanner) animationFrameId = requestAnimationFrame(scanLoop);
+			}
+		} else {
+			if (showCameraScanner) animationFrameId = requestAnimationFrame(scanLoop);
+		}
 	}
 
 	async function generateQR() {
@@ -161,7 +230,28 @@
 			</div>
 
 			<div class="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
-				{#if showExportQR}
+				{#if showCameraScanner}
+					<div class="space-y-6 text-center animate-in fade-in slide-in-from-bottom-4 duration-300 h-full flex flex-col justify-center">
+						<div class="flex items-center gap-2 justify-center text-blue-600">
+							<Camera size={20} />
+							<h3 class="text-lg font-bold">Scan Settings Tag</h3>
+						</div>
+						<div class="mx-auto w-full max-w-sm overflow-hidden rounded-2xl border-4 border-white bg-black shadow-xl dark:border-zinc-800 relative aspect-square">
+							<!-- svelte-ignore a11y_media_has_caption -->
+							<video bind:this={videoElement} class="w-full h-full object-cover" playsinline></video>
+							<div class="absolute inset-0 border-[3px] border-dashed border-white/50 m-12 rounded-2xl pointer-events-none animate-pulse"></div>
+						</div>
+						<p class="text-xs text-zinc-500">Point your camera at a Settings Tag QR code</p>
+						<div class="flex gap-3 mt-auto">
+							<button 
+								onclick={stopCamera}
+								class="flex-1 rounded-xl border border-zinc-200 py-3 text-sm font-bold hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800 transition-colors"
+							>
+								Cancel
+							</button>
+						</div>
+					</div>
+				{:else if showExportQR}
 					<div class="space-y-6 text-center animate-in fade-in slide-in-from-bottom-4 duration-300">
 						<div class="flex items-center gap-2 justify-center text-blue-600">
 							<Share2 size={20} />
@@ -436,13 +526,22 @@
 									</div>
 								</div>
 								
-								<button 
-									onclick={() => qrImportInput?.click()}
-									class="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-blue-600 bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-500/20"
-								>
-									<Scan size={18} />
-									Import from Settings Tag (QR Image)
-								</button>
+								<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+									<button 
+										onclick={() => qrImportInput?.click()}
+										class="w-full flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 py-3 text-sm font-bold text-blue-600 hover:bg-blue-100 transition-all active:scale-95 dark:border-blue-900/50 dark:bg-blue-900/20 dark:text-blue-400"
+									>
+										<ImageIcon size={18} />
+										Upload QR Image
+									</button>
+									<button 
+										onclick={startCamera}
+										class="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-blue-600 bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-500/20"
+									>
+										<Camera size={18} />
+										Scan with Camera
+									</button>
+								</div>
 							</div>
 
 							<!-- Separator with OR -->

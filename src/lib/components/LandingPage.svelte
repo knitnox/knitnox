@@ -4,6 +4,7 @@
 	import jsQR from 'jsqr';
 	import { tick } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
+	import ImportSuccessModal from './ImportSuccessModal.svelte';
 
 	let importInput = $state<HTMLInputElement | null>(null);
 	let qrImportInput = $state<HTMLInputElement | null>(null);
@@ -12,6 +13,24 @@
 	let videoElement = $state<HTMLVideoElement | null>(null);
 	let stream: MediaStream | null = null;
 	let animationFrameId: number;
+
+	let showSuccessModal = $state(false);
+	let importedModelName = $state('');
+	let importedBaseUrl = $state('');
+	let importedApiTokenMasked = $state('');
+
+	function maskApiKey(key: string) {
+		if (!key) return '';
+		if (key.length <= 8) return '****';
+		return key.substring(0, 4) + '...' + key.substring(key.length - 4);
+	}
+
+	function handleImportSuccess() {
+		importedModelName = settings.model;
+		importedBaseUrl = settings.baseUrl;
+		importedApiTokenMasked = maskApiKey(settings.apiKey);
+		showSuccessModal = true;
+	}
 
 	function handleImport(e: Event) {
 		const target = e.target as HTMLInputElement;
@@ -22,7 +41,7 @@
 		reader.onload = (e) => {
 			const content = e.target?.result as string;
 			if (settings.importSettings(content)) {
-				alert('Settings imported successfully!');
+				handleImportSuccess();
 			} else {
 				alert('Failed to import settings. Please check the file format.');
 			}
@@ -51,7 +70,7 @@
 
 			if (code) {
 				if (settings.importFromQRCodeData(code.data)) {
-					alert('Settings imported successfully from Tag!');
+					handleImportSuccess();
 				} else {
 					alert('Failed to decode settings from this image.');
 				}
@@ -114,7 +133,7 @@
 		if (code) {
 			if (settings.importFromQRCodeData(code.data)) {
 				stopCamera();
-				alert('Settings loaded successfully!');
+				handleImportSuccess();
 			} else {
 				if (showCameraScanner) animationFrameId = requestAnimationFrame(scanLoop);
 			}
@@ -164,7 +183,7 @@
 
 				<button 
 					onclick={startCamera}
-					class="flex-1 flex items-center justify-center gap-3 rounded-2xl border-2 border-blue-600 bg-blue-600 p-4 text-sm font-bold text-white hover:bg-blue-700 transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-blue-500/20"
+					class="flex-1 flex items-center justify-center gap-3 rounded-2xl border-2 border-blue-100 bg-blue-50/50 dark:border-blue-900/30 dark:bg-blue-900/10 p-4 text-sm font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-blue-500/10"
 				>
 					<Camera size={20} class="shrink-0" />
 					<span class="truncate text-center">Scan with Camera</span>
@@ -222,6 +241,13 @@
 		</div>
 	</div>
 {/if}
+
+<ImportSuccessModal
+	bind:isOpen={showSuccessModal}
+	modelName={importedModelName}
+	baseUrl={importedBaseUrl}
+	apiTokenMasked={importedApiTokenMasked}
+/>
 
 <style>
 	:root {

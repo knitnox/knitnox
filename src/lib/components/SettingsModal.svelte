@@ -5,6 +5,7 @@
 	import jsQR from 'jsqr';
 	import { fade, fly } from 'svelte/transition';
 	import { tick } from 'svelte';
+	import ImportSuccessModal from './ImportSuccessModal.svelte';
 
 	let { isOpen = $bindable(false) } = $props();
 	let importInput = $state<HTMLInputElement | null>(null);
@@ -19,6 +20,24 @@
 	let exportTagName = $state('');
 	let jsonExportName = $state('');
 	let generatedQRUrl = $state('');
+
+	let showSuccessModal = $state(false);
+	let importedModelName = $state('');
+	let importedBaseUrl = $state('');
+	let importedApiTokenMasked = $state('');
+
+	function maskApiKey(key: string) {
+		if (!key) return '';
+		if (key.length <= 8) return '****';
+		return key.substring(0, 4) + '...' + key.substring(key.length - 4);
+	}
+
+	function handleImportSuccess() {
+		importedModelName = settings.model;
+		importedBaseUrl = settings.baseUrl;
+		importedApiTokenMasked = maskApiKey(settings.apiKey);
+		showSuccessModal = true;
+	}
 
 	function close() {
 		stopCamera();
@@ -38,7 +57,7 @@
 		reader.onload = (e) => {
 			const content = e.target?.result as string;
 			if (settings.importSettings(content)) {
-				alert('Settings imported successfully!');
+				handleImportSuccess();
 			} else {
 				alert('Failed to import settings. Please check the file format.');
 			}
@@ -98,7 +117,7 @@
 		if (code) {
 			if (settings.importFromQRCodeData(code.data)) {
 				stopCamera();
-				alert('Settings loaded successfully!');
+				handleImportSuccess();
 				close();
 			} else {
 				if (showCameraScanner) animationFrameId = requestAnimationFrame(scanLoop);
@@ -600,6 +619,13 @@
 		</div>
 	</div>
 {/if}
+
+<ImportSuccessModal
+	bind:isOpen={showSuccessModal}
+	modelName={importedModelName}
+	baseUrl={importedBaseUrl}
+	apiTokenMasked={importedApiTokenMasked}
+/>
 
 <style>
 	.custom-scrollbar::-webkit-scrollbar {

@@ -702,7 +702,7 @@
 				{#if chatId}
 					<button 
 						onclick={onNewChat}
-						class="text-white transition-all active:scale-95 shrink-0 mr-3 sm:mr-5"
+						class="text-zinc-900 dark:text-white transition-all active:scale-95 shrink-0 mr-3 sm:mr-5 hover:text-zinc-600 dark:hover:text-zinc-300"
 						aria-label="New Chat"
 						title="New Chat"
 					>

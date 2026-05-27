@@ -4,7 +4,7 @@
 	import { X, FileText, Terminal, ExternalLink, Search, Loader2, Database, Zap, Library } from '@lucide/svelte';
 	import { fade, fly } from 'svelte/transition';
 
-	let { isOpen = $bindable(false), mode = $bindable('resources') } = $props<{
+	let { isOpen = $bindable(false), mode = 'resources' } = $props<{
 		isOpen: boolean;
 		mode: 'resources' | 'prompts';
 	}>();
@@ -13,7 +13,7 @@
 	let isLoading = $state(false);
 	let searchQuery = $state('');
 
-	async function fetchItems(targetMode: 'resources' | 'prompts') {
+	async function fetchItems() {
 		isLoading = true;
 		items = [];
 		try {
@@ -21,28 +21,26 @@
 			for (const url of settings.mcpServers) {
 				if (!url) continue;
 				const client = new MCPClient(url);
-				const serverItems = targetMode === 'resources' 
-					? await client.listResources() 
-					: await client.listPrompts();
+				let serverItems = [];
+				if (mode === 'resources') {
+					serverItems = await client.listResources();
+				} else {
+					serverItems = await client.listPrompts();
+				}
 				
 				allItems.push(...serverItems.map((item: any) => ({ ...item, serverUrl: url })));
 			}
-			// Only update if the mode hasn't changed during the fetch
-			if (mode === targetMode) {
-				items = allItems;
-			}
+			items = allItems;
 		} catch (e) {
-			console.error(`Failed to fetch ${targetMode}:`, e);
+			console.error(`Failed to fetch ${mode}:`, e);
 		} finally {
-			if (mode === targetMode) {
-				isLoading = false;
-			}
+			isLoading = false;
 		}
 	}
 
 	$effect(() => {
 		if (isOpen) {
-			fetchItems(mode);
+			fetchItems();
 		}
 	});
 
@@ -74,7 +72,7 @@
 			<!-- Header -->
 			<div class="flex items-center justify-between border-b border-zinc-100 p-6 dark:border-zinc-800">
 				<div class="flex items-center gap-3">
-					<div class="rounded-xl p-2 {mode === 'resources' ? 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800'}">
+					<div class="rounded-xl p-2 bg-zinc-100 text-zinc-600 dark:bg-zinc-800">
 						{#if mode === 'resources'}
 							<Library size={20} />
 						{:else}
@@ -91,25 +89,8 @@
 				</button>
 			</div>
 
-			<!-- Tabs/Search -->
-			<div class="p-4 border-b border-zinc-100 dark:border-zinc-800 space-y-4">
-				<div class="flex gap-1 p-1 bg-zinc-100 dark:bg-zinc-800 rounded-xl">
-					<button 
-						onclick={() => { mode = 'resources'; }}
-						class="flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all {mode === 'resources' ? 'bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-white' : 'text-zinc-500'}"
-					>
-						<Library size={14} />
-						Resources
-					</button>
-					<button 
-						onclick={() => { mode = 'prompts'; }}
-						class="flex-1 flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all {mode === 'prompts' ? 'bg-white dark:bg-zinc-700 shadow-sm text-zinc-900 dark:text-white' : 'text-zinc-500'}"
-					>
-						<Terminal size={14} />
-						Prompts
-					</button>
-				</div>
-
+			<!-- Search -->
+			<div class="p-4 border-b border-zinc-100 dark:border-zinc-800">
 				<div class="relative">
 					<Search size={16} class="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
 					<input 

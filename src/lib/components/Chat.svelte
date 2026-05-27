@@ -122,11 +122,15 @@
 			let promptsCount = 0;
 			for (const url of settings.mcpServers) {
 				if (!url) continue;
-				const client = new MCPClient(url);
-				const r = await client.listResources();
-				const p = await client.listPrompts();
-				resourcesCount += r.length;
-				promptsCount += p.length;
+				try {
+					const client = new MCPClient(url);
+					const r = await client.listResources();
+					const p = await client.listPrompts();
+					resourcesCount += r.length;
+					promptsCount += p.length;
+				} catch (e) {
+					// Silently skip offline servers
+				}
 			}
 			hasMcpResources = resourcesCount > 0;
 			hasMcpPrompts = promptsCount > 0;
@@ -136,7 +140,13 @@
 	}
 
 	$effect(() => {
+		// Run check on mount and whenever settings.mcpServers changes
+		const urls = settings.mcpServers;
 		checkMcpCapabilities();
+		
+		// Periodic sync every 10 seconds to catch servers started later
+		const interval = setInterval(checkMcpCapabilities, 10000);
+		return () => clearInterval(interval);
 	});
 
 	let abortController = $state<AbortController | null>(null);

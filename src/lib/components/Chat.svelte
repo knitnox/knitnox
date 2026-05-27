@@ -7,10 +7,11 @@
 	import { localTools } from '$lib/tools.svelte';
 	import ToolsSettingsModal from './ToolsSettingsModal.svelte';
 	import ToolInspectModal from './ToolInspectModal.svelte';
+	import MCPInspectModal from './MCPInspectModal.svelte';
 	import LandingPage from './LandingPage.svelte';
 	import ConfirmModal from './ConfirmModal.svelte';
 	import { liveQuery } from 'dexie';
-	import { SendHorizontal, User, Bot, Loader2, Wrench, Toolbox, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check, Settings as SettingsIcon, Brain, MessageSquare, PlusCircle, Pencil } from '@lucide/svelte';
+	import { SendHorizontal, User, Bot, Loader2, Wrench, Toolbox, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check, Settings as SettingsIcon, Brain, MessageSquare, PlusCircle, Pencil, Database, Zap, Library, Terminal } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import { Marked } from 'marked';
 	import { markedHighlight } from 'marked-highlight';
@@ -110,6 +111,34 @@
 
 	let isStreaming = $state(false);
 	let isToolsModalOpen = $state(false);
+	let isMcpInspectOpen = $state(false);
+	let mcpInspectMode = $state<'resources' | 'prompts'>('resources');
+	let hasMcpResources = $state(false);
+	let hasMcpPrompts = $state(false);
+
+	async function checkMcpCapabilities() {
+		try {
+			let resourcesCount = 0;
+			let promptsCount = 0;
+			for (const url of settings.mcpServers) {
+				if (!url) continue;
+				const client = new MCPClient(url);
+				const r = await client.listResources();
+				const p = await client.listPrompts();
+				resourcesCount += r.length;
+				promptsCount += p.length;
+			}
+			hasMcpResources = resourcesCount > 0;
+			hasMcpPrompts = promptsCount > 0;
+		} catch (e) {
+			console.warn('Failed to check MCP capabilities:', e);
+		}
+	}
+
+	$effect(() => {
+		checkMcpCapabilities();
+	});
+
 	let abortController = $state<AbortController | null>(null);
 	let inspectToolData = $state<{ isOpen: boolean; toolName: string; args: any; result: any }>({
 		isOpen: false,
@@ -1145,6 +1174,26 @@
 
 					<div class="flex items-center justify-between mt-0.5 px-0.5">
 						<div class="flex items-center gap-0.5">
+							{#if hasMcpResources}
+								<button
+									type="button"
+									onclick={() => { mcpInspectMode = 'resources'; isMcpInspectOpen = true; }}
+									class="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800 transition-all"
+									title="MCP Resources"
+								>
+									<Library size={20} />
+								</button>
+							{/if}
+							{#if hasMcpPrompts}
+								<button
+									type="button"
+									onclick={() => { mcpInspectMode = 'prompts'; isMcpInspectOpen = true; }}
+									class="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800 transition-all"
+									title="MCP Prompts"
+								>
+									<Terminal size={20} />
+								</button>
+							{/if}
 							<button
 								type="button"
 								onclick={() => isToolsModalOpen = true}
@@ -1204,6 +1253,7 @@
 	args={inspectToolData.args}
 	result={inspectToolData.result}
 />
+<MCPInspectModal bind:isOpen={isMcpInspectOpen} bind:mode={mcpInspectMode} />
 <ConfirmModal
 	bind:isOpen={confirmModal.isOpen}
 	title={confirmModal.title}

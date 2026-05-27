@@ -216,8 +216,23 @@ export class MCPClient {
 		return res.result?.tools || [];
 	}
 
-	async callTool(name: string, args: any): Promise<any> {
-		const res = await this.request('tools/call', { name, arguments: args });
+	async listResources() {
+		const res = await this.request('resources/list', {});
+		return res.result?.resources || [];
+	}
+
+	async readResource(uri: string) {
+		const res = await this.request('resources/read', { uri });
+		return res.result?.contents || [];
+	}
+
+	async listPrompts() {
+		const res = await this.request('prompts/list', {});
+		return res.result?.prompts || [];
+	}
+
+	async getPrompt(name: string, args?: any) {
+		const res = await this.request('prompts/get', { name, arguments: args });
 		return res.result;
 	}
 

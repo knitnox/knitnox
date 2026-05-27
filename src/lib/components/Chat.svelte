@@ -650,7 +650,7 @@
 </script>
 
 <svelte:head>
-	<title>{chatId ? (currentChat?.title || 'New Chat') : 'knitnox'}</title>
+	<title>{chatId ? (currentChat?.title || 'New Chat') : 'knitnox Assistant'}</title>
 </svelte:head>
 
 <div class="relative flex h-full flex-col bg-white dark:bg-zinc-900 overflow-hidden">
@@ -674,7 +674,7 @@
 							</h1>
 						{:else}
 							<h1 class="text-lg sm:text-base font-bold tracking-tight">
-								Knitnox
+								knitnox Assistant
 							</h1>
 						{/if}
 					</div>

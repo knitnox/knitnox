@@ -1,10 +1,17 @@
 <script lang="ts">
 	import { settings } from '$lib/settings.svelte';
-	import { Upload, Image as ImageIcon, QrCode, Scan } from '@lucide/svelte';
+	import { Upload, Image as ImageIcon, QrCode, Scan, Camera, X } from '@lucide/svelte';
 	import jsQR from 'jsqr';
+	import { tick } from 'svelte';
+	import { fade, fly } from 'svelte/transition';
 
 	let importInput = $state<HTMLInputElement | null>(null);
 	let qrImportInput = $state<HTMLInputElement | null>(null);
+
+	let showCameraScanner = $state(false);
+	let videoElement = $state<HTMLVideoElement | null>(null);
+	let stream: MediaStream | null = null;
+	let animationFrameId: number;
 
 	function handleImport(e: Event) {
 		const target = e.target as HTMLInputElement;
@@ -55,6 +62,66 @@
 		img.src = URL.createObjectURL(file);
 		target.value = '';
 	}
+
+	async function startCamera() {
+		showCameraScanner = true;
+		await tick();
+		try {
+			stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+			if (videoElement) {
+				videoElement.srcObject = stream;
+				videoElement.setAttribute("playsinline", "true");
+				videoElement.play();
+				requestAnimationFrame(scanLoop);
+			}
+		} catch (err) {
+			console.error("Error accessing camera:", err);
+			alert("Could not access the camera. Please check permissions.");
+			showCameraScanner = false;
+		}
+	}
+
+	function stopCamera() {
+		if (stream) {
+			stream.getTracks().forEach(track => track.stop());
+			stream = null;
+		}
+		if (animationFrameId) {
+			cancelAnimationFrame(animationFrameId);
+		}
+		showCameraScanner = false;
+	}
+
+	function scanLoop() {
+		if (!videoElement || videoElement.readyState !== videoElement.HAVE_ENOUGH_DATA) {
+			if (showCameraScanner) animationFrameId = requestAnimationFrame(scanLoop);
+			return;
+		}
+
+		const canvas = document.createElement('canvas');
+		canvas.width = videoElement.videoWidth;
+		canvas.height = videoElement.videoHeight;
+		const ctx = canvas.getContext('2d');
+		if (!ctx) return;
+
+		ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+		const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+		
+		const code = jsQR(imageData.data, imageData.width, imageData.height, {
+			inversionAttempts: "dontInvert",
+		});
+
+		if (code) {
+			if (settings.importFromQRCodeData(code.data)) {
+				stopCamera();
+				alert('Settings loaded successfully!');
+			} else {
+				if (showCameraScanner) animationFrameId = requestAnimationFrame(scanLoop);
+			}
+		} else {
+			if (showCameraScanner) animationFrameId = requestAnimationFrame(scanLoop);
+		}
+	}
 </script>
 
 <div class="flex flex-col items-center justify-center min-h-[70vh] px-4 py-12 transition-colors duration-300">
@@ -86,20 +153,28 @@
 
 		<!-- Quick Settings Section -->
 		<div class="flex flex-col items-center gap-6 pt-8 animate-in fade-in slide-in-from-bottom-4 duration-1000 w-full">
-			<div class="flex flex-col sm:flex-row gap-3 w-full max-w-xl">
+			<div class="flex flex-col sm:flex-row gap-3 w-full max-w-4xl">
 				<button 
 					onclick={() => qrImportInput?.click()}
 					class="flex-1 flex items-center justify-center gap-3 rounded-2xl border-2 border-blue-100 bg-blue-50/50 dark:border-blue-900/30 dark:bg-blue-900/10 p-4 text-sm font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-blue-500/10"
 				>
-					<Scan size={20} class="shrink-0" />
-					<span class="truncate text-center">Import from Settings Tag</span>
+					<ImageIcon size={20} class="shrink-0" />
+					<span class="truncate text-center">Import Tag Image</span>
+				</button>
+
+				<button 
+					onclick={startCamera}
+					class="flex-1 flex items-center justify-center gap-3 rounded-2xl border-2 border-blue-600 bg-blue-600 p-4 text-sm font-bold text-white hover:bg-blue-700 transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-blue-500/20"
+				>
+					<Camera size={20} class="shrink-0" />
+					<span class="truncate text-center">Scan with Camera</span>
 				</button>
 				
 				<button 
 					onclick={() => importInput?.click()}
-					class="flex-1 flex items-center justify-center gap-3 rounded-2xl border-2 border-zinc-100 bg-white dark:border-zinc-800 dark:bg-zinc-900 p-4 text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:border-zinc-200 dark:hover:border-zinc-700 transition-all hover:scale-[1.02] active:scale-95 shadow-sm"
+					class="flex-1 flex items-center justify-center gap-3 rounded-2xl border-2 border-blue-100 bg-blue-50/50 dark:border-blue-900/30 dark:bg-blue-900/10 p-4 text-sm font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-blue-500/10"
 				>
-					<Upload size={20} class="text-zinc-400 shrink-0" />
+					<Upload size={20} class="shrink-0" />
 					<span class="truncate text-center">Import from JSON</span>
 				</button>
 			</div>
@@ -114,6 +189,39 @@
 		<input type="file" accept="image/*" class="hidden" bind:this={qrImportInput} onchange={handleQRImport} />
 	</div>
 </div>
+
+{#if showCameraScanner}
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div 
+		class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+		onclick={stopCamera}
+		transition:fade={{ duration: 200 }}
+	>
+		<div 
+			class="relative flex flex-col w-full max-w-sm rounded-3xl bg-white shadow-2xl dark:bg-zinc-900 overflow-hidden p-6"
+			onclick={e => e.stopPropagation()}
+			transition:fly={{ y: 50, duration: 300 }}
+		>
+			<div class="flex items-center justify-between mb-6">
+				<div class="flex items-center gap-2 text-blue-600">
+					<Camera size={20} />
+					<h3 class="text-lg font-bold">Scan Settings Tag</h3>
+				</div>
+				<button onclick={stopCamera} class="rounded-full p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+					<X size={20} />
+				</button>
+			</div>
+			
+			<div class="mx-auto w-full aspect-square overflow-hidden rounded-2xl border-4 border-white bg-black shadow-xl dark:border-zinc-800 relative">
+				<!-- svelte-ignore a11y_media_has_caption -->
+				<video bind:this={videoElement} class="w-full h-full object-cover" playsinline></video>
+				<div class="absolute inset-0 border-[3px] border-dashed border-white/50 m-8 rounded-2xl pointer-events-none animate-pulse"></div>
+			</div>
+			<p class="text-xs text-zinc-500 text-center mt-6">Point your camera at a Settings Tag QR code</p>
+		</div>
+	</div>
+{/if}
 
 <style>
 	:root {

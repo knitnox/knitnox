@@ -67,7 +67,21 @@
 </script>
 
 <aside class="flex h-full w-72 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 shadow-xl">
-	<div class="flex items-center justify-between p-3">
+	<!-- Sidebar Logo -->
+	<div class="flex flex-col items-center pt-5 pb-3 px-4 w-full">
+		<h1 class="sidebar-logo-title">
+			{#each 'Knitnox'.split('') as char}
+				<span>{char}</span>
+			{/each}
+		</h1>
+		<div class="sidebar-logo-divider">
+			<span class="line"></span>
+			<span class="star">⛤</span>
+			<span class="line"></span>
+		</div>
+	</div>
+
+	<div class="flex items-center justify-between px-3 pb-3">
 		<button
 			onclick={onNewChat}
 			class="flex flex-1 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800 transition-all cursor-pointer"
@@ -165,3 +179,70 @@
 	isDanger={confirmModal.isDanger}
 	onConfirm={confirmModal.onConfirm}
 />
+
+<style>
+	.sidebar-logo-title {
+		margin: 0;
+		font-size: 1.5rem;
+		font-family: 'Orbitron', sans-serif;
+		font-weight: 900;
+		letter-spacing: 2px;
+		color: #09090b; /* zinc-950 */
+		display: flex;
+		justify-content: center;
+		transition: color 0.3s;
+		text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+	}
+
+	:global(.dark) .sidebar-logo-title {
+		color: #ffffff;
+		text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+	}
+
+	.sidebar-logo-title span {
+		display: inline-block;
+	}
+
+	.sidebar-logo-title span:nth-child(6) {
+		animation: bulbGlowSidebar 2s ease-in-out infinite;
+		color: #ffa500; /* orange */
+	}
+
+	@keyframes bulbGlowSidebar {
+		0%, 100% { 
+			text-shadow: 0 0 5px rgba(255, 165, 0, 0.4),
+						 0 0 10px rgba(255, 165, 0, 0.3);
+		}
+		50% { 
+			text-shadow: 0 0 8px rgba(255, 165, 0, 0.5),
+						 0 0 15px rgba(255, 165, 0, 0.6),
+						 0 0 20px rgba(255, 165, 0, 0.4);
+		}
+	}
+
+	.sidebar-logo-divider {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-top: -0.25rem;
+		width: 100%;
+		max-width: 150px;
+		opacity: 0.6;
+	}
+
+	.sidebar-logo-divider .line {
+		flex: 1;
+		height: 1px;
+		background: linear-gradient(to right, transparent, #09090b, transparent);
+	}
+
+	:global(.dark) .sidebar-logo-divider .line {
+		background: linear-gradient(to right, transparent, #ffffff, transparent);
+	}
+
+	.sidebar-logo-divider .star {
+		font-size: 1rem;
+		color: #ffa500;
+		animation: bulbGlowSidebar 2s ease-in-out infinite;
+	}
+</style>

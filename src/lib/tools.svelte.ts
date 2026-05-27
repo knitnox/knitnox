@@ -3,22 +3,22 @@ import { db } from './db';
 export const localTools = [
 	{
 		name: 'knowledge',
-		description: 'Manage a persistent knowledge base of user facts, preferences, and notes. Use this to remember important details about the user across conversations. You can add new facts, search for existing ones, list all stored knowledge, or delete outdated information.',
+		description: 'Manage a persistent knowledge base of user facts and preferences that lasts across different chat sessions. USE GUIDELINES: 1. Use "search" ONLY when the user asks about something from the past or if you need specific historical context not in this chat. 2. Use "add" ONLY for important, long-term facts (preferences, names, life events). 3. NEVER store trivial chat history or conversational fluff. 4. Always search before adding to avoid duplicates.',
 		parameters: {
 			type: 'object',
 			properties: {
 				action: {
 					type: 'string',
 					enum: ['add', 'search', 'list', 'delete'],
-					description: 'The action to perform: "add" to store information, "search" to find relevant info, "list" to see all info, or "delete" to remove info.'
+					description: 'The action: "add" (significant facts only), "search" (targeted queries), "list" (overview), or "delete" (outdated info).'
 				},
 				content: {
 					type: 'string',
-					description: 'The fact or information to store (required for "add"). Be concise but thorough.'
+					description: 'The fact to store (required for "add"). Be concise, factual, and omit conversational context.'
 				},
 				query: {
 					type: 'string',
-					description: 'The search term to find relevant information (required for "search").'
+					description: 'The search term (required for "search"). Use specific keywords instead of full sentences.'
 				},
 				id: {
 					type: 'number',
@@ -26,11 +26,11 @@ export const localTools = [
 				},
 				limit: {
 					type: 'number',
-					description: 'Maximum number of results to return (default: 5). Use this for pagination.'
+					description: 'Max results (default: 5). Keep it small unless a broad overview is needed.'
 				},
 				offset: {
 					type: 'number',
-					description: 'Number of results to skip (default: 0). Use this for pagination.'
+					description: 'Number of results to skip (default: 0).'
 				}
 			},
 			required: ['action']

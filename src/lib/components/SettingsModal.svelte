@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { settings } from '$lib/settings.svelte';
-	import { X, Download, Upload, QrCode, Camera, Image as ImageIcon, Settings as SettingsIcon, Shield, Cpu, Layout, Type, Database, Share2 } from '@lucide/svelte';
+	import { X, Download, Upload, QrCode, Camera, Image as ImageIcon, Settings as SettingsIcon, Shield, Cpu, Layout, Type, Database, Share2, Scan } from '@lucide/svelte';
 	import QRCode from 'qrcode';
 	import jsQR from 'jsqr';
 	import { fade, fly } from 'svelte/transition';
@@ -11,6 +11,7 @@
 
 	let showExportQR = $state(false);
 	let exportTagName = $state('');
+	let jsonExportName = $state('');
 	let generatedQRUrl = $state('');
 
 	function close() {
@@ -150,7 +151,7 @@
 						<SettingsIcon size={20} />
 					</div>
 					<div>
-						<h2 class="text-lg font-bold">Preferences</h2>
+						<h2 class="text-lg font-bold">Settings & Preferences</h2>
 						<p class="text-xs text-zinc-500">Customize your AI experience</p>
 					</div>
 				</div>
@@ -413,10 +414,11 @@
 							<Share2 size={14} /> Data Management
 						</h3>
 						<div class="rounded-2xl border border-zinc-100 bg-zinc-50/50 p-5 dark:border-zinc-800 dark:bg-zinc-800/30 space-y-6">
-							<div class="space-y-3">
+							<!-- QR Tag Group -->
+							<div class="space-y-4">
 								<div class="flex flex-col gap-2">
 									<label for="tagName" class="text-xs font-bold text-blue-600">SETTINGS TAG (QR EXPORT)</label>
-									<div class="flex gap-2">
+									<div class="flex flex-col sm:flex-row gap-2">
 										<input 
 											id="tagName"
 											type="text" 
@@ -426,38 +428,58 @@
 										/>
 										<button 
 											onclick={generateQR}
-											class="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all active:scale-95"
+											class="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all active:scale-95 w-full sm:w-auto"
 										>
 											<QrCode size={18} />
 											Export
 										</button>
 									</div>
 								</div>
-							</div>
-
-							<div class="grid grid-cols-2 gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-800">
-								<button 
-									onclick={() => settings.exportSettings()}
-									class="flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white py-3 text-sm font-bold hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800 transition-colors"
-								>
-									<Download size={18} class="text-zinc-400" />
-									JSON Export
-								</button>
 								
 								<button 
-									onclick={() => importInput?.click()}
-									class="flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white py-3 text-sm font-bold hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800 transition-colors"
+									onclick={() => qrImportInput?.click()}
+									class="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-blue-600 bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-500/20"
 								>
-									<Upload size={18} class="text-zinc-400" />
-									JSON Import
+									<Scan size={18} />
+									Import from Settings Tag (QR Image)
 								</button>
+							</div>
+
+							<!-- Separator with OR -->
+							<div class="relative flex items-center py-2">
+								<div class="flex-grow border-t border-dotted border-zinc-200 dark:border-zinc-700"></div>
+								<span class="flex-shrink mx-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest">OR</span>
+								<div class="flex-grow border-t border-dotted border-zinc-200 dark:border-zinc-700"></div>
+							</div>
+
+							<!-- JSON Group (Secondary) -->
+							<div class="space-y-4 opacity-80 transition-opacity hover:opacity-100">
+								<div class="flex flex-col gap-2">
+									<label for="jsonName" class="text-xs font-bold text-zinc-400 uppercase tracking-tight">JSON Settings (Backup)</label>
+									<div class="flex flex-col sm:flex-row gap-2">
+										<input 
+											id="jsonName"
+											type="text" 
+											bind:value={jsonExportName}
+											placeholder="Profile Name (e.g. My Settings)"
+											class="flex-1 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-700 dark:bg-zinc-900"
+										/>
+										<button 
+											onclick={() => settings.exportSettings(jsonExportName)}
+											class="flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2 text-sm font-bold text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 transition-all active:scale-95 w-full sm:w-auto"
+										>
+											<Download size={18} class="text-zinc-400" />
+											Export
+										</button>
+									</div>
+								</div>
 
 								<button 
-									onclick={() => qrImportInput?.click()}
-									class="col-span-2 flex items-center justify-center gap-2 rounded-xl border-2 border-blue-100 bg-blue-50/30 py-3 text-sm font-bold text-blue-600 hover:bg-blue-50 dark:border-blue-900/30 dark:bg-blue-900/10 dark:hover:bg-blue-900/20 transition-colors"
+									onclick={() => importInput?.click()}
+									class="w-full flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 py-3 text-sm font-bold text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 transition-all active:scale-95"
 								>
-									<ImageIcon size={18} />
-									Import from Settings Tag (QR Image)
+									<Upload size={18} class="text-zinc-400" />
+									Import from JSON File
 								</button>
 							</div>
 

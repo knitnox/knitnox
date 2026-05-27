@@ -1,4 +1,60 @@
 <script lang="ts">
+	import { settings } from '$lib/settings.svelte';
+	import { Upload, Image as ImageIcon, QrCode, Scan } from '@lucide/svelte';
+	import jsQR from 'jsqr';
+
+	let importInput = $state<HTMLInputElement | null>(null);
+	let qrImportInput = $state<HTMLInputElement | null>(null);
+
+	function handleImport(e: Event) {
+		const target = e.target as HTMLInputElement;
+		const file = target.files?.[0];
+		if (!file) return;
+
+		const reader = new FileReader();
+		reader.onload = (e) => {
+			const content = e.target?.result as string;
+			if (settings.importSettings(content)) {
+				alert('Settings imported successfully!');
+			} else {
+				alert('Failed to import settings. Please check the file format.');
+			}
+		};
+		reader.readAsText(file);
+		target.value = ''; // Reset
+	}
+
+	async function handleQRImport(e: Event) {
+		const target = e.target as HTMLInputElement;
+		const file = target.files?.[0];
+		if (!file) return;
+
+		const img = new Image();
+		img.onload = () => {
+			const canvas = document.createElement('canvas');
+			const ctx = canvas.getContext('2d');
+			if (!ctx) return;
+
+			canvas.width = img.width;
+			canvas.height = img.height;
+			ctx.drawImage(img, 0, 0);
+
+			const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+			const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+			if (code) {
+				if (settings.importFromQRCodeData(code.data)) {
+					alert('Settings imported successfully from Tag!');
+				} else {
+					alert('Failed to decode settings from this image.');
+				}
+			} else {
+				alert('No QR code found in the image.');
+			}
+		};
+		img.src = URL.createObjectURL(file);
+		target.value = '';
+	}
 </script>
 
 <div class="flex flex-col items-center justify-center min-h-[70vh] px-4 py-12 transition-colors duration-300">
@@ -17,14 +73,45 @@
 	</div>
 
 	<!-- Hero Text -->
-	<div class="max-w-4xl text-center space-y-6">
-		<h2 class="text-2xl sm:text-4xl font-bold tracking-tight text-zinc-900 dark:text-white leading-tight px-2">
-			Chat with any AI using any <br class="hidden sm:block" />
-			<span class="text-blue-600 dark:text-blue-500">OpenAI-compatible API.</span>
-		</h2>
-		<p class="text-lg sm:text-xl text-zinc-600 dark:text-zinc-400 leading-relaxed max-w-2xl mx-auto">
-			You're in control, private, and never locked in. Feel free to <a href="https://github.com/knitnox/knitnox" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-500 hover:underline">download the source</a> to customize, run locally, or host it yourself on any CDN platform like GitHub Pages.
-		</p>
+	<div class="max-w-4xl text-center space-y-8">
+		<div class="space-y-4">
+			<h2 class="text-2xl sm:text-4xl font-bold tracking-tight text-zinc-900 dark:text-white leading-tight px-2">
+				Chat with any AI using any <br class="hidden sm:block" />
+				<span class="text-blue-600 dark:text-blue-500">OpenAI-compatible API.</span>
+			</h2>
+			<p class="text-lg sm:text-xl text-zinc-600 dark:text-zinc-400 leading-relaxed max-w-2xl mx-auto">
+				You're in control, private, and never locked in. Feel free to <a href="https://github.com/knitnox/knitnox" target="_blank" rel="noopener noreferrer" class="text-blue-600 dark:text-blue-500 hover:underline">download the source</a> to customize, run locally, or host it yourself.
+			</p>
+		</div>
+
+		<!-- Quick Settings Section -->
+		<div class="flex flex-col items-center gap-6 pt-8 animate-in fade-in slide-in-from-bottom-4 duration-1000 w-full">
+			<div class="flex flex-col sm:flex-row gap-3 w-full max-w-xl">
+				<button 
+					onclick={() => qrImportInput?.click()}
+					class="flex-1 flex items-center justify-center gap-3 rounded-2xl border-2 border-blue-100 bg-blue-50/50 dark:border-blue-900/30 dark:bg-blue-900/10 p-4 text-sm font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-blue-500/10"
+				>
+					<Scan size={20} class="shrink-0" />
+					<span class="truncate text-center">Import from Settings Tag</span>
+				</button>
+				
+				<button 
+					onclick={() => importInput?.click()}
+					class="flex-1 flex items-center justify-center gap-3 rounded-2xl border-2 border-zinc-100 bg-white dark:border-zinc-800 dark:bg-zinc-900 p-4 text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:border-zinc-200 dark:hover:border-zinc-700 transition-all hover:scale-[1.02] active:scale-95 shadow-sm"
+				>
+					<Upload size={20} class="text-zinc-400 shrink-0" />
+					<span class="truncate text-center">Import from JSON</span>
+				</button>
+			</div>
+			
+			<div class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+				<QrCode size={12} />
+				Quick Start Options
+			</div>
+		</div>
+
+		<input type="file" accept=".json" class="hidden" bind:this={importInput} onchange={handleImport} />
+		<input type="file" accept="image/*" class="hidden" bind:this={qrImportInput} onchange={handleQRImport} />
 	</div>
 </div>
 

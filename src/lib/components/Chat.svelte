@@ -9,7 +9,7 @@
 	import ToolInspectModal from './ToolInspectModal.svelte';
 	import LandingPage from './LandingPage.svelte';
 	import { liveQuery } from 'dexie';
-	import { SendHorizontal, User, Bot, Loader2, Wrench, Toolbox, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check, Settings as SettingsIcon, Brain, MessageSquare } from '@lucide/svelte';
+	import { SendHorizontal, User, Bot, Loader2, Wrench, Toolbox, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check, Settings as SettingsIcon, Brain, MessageSquare, PlusCircle } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import { Marked } from 'marked';
 	import { markedHighlight } from 'marked-highlight';
@@ -74,10 +74,11 @@
 		};
 	}
 
-	let { chatId = $bindable(), onToggleSidebar, onOpenSettings } = $props<{ 
+	let { chatId = $bindable(), onToggleSidebar, onOpenSettings, onNewChat } = $props<{ 
 		chatId: number | null;
 		onToggleSidebar?: () => void;
 		onOpenSettings?: () => void;
+		onNewChat?: () => void;
 	}>();
 
 	let input = $state('');
@@ -367,12 +368,8 @@
 			const memory = currentChat?.summary ? `\n\n[Long-term Memory/Summary of earlier conversation]:\n${currentChat.summary}` : '';
 			const turnInfo = `\n\n[System Info: Turn ${agentTurn}/${settings.maxAgentTurns} in agent loop.]`;
 			
-			// Inject knowledge base count as a hint to the LLM
-			const knowledgeCount = await db.knowledge.count();
-			const knowledgeHint = knowledgeCount > 0 ? `\n\n[Knowledge Base Info: There are ${knowledgeCount} items in your persistent knowledge base. Search it if you need facts about the user.]` : '';
-
 			const apiMessages = [
-				{ role: 'system', content: settings.systemPrompt + memory + turnInfo + knowledgeHint },
+				{ role: 'system', content: settings.systemPrompt + memory + turnInfo },
 				...windowMessages.map((m) => {
 					if (m.attachments?.length) {
 						const content: any[] = [];
@@ -569,15 +566,17 @@
 </svelte:head>
 
 <div class="relative flex h-full flex-col bg-white dark:bg-zinc-900 overflow-hidden">
-	<header class="shrink-0 border-b border-zinc-200 bg-white/80 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/80">
+	<header class="shrink-0 border-b border-zinc-200 bg-white/80 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/80 z-20">
 		<div class="flex h-14 items-center px-1 sm:px-4">
-			<button 
-				onclick={onToggleSidebar}
-				class="rounded-lg p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 shrink-0"
-				aria-label="Toggle Sidebar"
-			>
-				<Menu size={20} />
-			</button>
+			<div class="flex items-center gap-1">
+				<button 
+					onclick={onToggleSidebar}
+					class="rounded-lg p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 shrink-0"
+					aria-label="Toggle Sidebar"
+				>
+					<Menu size={20} />
+				</button>
+			</div>
 			<div class="mx-auto flex w-full max-w-4xl items-center justify-between gap-2 pl-1 sm:pl-2">
 				<div class="flex flex-col min-w-0 leading-tight">
 					<div class="flex items-center gap-2.5 mb-0.5">
@@ -611,6 +610,17 @@
 						{/if}
 					</div>
 				</div>
+
+				{#if chatId}
+					<button 
+						onclick={onNewChat}
+						class="text-white transition-all active:scale-95 shrink-0 mr-3 sm:mr-5"
+						aria-label="New Chat"
+						title="New Chat"
+					>
+						<PlusCircle size={28} />
+					</button>
+				{/if}
 			</div>
 		</div>
 	</header>
@@ -646,7 +656,7 @@
 													<summary class="flex cursor-pointer list-none items-center gap-2 text-xs font-medium text-zinc-500">
 														<ChevronRight size={14} class="transition-transform group-open:rotate-90" />
 														<span>{message.thinkingDuration ? `Thought (${message.thinkingDuration.toFixed(1)}s)` : 'Thought'}</span>
-														
+
 														{#if message.toolCalls}
 															<div class="flex flex-wrap gap-1 ml-auto">
 																{#each message.toolCalls as tc}
@@ -731,7 +741,7 @@
 														{/each}
 													</div>
 												{/if}
-												
+
 												{#if message.role === 'user'}
 													<p class="whitespace-pre-wrap leading-relaxed">{message.content}</p>
 												{:else}
@@ -861,7 +871,7 @@
 										</div>
 									</div>
 								{/if}
-								
+
 								{#if streamingToolCalls.length > 0}
 									<div class="space-y-2">
 										{#each streamingToolCalls as tc}
@@ -874,7 +884,7 @@
 										{/each}
 									</div>
 								{/if}
-								
+
 								{#if !streamingContent && !streamingThinking && streamingToolCalls.filter(Boolean).length === 0}
 									<div class="flex items-center gap-2 rounded-2xl bg-zinc-100 px-3 py-1.5 dark:bg-zinc-800">
 										<Loader2 size={18} class="animate-spin opacity-50" />
@@ -910,15 +920,8 @@
 		</div>
 	</div>
 
-	<div class="absolute bottom-0 left-0 right-0 w-full p-2 sm:p-4 pt-12 pb-3 sm:pb-6 pointer-events-none bg-gradient-to-t from-white via-white/95 to-transparent dark:from-zinc-900 dark:via-zinc-900/95">
+	<div class="absolute bottom-0 left-0 right-0 w-full px-2 sm:px-4 pt-12 pb-1 pointer-events-none bg-gradient-to-t from-white via-white/95 to-transparent dark:from-zinc-900 dark:via-zinc-900/95 z-20">
 		<div class="pointer-events-auto">
-			{#if chatId}
-				<div class="mx-auto max-w-4xl px-2 mb-2 flex items-center gap-2 text-[10px] sm:text-xs text-zinc-500 dark:text-zinc-400 font-mono">
-					<span>Last: {((currentChat?.lastInputTokens || 0) / 1000).toFixed(2)}k in / {((currentChat?.lastOutputTokens || 0) / 1000).toFixed(2)}k out</span>
-					<span class="opacity-30">|</span>
-					<span>Total: {((currentChat?.totalInputTokens || 0) / 1000).toFixed(2)}k in / {((currentChat?.totalOutputTokens || 0) / 1000).toFixed(2)}k out</span>
-				</div>
-			{/if}
 			<form onsubmit={handleSubmit} class="mx-auto max-w-4xl">
 				{#if attachments.length > 0}
 					<div class="mb-2 flex flex-wrap gap-2 px-2">
@@ -950,7 +953,7 @@
 						{/each}
 					</div>
 				{/if}
-				
+
 				<div class="flex flex-col rounded-2xl border-2 border-dotted border-zinc-300 bg-zinc-50 p-1.5 focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20 dark:border-zinc-700 dark:bg-zinc-900 transition-all">
 					<div class="relative flex items-center">
 						{#if settings.supportsImages || settings.supportsAudio || settings.supportsVideo}
@@ -971,7 +974,7 @@
 								<Paperclip size={20} />
 							</button>
 						{/if}
-						
+
 						<textarea
 							bind:this={textareaElement}
 							bind:value={input}
@@ -989,7 +992,7 @@
 							}}
 						></textarea>
 					</div>
-					
+
 					<div class="flex items-center justify-between mt-0.5 px-0.5">
 						<div class="flex items-center gap-0.5">
 							<button
@@ -1034,9 +1037,15 @@
 					</div>
 				</div>
 			</form>
+			{#if chatId}
+				<div class="mx-auto max-w-4xl px-2 mt-0.5 flex items-center justify-center gap-2 text-[10px] sm:text-xs text-zinc-500 dark:text-zinc-400 font-mono">
+					<span>Last: {((currentChat?.lastInputTokens || 0) / 1000).toFixed(2)}k in / {((currentChat?.lastOutputTokens || 0) / 1000).toFixed(2)}k out</span>
+					<span class="opacity-30">|</span>
+					<span>Total: {((currentChat?.totalInputTokens || 0) / 1000).toFixed(2)}k in / {((currentChat?.totalOutputTokens || 0) / 1000).toFixed(2)}k out</span>
+				</div>
+			{/if}
 		</div>
-	</div>
-</div>
+	</div></div>
 
 <ToolsSettingsModal bind:isOpen={isToolsModalOpen} />
 <ToolInspectModal 

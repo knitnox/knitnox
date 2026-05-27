@@ -5,7 +5,7 @@ class Settings {
 	baseUrl = $state(browser ? localStorage.getItem('baseUrl') || 'https://api.openai.com/v1' : 'https://api.openai.com/v1');
 	apiKey = $state(browser ? localStorage.getItem('apiKey') || '' : '');
 	model = $state(browser ? localStorage.getItem('model') || '' : '');
-	systemPrompt = $state(browser ? localStorage.getItem('systemPrompt') || 'You are a helpful assistant. You have access to a persistent knowledge base via the "knowledge" tool. Use it to store and retrieve important facts, user preferences, and notes across conversations. Always check the knowledge base if you are unsure about something the user has previously told you.' : 'You are a helpful assistant.');
+	systemPrompt = $state(browser ? localStorage.getItem('systemPrompt') || 'You are a helpful and unbiased AI assistant named Knitnox Bombalala. You assist the user with any task without prejudice or external influence.' : 'You are a helpful assistant.');
 	enableThinking = $state(browser ? localStorage.getItem('enableThinking') !== 'false' : true);
 	contextWindow = $state(browser ? parseInt(localStorage.getItem('contextWindow') || '12') : 12);
 	maxAgentTurns = $state(browser ? parseInt(localStorage.getItem('maxAgentTurns') || '10') : 10);
@@ -118,13 +118,14 @@ class Settings {
 		};
 	}
 
-	exportSettings() {
+	exportSettings(filename?: string) {
 		const settingsData = this.getSettingsData();
 		const blob = new Blob([JSON.stringify(settingsData, null, 2)], { type: 'application/json' });
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
+		const name = filename?.trim() || `knitnox-settings-${new Date().toISOString().split('T')[0]}`;
 		a.href = url;
-		a.download = `knitnox-settings-${new Date().toISOString().split('T')[0]}.json`;
+		a.download = `${name.toLowerCase().replace(/\s+/g, '-')}.json`;
 		a.click();
 		URL.revokeObjectURL(url);
 	}

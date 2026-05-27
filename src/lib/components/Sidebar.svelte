@@ -3,6 +3,7 @@
 	import { liveQuery } from 'dexie';
 	import { Plus, MessageSquare, Settings as SettingsIcon, Trash2, Edit2, Check, X } from '@lucide/svelte';
 	import { tick } from 'svelte';
+	import ConfirmModal from './ConfirmModal.svelte';
 
 	let { onSelectChat, onNewChat, onOpenSettings, onToggleSidebar, currentChatId } = $props<{
 		onSelectChat: (id: number) => void;
@@ -37,15 +38,31 @@
 		editingChatId = null;
 	}
 
-	async function deleteChat(id: number, e: MouseEvent) {
+	let confirmModal = $state({
+		isOpen: false,
+		title: '',
+		message: '',
+		confirmText: 'Confirm',
+		isDanger: false,
+		onConfirm: () => {}
+	});
+
+	function confirmDeleteChat(id: number, e: MouseEvent) {
 		e.stopPropagation();
-		if (confirm('Are you sure you want to delete this chat?')) {
-			await db.chats.delete(id);
-			await db.messages.where('chatId').equals(id).delete();
-			if (currentChatId === id) {
-				onNewChat();
+		confirmModal = {
+			isOpen: true,
+			title: 'Delete Chat',
+			message: 'Are you sure you want to delete this chat session? This action cannot be undone.',
+			confirmText: 'Delete',
+			isDanger: true,
+			onConfirm: async () => {
+				await db.chats.delete(id);
+				await db.messages.where('chatId').equals(id).delete();
+				if (currentChatId === id) {
+					onNewChat();
+				}
 			}
-		}
+		};
 	}
 </script>
 
@@ -116,7 +133,7 @@
 								<Edit2 size={14} />
 							</button>
 							<button
-								onclick={(e) => deleteChat(chat.id!, e)}
+								onclick={(e) => confirmDeleteChat(chat.id!, e)}
 								class="text-zinc-400 hover:text-red-600 p-1.5 cursor-pointer rounded-md hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-colors"
 								aria-label="Delete chat"
 							>
@@ -139,3 +156,12 @@
 		</button>
 	</div>
 </aside>
+
+<ConfirmModal
+	bind:isOpen={confirmModal.isOpen}
+	title={confirmModal.title}
+	message={confirmModal.message}
+	confirmText={confirmModal.confirmText}
+	isDanger={confirmModal.isDanger}
+	onConfirm={confirmModal.onConfirm}
+/>

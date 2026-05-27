@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { settings } from '$lib/settings.svelte';
-	import { X, Download, Upload, QrCode, Camera, Image as ImageIcon, Settings as SettingsIcon, Shield, Cpu, Layout, Type, Database, Share2, Scan } from '@lucide/svelte';
+	import { MCPClient } from '$lib/mcp.svelte';
+	import { X, Download, Upload, QrCode, Camera, Image as ImageIcon, Settings as SettingsIcon, Shield, Cpu, Layout, Type, Database, Share2, Scan, CheckCircle, AlertCircle, Loader2 } from '@lucide/svelte';
 	import QRCode from 'qrcode';
 	import jsQR from 'jsqr';
 	import { fade, fly } from 'svelte/transition';
@@ -10,6 +11,32 @@
 	let { isOpen = $bindable(false) } = $props();
 	let importInput = $state<HTMLInputElement | null>(null);
 	let qrImportInput = $state<HTMLInputElement | null>(null);
+
+	let connectionStatuses = $state<Record<string, 'checking' | 'success' | 'error' | 'idle'>>({});
+
+	async function checkMcpConnection(url: string) {
+		if (!url) return;
+		connectionStatuses[url] = 'checking';
+		try {
+			const client = new MCPClient(url);
+			await client.getTools();
+			connectionStatuses[url] = 'success';
+		} catch (e) {
+			connectionStatuses[url] = 'error';
+		}
+	}
+
+	$effect(() => {
+		const urls = settings.mcpServers;
+		const timeout = setTimeout(() => {
+			for (const url of urls) {
+				if (url && !connectionStatuses[url]) {
+					checkMcpConnection(url);
+				}
+			}
+		}, 500);
+		return () => clearTimeout(timeout);
+	});
 
 	let showExportQR = $state(false);
 	let showCameraScanner = $state(false);
@@ -493,15 +520,26 @@
 							<div class="space-y-2">
 								{#each settings.mcpServers as server, i}
 									<div class="flex gap-2 animate-in slide-in-from-left-2 duration-200">
-										<input
-											type="text"
-											bind:value={settings.mcpServers[i]}
-											placeholder="http://localhost:8000/sse"
-											class="flex-1 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
-										/>
+										<div class="relative flex-1">
+											<input
+												type="text"
+												bind:value={settings.mcpServers[i]}
+												placeholder="http://localhost:8000/sse"
+												class="w-full rounded-xl border border-zinc-200 bg-white pl-3 pr-10 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
+											/>
+											<div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+												{#if server && connectionStatuses[server] === 'checking'}
+													<Loader2 size={16} class="animate-spin text-zinc-400" />
+												{:else if server && connectionStatuses[server] === 'success'}
+													<CheckCircle size={16} class="text-green-500" />
+												{:else if server && connectionStatuses[server] === 'error'}
+													<AlertCircle size={16} class="text-red-500" />
+												{/if}
+											</div>
+										</div>
 										<button 
 											onclick={() => settings.mcpServers = settings.mcpServers.filter((_, j) => i !== j)}
-											class="text-red-500 hover:bg-red-50 p-2 rounded-xl transition-colors dark:hover:bg-red-900/20"
+											class="text-red-500 hover:bg-red-50 p-2 rounded-xl transition-colors dark:hover:bg-red-900/20 shrink-0"
 										>
 											<X size={18} />
 										</button>

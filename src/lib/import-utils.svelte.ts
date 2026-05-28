@@ -18,7 +18,7 @@ export function createCameraScanner(
 ) {
 	let stream: MediaStream | null = null;
 	let animationFrameId: number;
-	let showCameraScanner = false;
+	let showCameraScanner = $state(false);
 
 	function getShowCameraScanner() {
 		return showCameraScanner;
@@ -28,12 +28,26 @@ export function createCameraScanner(
 		showCameraScanner = true;
 		await tick();
 		try {
-			stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
 			const videoEl = getVideoElement();
+			
+			// Try to get environment camera first, then fall back to any camera
+			try {
+				stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+			} catch (e) {
+				console.warn("Environment camera failed, falling back to default:", e);
+				stream = await navigator.mediaDevices.getUserMedia({ video: true });
+			}
+
 			if (videoEl) {
+				// Set listener BEFORE setting srcObject
+				videoEl.onloadedmetadata = () => {
+					videoEl.play().catch(e => {
+						console.error("Error playing video:", e);
+					});
+				};
+				
 				videoEl.srcObject = stream;
 				videoEl.setAttribute("playsinline", "true");
-				videoEl.play();
 				requestAnimationFrame(scanLoop);
 			}
 		} catch (err) {
@@ -54,17 +68,25 @@ export function createCameraScanner(
 		showCameraScanner = false;
 	}
 
+	let canvas: HTMLCanvasElement | null = null;
+
 	function scanLoop() {
 		const videoEl = getVideoElement();
-		if (!videoEl || videoEl.readyState !== videoEl.HAVE_ENOUGH_DATA) {
+		if (!videoEl || videoEl.readyState !== videoEl.HAVE_ENOUGH_DATA || videoEl.videoWidth === 0) {
 			if (showCameraScanner) animationFrameId = requestAnimationFrame(scanLoop);
 			return;
 		}
 
-		const canvas = document.createElement('canvas');
-		canvas.width = videoEl.videoWidth;
-		canvas.height = videoEl.videoHeight;
-		const ctx = canvas.getContext('2d');
+		if (!canvas) {
+			canvas = document.createElement('canvas');
+		}
+		
+		if (canvas.width !== videoEl.videoWidth || canvas.height !== videoEl.videoHeight) {
+			canvas.width = videoEl.videoWidth;
+			canvas.height = videoEl.videoHeight;
+		}
+
+		const ctx = canvas.getContext('2d', { willReadFrequently: true });
 		if (!ctx) return;
 
 		ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
@@ -75,14 +97,16 @@ export function createCameraScanner(
 		});
 
 		if (code) {
+			console.log("QR Code detected");
 			if (settings.importFromQRCodeData(code.data)) {
 				stopCamera();
 				onSuccess();
-			} else {
-				if (showCameraScanner) animationFrameId = requestAnimationFrame(scanLoop);
+				return;
 			}
-		} else {
-			if (showCameraScanner) animationFrameId = requestAnimationFrame(scanLoop);
+		}
+
+		if (showCameraScanner) {
+			animationFrameId = requestAnimationFrame(scanLoop);
 		}
 	}
 

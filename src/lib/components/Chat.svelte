@@ -370,17 +370,20 @@
 			content: newContent,
 		});
 
-		isStreaming = true;
-		scrollToBottom();
+		const editedMessage = allMessages[messageIndex];
+		if (editedMessage.role === 'user') {
+			isStreaming = true;
+			scrollToBottom();
 
-		try {
-			await processChat();
-		} catch (error: any) {
-			console.error(error);
-			streamingError = error.message || 'An error occurred';
-		} finally {
-			isStreaming = false;
-			pendingResourceContext = []; // Clear after use
+			try {
+				await processChat();
+			} catch (error: any) {
+				console.error(error);
+				streamingError = error.message || 'An error occurred';
+			} finally {
+				isStreaming = false;
+				pendingResourceContext = []; // Clear after use
+			}
 		}
 	}
 
@@ -812,17 +815,6 @@
 											{/if}
 										</div>
 										<div class="{message.role === 'assistant' ? 'flex-1' : ''} group relative min-h-[1.5rem]">
-											{#if message.role === 'assistant'}
-												<div class="absolute -top-2 -right-2 opacity-0 group-hover/message:opacity-100 flex items-center gap-1 bg-white dark:bg-zinc-800 rounded-md px-1 py-0.5 border border-zinc-200 dark:border-zinc-700 z-30 transition-all shadow-md ring-1 ring-black/5">
-													<button
-														onclick={() => confirmDelete(message)}
-														class="p-1 text-zinc-500 hover:text-red-500 transition-colors"
-														title="Delete from here"
-													>
-														<Trash2 size={12} />
-													</button>
-												</div>
-											{/if}
 											{#if message.thinkingContent}
 												<details class="group rounded-xl border border-zinc-200 bg-zinc-50/50 p-2 dark:border-zinc-800 dark:bg-zinc-800/30">
 													<summary class="flex cursor-pointer list-none items-center gap-2 text-xs font-medium text-zinc-500">
@@ -887,7 +879,7 @@
 									</div>
 
 									{#if message.content}
-										<div class="space-y-1 {message.role === 'user' && editingMessageId === message.id ? 'flex-1 min-w-0' : ''}">
+										<div class="space-y-1 {(message.role === 'user' || message.role === 'assistant') && editingMessageId === message.id ? 'flex-1 min-w-0' : ''}">
 											<div
 												class="rounded-2xl px-3 py-1.5 {message.role === 'user'
 													? 'bg-[#b8b8bf] dark:bg-gray-600 text-[#4b4b4e] dark:text-white'
@@ -914,41 +906,39 @@
 													</div>
 												{/if}
 
-												{#if message.role === 'user'}
-													{#if editingMessageId === message.id}
-														<div class="flex flex-col gap-2 w-full">
-															<textarea
-																bind:value={editingContent}
-																data-editing="true"
-																class="w-full bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-white rounded-lg p-2 outline-none border border-zinc-300 dark:border-zinc-500 focus:border-blue-400 min-h-[100px]"
-																onkeydown={(e) => {
-																	if (e.key === 'Enter' && !e.shiftKey) {
-																		e.preventDefault();
-																		handleEditSubmit();
-																	}
-																	if (e.key === 'Escape') cancelEdit();
-																}}
-															></textarea>
-															<div class="flex justify-end gap-2">
-																<button
-																	onclick={cancelEdit}
-																	class="px-2 py-1 text-xs font-medium hover:bg-white/10 rounded transition-colors"
-																>
-																	Cancel
-																</button>
-																<button
-																	onclick={handleEditSubmit}
-																	class="px-2 py-1 text-xs font-medium bg-blue-600 hover:bg-blue-500 text-[#f4f4f5] dark:text-white rounded transition-colors"
-																>
-																	Save
-																</button>
-															</div>
+												{#if editingMessageId === message.id}
+													<div class="flex flex-col gap-2 w-full">
+														<textarea
+															bind:value={editingContent}
+															data-editing="true"
+															class="w-full bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-white rounded-lg p-2 outline-none border border-zinc-300 dark:border-zinc-500 focus:border-blue-400 min-h-[100px]"
+															onkeydown={(e) => {
+																if (e.key === 'Enter' && !e.shiftKey) {
+																	e.preventDefault();
+																	handleEditSubmit();
+																}
+																if (e.key === 'Escape') cancelEdit();
+															}}
+														></textarea>
+														<div class="flex justify-end gap-2">
+															<button
+																onclick={cancelEdit}
+																class="px-2 py-1 text-xs font-medium hover:bg-white/10 rounded transition-colors"
+															>
+																Cancel
+															</button>
+															<button
+																onclick={handleEditSubmit}
+																class="px-2 py-1 text-xs font-medium bg-blue-600 hover:bg-blue-500 text-[#f4f4f5] dark:text-white rounded transition-colors"
+															>
+																Save
+															</button>
 														</div>
-													{:else}
-														<div class="px-2 py-1">
-															<p class="whitespace-pre-wrap leading-relaxed">{message.content}</p>
-														</div>
-													{/if}
+													</div>
+												{:else if message.role === 'user'}
+													<div class="px-2 py-1">
+														<p class="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+													</div>
 												{:else}
 													<div class="markdown-content">
 														{#each marked.lexer(message.content) as token, i (i)}
@@ -992,22 +982,35 @@
 													</div>
 												{/if}
 											</div>
-											{#if message.role === 'user' && editingMessageId !== message.id}
-												<div class="flex justify-end items-center gap-3 pr-2 -mt-1 -mb-1">
-												<button
-													onclick={() => handleEdit(message)}
-													class="text-zinc-700 dark:text-white opacity-60 dark:opacity-50 hover:opacity-100 transition-opacity"
-													title="Edit"
-												>
-													<Pencil size={18} />
-												</button>
-												<button
-													onclick={() => confirmDelete(message)}
-													class="text-zinc-700 dark:text-white opacity-60 dark:opacity-50 hover:opacity-100 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-													title="Delete"
-												>
-													<Trash2 size={18} />
-												</button>
+											{#if (message.role === 'user' || message.role === 'assistant') && editingMessageId !== message.id}
+												<div class="flex {message.role === 'user' ? 'justify-end' : 'justify-start'} items-center mt-1">
+													<div class="flex items-center gap-1 px-1 py-1 rounded-lg border border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/50 sm:border-transparent sm:bg-transparent sm:opacity-0 sm:group-hover/message:opacity-100 sm:group-hover/message:border-zinc-200 sm:group-hover/message:dark:border-zinc-800 sm:group-hover/message:bg-zinc-50/50 sm:group-hover/message:dark:bg-zinc-800/50 transition-all duration-200">
+														<button
+															onclick={() => handleEdit(message)}
+															class="p-2 sm:p-1.5 text-zinc-500 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 rounded-md hover:bg-white dark:hover:bg-zinc-700 transition-colors shadow-sm border border-transparent hover:border-zinc-200 dark:hover:border-zinc-600"
+															title="Edit message"
+														>
+															<Pencil size={14} />
+														</button>
+														<button
+															onclick={() => confirmDelete(message)}
+															class="p-2 sm:p-1.5 text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 rounded-md hover:bg-white dark:hover:bg-zinc-700 transition-colors shadow-sm border border-transparent hover:border-zinc-200 dark:hover:border-zinc-600"
+															title="Delete from here"
+														>
+															<Trash2 size={14} />
+														</button>
+														<button
+															onclick={() => copyToClipboard(message.content, `msg-${message.id}`)}
+															class="p-2 sm:p-1.5 text-zinc-500 hover:text-green-600 dark:text-zinc-400 dark:hover:text-green-400 rounded-md hover:bg-white dark:hover:bg-zinc-700 transition-colors shadow-sm border border-transparent hover:border-zinc-200 dark:hover:border-zinc-600"
+															title="Copy message"
+														>
+															{#if copiedStates[`msg-${message.id}`]}
+																<Check size={14} class="text-green-500" />
+															{:else}
+																<Copy size={14} />
+															{/if}
+														</button>
+													</div>
 												</div>
 											{/if}
 										</div>

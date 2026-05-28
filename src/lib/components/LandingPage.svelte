@@ -2,7 +2,7 @@
 	import { settings } from '$lib/settings.svelte';
 	import { Upload, Image as ImageIcon, QrCode, Camera, X } from '@lucide/svelte';
 	import { fade, fly } from 'svelte/transition';
-	import { maskApiKey, createCameraScanner, handleQRImageImport } from '$lib/import-utils';
+	import { maskApiKey, createCameraScanner, handleQRImageImport } from '$lib/import-utils.svelte';
 	import ImportSuccessModal from './ImportSuccessModal.svelte';
 
 	let importInput = $state<HTMLInputElement | null>(null);
@@ -150,7 +150,13 @@
 			
 			<div class="mx-auto w-full aspect-square overflow-hidden rounded-2xl border-4 border-white bg-black shadow-xl dark:border-zinc-800 relative">
 				<!-- svelte-ignore a11y_media_has_caption -->
-				<video bind:this={videoElement} class="w-full h-full object-cover" playsinline></video>
+				<video 
+					bind:this={videoElement} 
+					class="w-full h-full object-cover" 
+					playsinline 
+					muted 
+					autoplay
+				></video>
 				<div class="absolute inset-0 border-[3px] border-dashed border-white/50 m-8 rounded-2xl pointer-events-none animate-pulse"></div>
 			</div>
 			<p class="text-xs text-zinc-500 text-center mt-6">Point your camera at a Settings Tag QR code</p>

@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { settings } from '$lib/settings.svelte';
 	import { MCPClient, mcpPool } from '$lib/mcp.svelte';
-	import { resourceContext, type ResourceContent } from '$lib/resource-context.svelte';
+	import { resourceContext } from '$lib/resource-context.svelte';
+	import { promptContext } from '$lib/prompt-context.svelte';
+	import { type ResourceContent } from '$lib/db';
 	import {
 		X, FileText, Terminal, Search, Loader2, Library,
 		Folder, FolderOpen, File, FileCode, FileImage, FileJson,
@@ -29,8 +31,10 @@
 	let viewingError = $state<string | null>(null);
 	let expandedFolders = $state<Set<string>>(new Set());
 
-	// Tree view state
+	// Generic viewer state
+	let viewingType = $state<'raw' | 'tree' | 'list'>('raw');
 	let treeData = $state<any>(null);
+	let listData = $state<any[]>([]);
 	let viewingTreeNodeContent = $state<string | null>(null);
 	let viewingTreeNodeLabel = $state<string>('');
 	let viewingTreeNodeLoading = $state(false);
@@ -38,6 +42,7 @@
 	// --- Helpers ---
 
 	function getFileIcon(name: string, mimeType?: string): typeof File {
+		if (mimeType === 'inode/directory') return Folder;
 		const ext = name.split('.').pop()?.toLowerCase() || '';
 		const codeExts = ['svelte', 'ts', 'js', 'jsx', 'tsx', 'py', 'html', 'css', 'scss',
 			'sass', 'less', 'vue', 'rs', 'go', 'java', 'c', 'cpp', 'h', 'hpp', 'rb', 'php',
@@ -48,19 +53,15 @@
 
 		if (codeExts.includes(ext)) return FileCode;
 		if (imageExts.includes(ext)) return FileImage;
-		if (ext === 'json') return FileJson;
-		if (ext === 'md' || ext === 'txt' || ext === 'log') return FileText;
+		if (ext === 'json' || mimeType === 'application/json') return FileJson;
+		if (ext === 'md' || ext === 'txt' || ext === 'log' || mimeType?.startsWith('text/')) return FileText;
 		if (archiveExts.includes(ext)) return FileArchive;
-
-		// Check mimeType for additional hints
-		if (mimeType?.startsWith('image/')) return FileImage;
-		if (mimeType?.startsWith('text/')) return FileText;
-		if (mimeType === 'application/json') return FileJson;
 
 		return File;
 	}
 
 	function getFileIconColor(name: string, mimeType?: string): string {
+		if (mimeType === 'inode/directory') return 'text-amber-500';
 		const ext = name.split('.').pop()?.toLowerCase() || '';
 		const codeExts = ['svelte', 'ts', 'js', 'jsx', 'tsx', 'py', 'html', 'css', 'scss',
 			'sass', 'less', 'vue', 'rs', 'go', 'java', 'c', 'cpp', 'h', 'hpp', 'rb', 'php',
@@ -86,36 +87,6 @@
 		if (sizeBytes < 1024 * 1024) return `${(sizeBytes / 1024).toFixed(1)} KB`;
 		if (sizeBytes < 1024 * 1024 * 1024) return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
 		return `${(sizeBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-	}
-
-	function isTreeResource(uri: string): boolean {
-		return uri === 'project://tree' || uri.endsWith('://tree');
-	}
-
-	function isFileListResource(uri: string): boolean {
-		return uri === 'project://files' || uri === 'file://list';
-	}
-
-	function isFileResource(uri: string): boolean {
-		return uri.startsWith('file://') && !uri.endsWith('://tree') && !uri.endsWith('://files') && !uri.endsWith('://list');
-	}
-
-	function parseTreeJSON(text: string): any {
-		try {
-			return JSON.parse(text);
-		} catch {
-			return null;
-		}
-	}
-
-	function parseFileListJSON(text: string): any[] | null {
-		try {
-			const parsed = JSON.parse(text);
-			if (Array.isArray(parsed)) return parsed;
-			return null;
-		} catch {
-			return null;
-		}
 	}
 
 	function toggleFolder(path: string) {
@@ -163,8 +134,10 @@
 		viewingContent = null;
 		viewingError = null;
 		viewingLoading = true;
+		viewingType = 'raw';
 		expandedFolders = new Set();
 		treeData = null;
+		listData = [];
 
 		try {
 			const client = mcpPool.get(item.serverUrl);
@@ -178,16 +151,27 @@
 				raw = JSON.stringify(contents, null, 2);
 			}
 
-			// Check if it's a tree or file list
-			if (isTreeResource(item.uri)) {
-				const tree = parseTreeJSON(raw);
-				if (tree) {
-					treeData = tree;
-				} else {
-					viewingContent = raw;
+			viewingContent = raw;
+
+			// Content-based structure detection
+			try {
+				const parsed = JSON.parse(raw);
+				if (Array.isArray(parsed)) {
+					if (parsed.length > 0 && typeof parsed[0] === 'object') {
+						viewingType = 'list';
+						listData = parsed;
+					}
+				} else if (typeof parsed === 'object' && parsed !== null) {
+					if (parsed.children && Array.isArray(parsed.children)) {
+						viewingType = 'tree';
+						treeData = parsed;
+					} else {
+						// Fallback to pretty-printed JSON if it's just a generic object
+						viewingContent = JSON.stringify(parsed, null, 2);
+					}
 				}
-			} else {
-				viewingContent = raw;
+			} catch {
+				// Not JSON, stay as 'raw'
 			}
 		} catch (e: any) {
 			viewingError = e.message || 'Failed to read resource';
@@ -201,6 +185,7 @@
 		viewingContent = null;
 		viewingError = null;
 		treeData = null;
+		listData = [];
 	}
 
 	async function addToChat(item: any) {
@@ -227,15 +212,13 @@
 		}
 	}
 
-	async function handleTreeNodeFileClick(nodePath: string) {
+	async function handleTreeNodeFileClick(targetUri: string) {
 		viewingTreeNodeLoading = true;
 		viewingTreeNodeContent = null;
-		viewingTreeNodeLabel = nodePath.replace(/^\.\//, '');
+		viewingTreeNodeLabel = targetUri.split('/').pop() || targetUri;
 		try {
 			const client = mcpPool.get(viewingResource.serverUrl);
-			const cleanPath = nodePath.replace(/^\.\//, '');
-			const fileUri = `project://file/${encodeURIComponent(cleanPath)}`;
-			const contents = await client.readResource(fileUri);
+			const contents = await client.readResource(targetUri);
 			let raw: string;
 			if (Array.isArray(contents)) {
 				raw = contents.map((c: any) => c.text || c.blob || JSON.stringify(c)).join('\n');
@@ -247,7 +230,7 @@
 			viewingTreeNodeContent = raw;
 		} catch (e: any) {
 			viewingTreeNodeContent = null;
-			viewingError = e.message || 'Failed to read file. Try a different resource.';
+			viewingError = e.message || 'Failed to read item. Try a different resource.';
 		} finally {
 			viewingTreeNodeLoading = false;
 		}
@@ -258,10 +241,11 @@
 		viewingTreeNodeLabel = '';
 	}
 
-	async function addTreeNodeToChat(nodePath: string, content: string) {
+	async function addTreeNodeToChat(nodeName: string, content: string) {
+		const baseUri = viewingResource?.uri || 'mcp://resource';
 		resourceContext.add({
-			name: nodePath,
-			uri: `file://${nodePath}`,
+			name: nodeName,
+			uri: `${baseUri}/${encodeURIComponent(nodeName)}`,
 			content,
 			mimeType: undefined
 		});
@@ -392,23 +376,23 @@
 									<div class="flex items-center gap-3 flex-1 min-w-0">
 										<!-- File-type icon -->
 										<div class="shrink-0">
-											{#if isTreeResource(item.uri) || isFileListResource(item.uri)}
-												<Folder size={22} class="text-amber-500" />
-											{:else}
+											{#if activeTab === 'resources'}
 												{@const IconComponent = getFileIcon(item.name || item.uri, item.mimeType)}
 												{@const iconColor = getFileIconColor(item.name || item.uri, item.mimeType)}
 												<IconComponent size={20} class={iconColor} />
+											{:else}
+												<Terminal size={20} class="text-purple-500" />
 											{/if}
 										</div>
 										<div class="flex-1 min-w-0">
 											<div class="flex items-center gap-2 mb-0.5 sm:mb-1">
-												<span class="font-bold text-xs sm:text-sm truncate">{item.name || item.uri}</span>
-												{#if item.mimeType}
+												<span class="font-bold text-xs sm:text-sm truncate">{item.name || (activeTab === 'resources' ? item.uri : '')}</span>
+												{#if activeTab === 'resources' && item.mimeType}
 													<span class="text-[9px] sm:text-[10px] bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 rounded-md text-zinc-600 dark:text-zinc-300 font-mono truncate max-w-[80px] sm:max-w-none">{item.mimeType}</span>
 												{/if}
 											</div>
 											<div class="flex items-center gap-2">
-												{#if item.sizeStr || item.size}
+												{#if activeTab === 'resources' && (item.sizeStr || item.size)}
 													<span class="text-[10px] text-zinc-400 font-mono">{item.sizeStr || formatSize(item.size)}</span>
 												{/if}
 												<p class="text-[11px] sm:text-xs text-zinc-500 line-clamp-1 leading-relaxed">
@@ -426,21 +410,41 @@
 
 								<!-- Actions -->
 								<div class="flex items-center gap-1.5 sm:gap-2 mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-zinc-100 dark:border-zinc-700/50">
-									<code class="text-[9px] sm:text-[10px] text-zinc-400 truncate flex-1">{item.uri}</code>
-									<button
-										onclick={() => viewResource(item)}
-										class="flex items-center gap-1 sm:gap-1.5 text-[9px] sm:text-[10px] font-bold text-zinc-600 hover:text-zinc-900 bg-zinc-100 dark:bg-zinc-800 px-1.5 sm:px-2 py-1 rounded-lg transition-colors shrink-0"
-									>
-										<Eye size={11} class="sm:w-3 sm:h-3" />
-										View
-									</button>
-									<button
-										onclick={() => addToChat(item)}
-										class="flex items-center gap-1 sm:gap-1.5 text-[9px] sm:text-[10px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 sm:px-2 py-1 rounded-lg transition-colors shrink-0"
-									>
-										<PlusCircle size={11} class="sm:w-3 sm:h-3" />
-										Add to Chat
-									</button>
+									<code class="text-[9px] sm:text-[10px] text-zinc-400 truncate flex-1">{activeTab === 'resources' ? item.uri : ''}</code>
+									{#if activeTab === 'resources'}
+										<button
+											onclick={() => viewResource(item)}
+											class="flex items-center gap-1 sm:gap-1.5 text-[9px] sm:text-[10px] font-bold text-zinc-600 hover:text-zinc-900 bg-zinc-100 dark:bg-zinc-800 px-1.5 sm:px-2 py-1 rounded-lg transition-colors shrink-0"
+										>
+											<Eye size={11} class="sm:w-3 sm:h-3" />
+											View
+										</button>
+										<button
+											onclick={() => addToChat(item)}
+											class="flex items-center gap-1 sm:gap-1.5 text-[9px] sm:text-[10px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 sm:px-2 py-1 rounded-lg transition-colors shrink-0"
+										>
+											<PlusCircle size={11} class="sm:w-3 sm:h-3" />
+											Add to Chat
+										</button>
+									{:else}
+										<button
+											onclick={() => {
+												const client = mcpPool.get(item.serverUrl);
+												client.getPrompt(item.name).then(res => {
+													if (res && res.messages) {
+														promptContext.applyPrompt(res.messages);
+														close();
+													}
+												}).catch(err => {
+													console.error('Failed to get prompt:', err);
+												});
+											}}
+											class="flex items-center gap-1 sm:gap-1.5 text-[9px] sm:text-[10px] font-bold text-purple-600 hover:text-purple-700 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-400 px-1.5 sm:px-2 py-1 rounded-lg transition-colors shrink-0"
+										>
+											<PlusCircle size={11} class="sm:w-3 sm:h-3" />
+											Use Prompt
+										</button>
+									{/if}
 								</div>
 							</div>
 						{/each}
@@ -459,6 +463,8 @@
 
 	<!-- Resource Viewer Overlay -->
 	{#if viewingResource}
+		{@const IconComponent = getFileIcon(viewingResource.name || viewingResource.uri, viewingResource.mimeType)}
+		{@const iconColor = getFileIconColor(viewingResource.name || viewingResource.uri, viewingResource.mimeType)}
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
@@ -482,13 +488,7 @@
 						</button>
 						<div class="min-w-0">
 							<div class="flex items-center gap-2">
-								{#if isTreeResource(viewingResource.uri) || isFileListResource(viewingResource.uri)}
-									<Folder size={18} class="text-amber-500 shrink-0" />
-								{:else}
-									{@const IconComponent = getFileIcon(viewingResource.name || viewingResource.uri, viewingResource.mimeType)}
-									{@const iconColor = getFileIconColor(viewingResource.name || viewingResource.uri, viewingResource.mimeType)}
-									<IconComponent size={18} class={iconColor + ' shrink-0'} />
-								{/if}
+								<IconComponent size={18} class={iconColor + ' shrink-0'} />
 								<span class="font-bold text-sm truncate">{viewingResource.name || viewingResource.uri}</span>
 							</div>
 							<div class="flex items-center gap-3 text-[10px] text-zinc-500 mt-0.5">
@@ -518,13 +518,16 @@
 							<p class="text-sm font-medium">Error loading resource</p>
 							<p class="text-xs">{viewingError}</p>
 						</div>
-					{:else if treeData}
-						<!-- Tree View -->
+					{:else if viewingType === 'tree' && treeData}
+						<!-- Generic Tree View -->
 						<div class="space-y-0.5 font-mono text-xs">
 							{#snippet renderTreeNode(node: any, path: string, depth: number)}
-								{@const nodePath = path ? `${path}/${node.name}` : node.name}
+								{@const nodeName = node.name || node.label || 'unnamed'}
+								{@const nodePath = path ? `${path}/${nodeName}` : nodeName}
 								{@const isExpanded = expandedFolders.has(nodePath)}
-								{#if node.type === 'directory'}
+								{@const hasChildren = node.children && Array.isArray(node.children) && node.children.length > 0}
+								
+								{#if hasChildren || node.type === 'directory'}
 									<!-- svelte-ignore a11y_click_events_have_key_events -->
 									<!-- svelte-ignore a11y_no_static_element_interactions -->
 									<div
@@ -546,7 +549,7 @@
 												<Folder size={14} />
 											{/if}
 										</span>
-										<span class="font-semibold text-zinc-700 dark:text-zinc-200 truncate">{node.name}</span>
+										<span class="font-semibold text-zinc-700 dark:text-zinc-200 truncate">{nodeName}</span>
 										{#if node.sizeStr}
 											<span class="ml-auto text-[10px] text-zinc-400 shrink-0">{node.sizeStr}</span>
 										{/if}
@@ -557,67 +560,172 @@
 										{/each}
 									{/if}
 								{:else}
-									{@const FileIcon = getFileIcon(node.name, node.mimeType)}
-									{@const iconColor = getFileIconColor(node.name, node.mimeType)}
-									<button
-										class="flex items-center gap-1.5 py-1 px-1 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors w-full text-left cursor-pointer"
+									{@const FileIcon = getFileIcon(nodeName, node.mimeType)}
+									{@const iconColor = getFileIconColor(nodeName, node.mimeType)}
+									<div
+										class="flex items-center gap-1.5 py-1 px-1 rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors w-full text-left"
 										style="padding-left: {depth * 16 + 4}px"
-										onclick={() => handleTreeNodeFileClick(nodePath)}
 									>
 										<span class="w-[14px] shrink-0"></span>
 										<FileIcon size={14} class={iconColor + ' shrink-0'} />
-										<span class="text-zinc-600 dark:text-zinc-300 truncate">{node.name}</span>
+										<span class="text-zinc-600 dark:text-zinc-300 truncate flex-1">{nodeName}</span>
 										{#if node.sizeStr}
-											<span class="ml-auto text-[10px] text-zinc-400 shrink-0">{node.sizeStr}</span>
+											<span class="text-[10px] text-zinc-400 shrink-0 mx-2">{node.sizeStr}</span>
 										{/if}
-									</button>
+										<div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+											<button
+												onclick={() => {
+													if (node.content !== undefined) {
+														viewingTreeNodeContent = node.content;
+														viewingTreeNodeLabel = nodeName;
+													} else {
+														let finalUri = node.uri;
+														if (!finalUri && viewingResource.uri.includes('project://tree')) {
+															// Heuristic for project tree
+															const cleanPath = nodePath.replace(/^\.\//, '');
+															finalUri = `project://file/${encodeURIComponent(cleanPath)}`;
+														}
+														handleTreeNodeFileClick(finalUri || nodePath);
+													}
+												}}
+												class="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded text-zinc-500"
+												title="View details"
+											>
+												<Eye size={12} />
+											</button>
+											<button
+												onclick={() => {
+													if (node.content !== undefined) {
+														resourceContext.add({
+															name: nodeName,
+															uri: node.uri || `${viewingResource.uri}/${encodeURIComponent(nodeName)}`,
+															content: node.content,
+															mimeType: node.mimeType
+														});
+													} else {
+														addTreeNodeToChat(nodeName, JSON.stringify(node, null, 2));
+													}
+												}}
+												class="p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded text-blue-500"
+												title="Add to chat"
+											>
+												<PlusCircle size={12} />
+											</button>
+										</div>
+									</div>
 								{/if}
 							{/snippet}
 							{@render renderTreeNode(treeData, '', 0)}
-							<!-- Tree node file content viewer -->
-							{#snippet treeFilePreview()}
-								{@const FileIcon = getFileIcon(viewingTreeNodeLabel, undefined)}
-								{@const iconColor = getFileIconColor(viewingTreeNodeLabel, undefined)}
-								<div class="mt-4 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
-									<div class="flex items-center justify-between mb-3">
-										<div class="flex items-center gap-2">
-											<FileIcon size={16} class={iconColor} />
-											<span class="font-bold text-sm">{viewingTreeNodeLabel}</span>
+						</div>
+					{:else if viewingType === 'list' && listData.length > 0}
+						<!-- Generic List View -->
+						<div class="grid gap-3">
+							{#each listData as item, i}
+								<div class="group p-3 rounded-xl border border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/30">
+									<div class="flex items-start justify-between gap-4">
+										<div class="flex-1 overflow-x-auto">
+											<div class="flex flex-wrap gap-2 mb-2">
+												{#each Object.entries(item) as [key, value]}
+													{#if typeof value !== 'object' && key !== 'uri' && key !== 'content'}
+														<div class="flex flex-col">
+															<span class="text-[9px] font-bold uppercase text-zinc-400">{key}</span>
+															<span class="text-xs font-mono text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{value}</span>
+														</div>
+													{/if}
+												{/each}
+											</div>
 										</div>
-										<div class="flex items-center gap-2">
+										<div class="flex items-center gap-1 shrink-0">
 											<button
-												onclick={closeTreeNodeViewer}
-												class="text-[10px] font-bold text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+												onclick={() => {
+													if (item.content !== undefined) {
+														viewingTreeNodeContent = item.content;
+														viewingTreeNodeLabel = item.name || item.path || `Item ${i}`;
+													} else if (item.uri) {
+														handleTreeNodeFileClick(item.uri);
+													} else {
+														viewingTreeNodeContent = JSON.stringify(item, null, 2);
+														viewingTreeNodeLabel = item.name || item.path || `Item ${i}`;
+													}
+												}}
+												class="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg text-zinc-600 transition-colors"
+												title="View details"
 											>
-												Close
+												<Eye size={14} />
 											</button>
-											{#if viewingTreeNodeContent !== null}
-												<button
-													onclick={() => addTreeNodeToChat(viewingTreeNodeLabel, viewingTreeNodeContent!)}
-													class="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded-lg transition-colors"
-												>
-													<PlusCircle size={12} />
-													Add to Chat
-												</button>
-											{/if}
+											<button
+												onclick={() => {
+													const finalContent = item.content !== undefined ? item.content : JSON.stringify(item, null, 2);
+													if (item.uri) {
+														resourceContext.add({
+															name: item.name || item.path || `Item ${i}`,
+															uri: item.uri,
+															content: finalContent,
+															mimeType: item.mimeType
+														});
+													} else {
+														resourceContext.add({
+															name: item.name || item.path || `Item ${i}`,
+															uri: `${viewingResource.uri}#${i}`,
+															content: finalContent,
+															mimeType: item.mimeType
+														});
+													}
+												}}
+												class="p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg text-blue-600 transition-colors"
+												title="Add to chat"
+											>
+												<PlusCircle size={14} />
+											</button>
 										</div>
 									</div>
-									{#if viewingTreeNodeLoading}
-										<div class="flex items-center justify-center py-6">
-											<Loader2 size={20} class="animate-spin text-blue-500" />
-										</div>
-									{:else if viewingTreeNodeContent !== null}
-										<pre class="text-xs font-mono text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap break-words leading-relaxed max-h-64 overflow-y-auto custom-scrollbar">{viewingTreeNodeContent}</pre>
-									{/if}
 								</div>
-							{/snippet}
-							{#if viewingTreeNodeContent !== null || viewingTreeNodeLoading}
-								{@render treeFilePreview()}
-							{/if}
+							{/each}
 						</div>
 					{:else if viewingContent !== null}
 						<!-- Raw content view -->
 						<pre class="text-xs font-mono text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap break-words leading-relaxed">{viewingContent}</pre>
+					{/if}
+
+					<!-- Inner Item Previewer (shared by Tree and List) -->
+					{#snippet innerItemPreview()}
+						{@const FileIcon = getFileIcon(viewingTreeNodeLabel, undefined)}
+						{@const iconColor = getFileIconColor(viewingTreeNodeLabel, undefined)}
+						<div class="mt-4 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+							<div class="flex items-center justify-between mb-3">
+								<div class="flex items-center gap-2">
+									<FileIcon size={16} class={iconColor} />
+									<span class="font-bold text-sm">{viewingTreeNodeLabel}</span>
+								</div>
+								<div class="flex items-center gap-2">
+									<button
+										onclick={closeTreeNodeViewer}
+										class="text-[10px] font-bold text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+									>
+										Close
+									</button>
+									{#if viewingTreeNodeContent !== null}
+										<button
+											onclick={() => addTreeNodeToChat(viewingTreeNodeLabel, viewingTreeNodeContent!)}
+											class="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded-lg transition-colors"
+										>
+											<PlusCircle size={12} />
+											Add to Chat
+										</button>
+									{/if}
+								</div>
+							</div>
+							{#if viewingTreeNodeLoading}
+								<div class="flex items-center justify-center py-6">
+									<Loader2 size={20} class="animate-spin text-blue-500" />
+								</div>
+							{:else if viewingTreeNodeContent !== null}
+								<pre class="text-xs font-mono text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap break-words leading-relaxed max-h-64 overflow-y-auto custom-scrollbar">{viewingTreeNodeContent}</pre>
+							{/if}
+						</div>
+					{/snippet}
+					{#if viewingTreeNodeContent !== null || viewingTreeNodeLoading}
+						{@render innerItemPreview()}
 					{/if}
 				</div>
 			</div>

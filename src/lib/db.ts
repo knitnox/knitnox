@@ -19,6 +19,14 @@ export interface Attachment {
 	name?: string;
 }
 
+export interface ResourceContent {
+	name: string;
+	uri: string;
+	content: string;
+	sizeStr?: string;
+	mimeType?: string;
+}
+
 export interface Message {
 	id?: number;
 	chatId: number;
@@ -26,6 +34,7 @@ export interface Message {
 	content: string;
 	createdAt: number;
 	attachments?: Attachment[];
+	resources?: ResourceContent[];
 	toolCalls?: any[];
 	toolResult?: any;
 	toolCallId?: string;
@@ -48,7 +57,7 @@ export class MyDatabase extends Dexie {
 
 	constructor() {
 		super('ChatDB');
-		this.version(4).stores({
+		this.version(5).stores({
 			chats: '++id, title, createdAt',
 			messages: '++id, chatId, role, createdAt',
 			knowledge: '++id, content, createdAt, updatedAt'

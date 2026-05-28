@@ -11,6 +11,7 @@ from starlette.responses import JSONResponse
 import uvicorn
 import signal
 import functools
+from mcp.types import PromptMessage, TextContent
 
 # --- Configuration ---
 TOOL_TIMEOUT = 30.0  # seconds - max time any single tool call can take
@@ -82,12 +83,20 @@ def build_file_tree(root_path: str = '.') -> dict:
                 node['children'].append(child)
             else:
                 stat = os.stat(full_path)
+                content = ""
+                try:
+                    with open(full_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                except Exception:
+                    content = "[Binary or unreadable content]"
+                
                 node['children'].append({
                     'name': entry,
                     'type': 'file',
                     'size': stat.st_size,
                     'sizeStr': get_size_str(stat.st_size),
-                    'mimeType': guess_mime(full_path)
+                    'mimeType': guess_mime(full_path),
+                    'content': content
                 })
         except (PermissionError, OSError):
             continue
@@ -105,7 +114,7 @@ def build_file_tree(root_path: str = '.') -> dict:
 
 
 def list_all_files(root_path: str = '.') -> list:
-    """Return a flat list of all files (not dirs) with metadata, excluding blacklisted items."""
+    """Return a flat list of all files (not dirs) with metadata and content."""
     files = []
     for dirpath, dirnames, filenames in os.walk(root_path):
         # Filter dirnames in-place to skip blacklisted dirs
@@ -117,12 +126,20 @@ def list_all_files(root_path: str = '.') -> list:
             rel_path = os.path.relpath(full_path, root_path).replace('\\', '/')
             try:
                 stat = os.stat(full_path)
+                content = ""
+                try:
+                    with open(full_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                except Exception:
+                    content = "[Binary or unreadable content]"
+
                 files.append({
                     'name': fname,
                     'path': rel_path,
                     'size': stat.st_size,
                     'sizeStr': get_size_str(stat.st_size),
-                    'mimeType': guess_mime(full_path)
+                    'mimeType': guess_mime(full_path),
+                    'content': content
                 })
             except (PermissionError, OSError):
                 continue
@@ -178,53 +195,74 @@ mcp = FastMCP(
 
 # --- Resources ---
 
-@mcp.resource("project://tree")
-def project_tree() -> str:
-    """Returns a JSON tree of all files and folders in the current project directory,
-    excluding .env, node_modules, .git, dist, and similar blacklisted items."""
-    tree = build_file_tree('.')
-    return json.dumps(tree, indent=2)
+@mcp.resource("system://users")
+def list_users() -> str:
+    """Returns a generic JSON array of user objects (testing list viewer)."""
+    users = [
+        {"id": 1, "name": "Alice", "role": "Admin", "email": "alice@example.com"},
+        {"id": 2, "name": "Bob", "role": "User", "email": "bob@example.com"},
+        {"id": 3, "name": "Charlie", "role": "Guest", "email": "charlie@example.com"}
+    ]
+    return json.dumps(users, indent=2)
 
 
-@mcp.resource("project://files")
-def project_files() -> str:
-    """Returns a flat JSON array of all files in the current project directory with
-    name, path, size, and MIME type. Excludes blacklisted items."""
-    files = list_all_files('.')
-    return json.dumps(files, indent=2)
+@mcp.resource("system://org-chart")
+def org_chart() -> str:
+    """Returns a generic JSON tree (testing tree viewer)."""
+    chart = {
+        "name": "Acme Corp",
+        "type": "organization",
+        "children": [
+            {
+                "name": "Engineering",
+                "type": "department",
+                "children": [
+                    {"name": "Frontend Team", "type": "team", "children": []},
+                    {"name": "Backend Team", "type": "team", "children": []}
+                ]
+            },
+            {
+                "name": "Product",
+                "type": "department",
+                "children": [
+                    {"name": "Design", "type": "team", "children": []}
+                ]
+            }
+        ]
+    }
+    return json.dumps(chart, indent=2)
 
 
-@mcp.resource("file://list")
-def list_current_dir() -> str:
-    """Legacy resource: lists files and folders in the current directory (flat)."""
-    files = []
-    try:
-        for f in sorted(os.listdir('.')):
-            if is_blacklisted(f):
-                continue
-            try:
-                stat = os.stat(f)
-                if os.path.isdir(f):
-                    files.append({
-                        'name': f,
-                        'type': 'directory',
-                        'size': 0,
-                        'sizeStr': '0 B',
-                        'mimeType': 'inode/directory'
-                    })
-                else:
-                    files.append({
-                        'name': f,
-                        'type': 'file',
-                        'size': stat.st_size,
-                        'sizeStr': get_size_str(stat.st_size),
-                        'mimeType': guess_mime(f)
-                    })
-            except (PermissionError, OSError):
-                continue
-    except (PermissionError, OSError):
-        pass
-    return json.dumps(files, indent=2)
+@mcp.resource("system://logs")
+def system_logs() -> str:
+    """Returns raw text logs."""
+    return "[INFO] 2026-05-28 10:00:00 - Server started\n[DEBUG] 2026-05-28 10:00:01 - Initializing plugins\n[ERROR] 2026-05-28 10:05:22 - Failed to connect to database"
+
+
+def register_file_resources():
+    """Dynamically register every file in the project as an individual resource."""
+    all_files = list_all_files('.')
+    for f in all_files:
+        path = f['path']
+        mime = f['mimeType']
+        
+        # Create a closure to capture path and mime
+        def make_reader(p, m):
+            @mcp.resource(f"project://file/{p}", name=p, mime_type=m)
+            def read_file_dynamic() -> str:
+                # Re-read from disk to ensure freshness
+                full_path = os.path.join('.', p)
+                try:
+                    with open(full_path, 'r', encoding='utf-8') as f_in:
+                        return f_in.read()
+                except Exception as e:
+                    return f"Error reading {p}: {str(e)}"
+            return read_file_dynamic
+        
+        make_reader(path, mime)
+
+# Call registration
+register_file_resources()
 
 
 @mcp.resource("project://file/{path}")
@@ -274,9 +312,43 @@ def analyze_project():
     return "Please look at the files in this directory and explain the project's purpose and architecture."
 
 @mcp.prompt("debug-assistant")
-def debug_assistant(error_msg: str):
+def debug_assistant(error_msg: str = "Unknown error"):
     """A prompt to help debug a specific error."""
     return f"I am encountering the following error: '{error_msg}'. Can you help me find the root cause in my code?"
+
+@mcp.prompt("coding-assistant")
+def coding_assistant():
+    """A complex structured prompt testing system override and history.
+    Returns a JSON string of messages within a single user message to bypass SDK role restrictions.
+    """
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a senior full-stack engineer. Your tone is professional, concise, and focused on clean code."
+        },
+        {
+            "role": "user",
+            "content": "Hello! I need help refactoring my project."
+        },
+        {
+            "role": "assistant",
+            "content": "I'd be happy to help. What specific part would you like to start with?"
+        },
+        {
+            "role": "user",
+            "content": "Can you check the current directory and suggest improvements for the API layer?"
+        }
+    ]
+    return json.dumps(messages)
+
+@mcp.prompt("test-list")
+def test_list():
+    """Simple list-based prompt for testing."""
+    return [
+        PromptMessage(role="user", content=TextContent(type="text", text="Message 1")),
+        PromptMessage(role="assistant", content=TextContent(type="text", text="Response 1")),
+        PromptMessage(role="user", content=TextContent(type="text", text="Message 2"))
+    ]
 
 # --- Tools ---
 

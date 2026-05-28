@@ -8,7 +8,9 @@
 	import ToolsSettingsModal from './ToolsSettingsModal.svelte';
 	import ToolInspectModal from './ToolInspectModal.svelte';
 	import MCPInspectModal from './MCPInspectModal.svelte';
-	import { resourceContext, type ResourceContent } from '$lib/resource-context.svelte';
+	import { resourceContext } from '$lib/resource-context.svelte';
+	import { promptContext } from '$lib/prompt-context.svelte';
+	import { type ResourceContent } from '$lib/db';
 	import LandingPage from './LandingPage.svelte';
 	import ConfirmModal from './ConfirmModal.svelte';
 	import { liveQuery } from 'dexie';
@@ -160,6 +162,64 @@
 		const urls = settings.mcpServers;
 		checkMcpCapabilities();
 	});
+
+	$effect(() => {
+		const action = promptContext.pendingAction;
+		if (!action) return;
+
+		const consumed = promptContext.consume();
+		if (!consumed) return;
+
+		if (consumed.type === 'input') {
+			input = consumed.content as string;
+			tick().then(() => {
+				textareaElement?.focus();
+			});
+		} else if (consumed.type === 'messages') {
+			const msgs = consumed.content as any[];
+
+			// 1. Process System Message
+			const systemMsg = msgs.find((m) => m.role === 'system');
+			const systemText =
+				systemMsg?.content?.text || (typeof systemMsg?.content === 'string' ? systemMsg.content : '');
+			if (systemText) {
+				settings.systemPrompt = systemText;
+			}
+
+			// 2. Process other messages
+			(async () => {
+				let currentChatId = chatId;
+				if (!currentChatId) {
+					currentChatId = await db.chats.add({
+						title: 'New Chat',
+						createdAt: Date.now()
+					});
+					chatId = currentChatId;
+				}
+
+				const otherMsgs = msgs.filter((m) => m.role !== 'system');
+				for (let i = 0; i < otherMsgs.length; i++) {
+					const m = otherMsgs[i];
+					const isLast = i === otherMsgs.length - 1;
+					const contentText = m.content?.text || (typeof m.content === 'string' ? m.content : '');
+
+					if (isLast && m.role === 'user') {
+						input = contentText;
+						tick().then(() => {
+							textareaElement?.focus();
+						});
+					} else {
+						await db.messages.add({
+							chatId: currentChatId!,
+							role: m.role,
+							content: contentText,
+							createdAt: Date.now() + i // slight offset for sort
+						});
+					}
+				}
+				scrollToBottom();
+			})();
+		}	});
 
 	let abortController = $state<AbortController | null>(null);
 	let inspectToolData = $state<{ isOpen: boolean; toolName: string; args: any; result: any }>({
@@ -353,7 +413,8 @@
 		streamingError = null;
 
 		// Consume any pending resource context from MCP library
-		pendingResourceContext = resourceContext.consume();
+		const rawResources = resourceContext.consume();
+		pendingResourceContext = $state.snapshot(rawResources);
 
 		// Delete all subsequent messages
 		const allMessages = await db.messages.where('chatId').equals(chatId!).toArray();
@@ -368,6 +429,7 @@
 		// Update the edited message
 		await db.messages.update(messageId, {
 			content: newContent,
+			resources: pendingResourceContext.length > 0 ? pendingResourceContext : undefined,
 		});
 
 		const editedMessage = allMessages[messageIndex];
@@ -402,51 +464,62 @@
 
 	async function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
-		if ((!input.trim() && attachments.length === 0 && resourceContext.pending.length === 0) || isStreaming) return;
+		if ((!input.trim() && attachments.length === 0 && resourceContext.pending.length === 0) || isStreaming) {
+			return;
+		}
 
-		// Consume any pending resource context from MCP library
-		pendingResourceContext = resourceContext.consume();
-
+		// Snapshot values before clearing UI
 		const userContent = input.trim();
 		const currentAttachments = $state.snapshot(attachments);
+		const rawResources = resourceContext.consume();
+		const currentPendingResources = $state.snapshot(rawResources);
+		
+		// Immediate UI feedback
+		isStreaming = true;
+		streamingError = null;
+		pendingResourceContext = currentPendingResources;
+		
+		// Clear inputs
 		input = '';
 		attachments = [];
-		streamingError = null;
 
 		let isNewChat = false;
-		if (!chatId) {
-			isNewChat = true;
-			chatId = await db.chats.add({
-				title: 'New Chat',
-				createdAt: Date.now()
-			});
-		}
-
-		await db.messages.add({
-			chatId: chatId!,
-			role: 'user',
-			content: userContent,
-			attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
-			createdAt: Date.now()
-		});
-
-		isStreaming = true;
-		scrollToBottom();
-
-		if (isNewChat) {
-			generateChatTitle(userContent || 'New Chat').then((title) => {
-				if (chatId) db.chats.update(chatId, { title });
-			});
-		}
-
 		try {
+			if (!chatId) {
+				isNewChat = true;
+				chatId = await db.chats.add({
+					title: 'New Chat',
+					createdAt: Date.now()
+				});
+			}
+
+			const messageToAdd = {
+				chatId: chatId!,
+				role: 'user' as const,
+				content: userContent,
+				attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
+				resources: currentPendingResources.length > 0 ? currentPendingResources : undefined,
+				createdAt: Date.now()
+			};
+			
+			await db.messages.add(messageToAdd);
+
+			await scrollToBottom();
+
+			if (isNewChat) {
+				generateChatTitle(userContent || 'New Chat').then((title) => {
+					if (chatId) db.chats.update(chatId, { title });
+				}).catch(err => console.error('Failed to generate title:', err));
+			}
+
 			await processChat();
+
 		} catch (error: any) {
-			console.error(error);
-			streamingError = error.message || 'An error occurred';
+			console.error('Submission error:', error);
+			streamingError = error.message || 'An error occurred during submission';
 		} finally {
 			isStreaming = false;
-			pendingResourceContext = []; // Clear after use
+			pendingResourceContext = []; 
 		}
 	}
 
@@ -518,34 +591,46 @@
 
 			const memory = currentChat?.summary ? `\n\n[Long-term Memory/Summary of earlier conversation]:\n${currentChat.summary}` : '';
 			const turnInfo = `\n\n[System Info: Turn ${agentTurn}/${settings.maxAgentTurns} in agent loop.]`;
-			const resourceCtx = pendingResourceContext.length > 0
-				? pendingResourceContext.map(r => `\n\n[Attached Resource: ${r.uri}]\n\`\`\`\n${r.content}\n\`\`\``).join('')
-				: '';
 
 			const apiMessages = [
-				{ role: 'system', content: settings.systemPrompt + memory + resourceCtx + turnInfo },
+				{ role: 'system', content: settings.systemPrompt + memory + turnInfo },
 				...windowMessages.map((m) => {
-					if (m.attachments?.length) {
+					const hasAttachments = m.attachments && m.attachments.length > 0;
+					const hasResources = m.resources && m.resources.length > 0;
+
+					if (hasAttachments || hasResources) {
 						const content: any[] = [];
 						if (m.content) {
 							content.push({ type: 'text', text: m.content });
 						}
-						for (const att of m.attachments) {
-							if (att.type === 'image') {
-								content.push({
-									type: 'image_url',
-									image_url: { url: att.data }
+						
+						if (hasResources) {
+							for (const res of m.resources!) {
+								content.push({ 
+									type: 'text', 
+									text: `\n\n[Attached Resource: ${res.uri}]\n\`\`\`\n${res.content}\n\`\`\`` 
 								});
-							} else {
-								// For audio/video/other, use a generic format that some providers support
-								// or that can be extended later.
-								content.push({
-									type: att.type === 'audio' ? 'input_audio' : att.type === 'video' ? 'input_video' : 'file',
-									[att.type === 'audio' ? 'input_audio' : att.type === 'video' ? 'input_video' : 'file']: {
-										data: att.data.split(',')[1],
-										format: att.mimeType.split('/')[1]
-									}
-								} as any);
+							}
+						}
+
+						if (hasAttachments) {
+							for (const att of m.attachments!) {
+								if (att.type === 'image') {
+									content.push({
+										type: 'image_url',
+										image_url: { url: att.data }
+									});
+								} else {
+									// For audio/video/other, use a generic format that some providers support
+									// or that can be extended later.
+									content.push({
+										type: att.type === 'audio' ? 'input_audio' : att.type === 'video' ? 'input_video' : 'file',
+										[att.type === 'audio' ? 'input_audio' : att.type === 'video' ? 'input_video' : 'file']: {
+											data: att.data.split(',')[1],
+											format: att.mimeType.split('/')[1]
+										}
+									} as any);
+								}
 							}
 						}
 						return {
@@ -794,7 +879,7 @@
 			{#if (messagesList && messagesList.length > 0) || isStreaming || streamingError}
 				{#if messagesList && messagesList.length > 0}
 					{#each messagesList as message}
-						{#if message.role !== 'tool' && message.id !== streamingMessageId}
+						{#if message.role !== 'tool' && message.role !== 'system' && message.id !== streamingMessageId}
 							<div class="group/message flex gap-3 sm:gap-4 {message.role === 'user' ? 'justify-end' : ''}">
 								<div
 									class="flex w-full gap-1 sm:gap-1.5 {message.role === 'user'
@@ -901,6 +986,19 @@
 																		<span class="text-xs">{att.name}</span>
 																	</div>
 																{/if}
+															</div>
+														{/each}
+													</div>
+												{/if}
+
+												{#if message.resources}
+													<div class="mb-2 flex flex-wrap gap-2">
+														{#each message.resources as res}
+															<div class="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 dark:border-blue-800 dark:bg-blue-900/20 max-w-[200px]">
+																<Library size={14} class="text-blue-600 dark:text-blue-400 shrink-0" />
+																<div class="flex-1 min-w-0">
+																	<p class="text-[11px] font-bold text-blue-700 dark:text-blue-300 truncate">{res.name}</p>
+																</div>
 															</div>
 														{/each}
 													</div>

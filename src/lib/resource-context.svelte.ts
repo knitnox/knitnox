@@ -1,14 +1,5 @@
-/**
- * Shared store for passing MCP resource content from MCPInspectModal to Chat.
- * When a resource is "added to chat", its content is placed here and Chat.svelte picks it up.
- */
-export interface ResourceContent {
-	name: string;
-	uri: string;
-	content: string;
-	sizeStr?: string;
-	mimeType?: string;
-}
+import { type ResourceContent } from './db';
+import { toast } from './toast.svelte';
 
 let _pending = $state<ResourceContent[]>([]);
 
@@ -19,6 +10,7 @@ export const resourceContext = {
 	add(value: ResourceContent) {
 		if (!_pending.find(r => r.uri === value.uri)) {
 			_pending.push(value);
+			toast.add(`Added ${value.name} to chat context`, 'success');
 		}
 	},
 	remove(uri: string) {

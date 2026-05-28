@@ -231,21 +231,19 @@ def list_current_dir() -> str:
 def read_file_resource(path: str) -> str:
     """Reads a specific file from disk. Returns file content with metadata wrapper."""
     try:
-        print(f"DEBUG: Received path: {path}")
         # Decode URL-encoded path segments (like %2F for /)
-        decoded_path = unquote(path)
-        print(f"DEBUG: Decoded path: {decoded_path}")
+        path = unquote(path)
         # Resolve relative to current dir, prevent path traversal
-        safe_path = os.path.normpath(decoded_path)
-        print(f"DEBUG: Safe path: {safe_path}")
+        safe_path = os.path.normpath(path)
+
+        if os.path.isabs(safe_path) or safe_path.startswith('..'):
+            return json.dumps({"error": f"Invalid path: {path}. Only relative paths within the project are allowed."})
 
         full_path = os.path.join('.', safe_path)
         full_path = os.path.normpath(full_path)
-        print(f"DEBUG: Full path: {full_path}")
 
         if not os.path.exists(full_path):
-            print(f"DEBUG: File not found at: {full_path}")
-            return json.dumps({"error": f"File not found: {decoded_path} (full path: {full_path})"})
+            return json.dumps({"error": f"File not found: {path}"})
         if not os.path.isfile(full_path):
             return json.dumps({"error": f"Not a file: {path}"})
 

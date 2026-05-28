@@ -155,7 +155,14 @@ class Settings {
 	}
 
 	getQRCodeData() {
-		const data = this.getSettingsData();
+		const data = {
+			baseUrl: this.baseUrl,
+			apiKey: this.apiKey,
+			model: this.model,
+			supportsImages: this.supportsImages,
+			supportsAudio: this.supportsAudio,
+			supportsVideo: this.supportsVideo,
+		};
 		return LZString.compressToEncodedURIComponent(JSON.stringify(data));
 	}
 

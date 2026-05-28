@@ -8,6 +8,7 @@
 	import ToolsSettingsModal from './ToolsSettingsModal.svelte';
 	import ToolInspectModal from './ToolInspectModal.svelte';
 	import MCPInspectModal from './MCPInspectModal.svelte';
+	import { resourceContext, type ResourceContent } from '$lib/resource-context.svelte';
 	import LandingPage from './LandingPage.svelte';
 	import ConfirmModal from './ConfirmModal.svelte';
 	import { liveQuery } from 'dexie';
@@ -173,6 +174,7 @@
 	let streamingContent = $state('');
 	let streamingThinking = $state('');
 	let streamingToolCalls = $state<any[]>([]);
+	let pendingResourceContext = $state<ResourceContent[]>([]);
 	let streamingError = $state<string | null>(null);
 	let streamingStartTime = $state<number>(0);
 
@@ -350,6 +352,9 @@
 		editingContent = '';
 		streamingError = null;
 
+		// Consume any pending resource context from MCP library
+		pendingResourceContext = resourceContext.consume();
+
 		// Delete all subsequent messages
 		const allMessages = await db.messages.where('chatId').equals(chatId!).toArray();
 		const messageIndex = allMessages.findIndex(m => m.id === messageId);
@@ -375,6 +380,7 @@
 			streamingError = error.message || 'An error occurred';
 		} finally {
 			isStreaming = false;
+			pendingResourceContext = []; // Clear after use
 		}
 	}
 
@@ -393,7 +399,10 @@
 
 	async function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
-		if ((!input.trim() && attachments.length === 0) || isStreaming) return;
+		if ((!input.trim() && attachments.length === 0 && resourceContext.pending.length === 0) || isStreaming) return;
+
+		// Consume any pending resource context from MCP library
+		pendingResourceContext = resourceContext.consume();
 
 		const userContent = input.trim();
 		const currentAttachments = $state.snapshot(attachments);
@@ -434,6 +443,7 @@
 			streamingError = error.message || 'An error occurred';
 		} finally {
 			isStreaming = false;
+			pendingResourceContext = []; // Clear after use
 		}
 	}
 
@@ -505,9 +515,12 @@
 
 			const memory = currentChat?.summary ? `\n\n[Long-term Memory/Summary of earlier conversation]:\n${currentChat.summary}` : '';
 			const turnInfo = `\n\n[System Info: Turn ${agentTurn}/${settings.maxAgentTurns} in agent loop.]`;
-			
+			const resourceCtx = pendingResourceContext.length > 0
+				? pendingResourceContext.map(r => `\n\n[Attached Resource: ${r.uri}]\n\`\`\`\n${r.content}\n\`\`\``).join('')
+				: '';
+
 			const apiMessages = [
-				{ role: 'system', content: settings.systemPrompt + memory + turnInfo },
+				{ role: 'system', content: settings.systemPrompt + memory + resourceCtx + turnInfo },
 				...windowMessages.map((m) => {
 					if (m.attachments?.length) {
 						const content: any[] = [];
@@ -535,6 +548,7 @@
 						return {
 							role: m.role,
 							content,
+							...(m.role === 'assistant' && m.thinkingContent ? { reasoning_content: m.thinkingContent } : {}),
 							tool_calls: m.toolCalls,
 							tool_call_id: (m as any).toolCallId
 						};
@@ -542,6 +556,7 @@
 					return {
 						role: m.role,
 						content: m.content,
+						...(m.role === 'assistant' && m.thinkingContent ? { reasoning_content: m.thinkingContent } : {}),
 						tool_calls: m.toolCalls,
 						tool_call_id: (m as any).toolCallId
 					};
@@ -639,7 +654,9 @@
 			}
 			// Final update to ensure everything is saved
 			await db.messages.update(messageId, { 
-				content: streamingContent, 
+				content: streamingContent,
+				thinkingContent: streamingThinking || undefined,
+				thinkingDuration: streamingStartTime ? (Date.now() - streamingStartTime) / 1000 : undefined,
 				toolCalls: $state.snapshot(streamingToolCalls.filter(Boolean).length ? streamingToolCalls.filter(Boolean) : undefined)
 			});
 			
@@ -777,7 +794,7 @@
 						{#if message.role !== 'tool' && message.id !== streamingMessageId}
 							<div class="group/message flex gap-3 sm:gap-4 {message.role === 'user' ? 'justify-end' : ''}">
 								<div
-									class="flex w-full gap-2 sm:gap-3 {message.role === 'user'
+									class="flex w-full gap-1 sm:gap-1.5 {message.role === 'user'
 										? 'flex-row-reverse'
 										: 'flex-col'}"
 								>
@@ -870,7 +887,7 @@
 									</div>
 
 									{#if message.content}
-										<div class="space-y-2 {message.role === 'user' && editingMessageId === message.id ? 'flex-1 min-w-0' : ''}">
+										<div class="space-y-1 {message.role === 'user' && editingMessageId === message.id ? 'flex-1 min-w-0' : ''}">
 											<div
 												class="rounded-2xl px-3 py-1.5 {message.role === 'user'
 													? 'bg-[#b8b8bf] dark:bg-gray-600 text-[#4b4b4e] dark:text-white'
@@ -1003,7 +1020,7 @@
 
 				{#if streamingMessageId}
 					<div class="flex gap-3 sm:gap-4">
-						<div class="flex w-full gap-2 sm:gap-3 flex-col">
+						<div class="flex w-full gap-1 sm:gap-1.5 flex-col">
 							<div class="flex items-start gap-2 sm:gap-3 flex-row">
 								<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-200 dark:bg-zinc-800">
 									<Bot size={18} />
@@ -1029,7 +1046,7 @@
 								</div>
 							</div>
 
-							<div class="space-y-2">
+							<div class="space-y-1">
 								{#if streamingContent}
 									<div class="rounded-2xl bg-zinc-100 px-3 py-1.5 dark:bg-zinc-800 prose prose-sm dark:prose-invert max-w-none">
 										<div class="markdown-content">
@@ -1128,6 +1145,28 @@
 
 	<div class="shrink-0 w-full px-2 sm:px-4 pt-2 pb-1 bg-white dark:bg-zinc-900">
 		<form onsubmit={handleSubmit} class="mx-auto max-w-4xl">
+			{#if resourceContext.pending.length > 0 || pendingResourceContext.length > 0}
+				<div class="mb-2 flex flex-wrap gap-2 px-2">
+					{#each (isStreaming ? pendingResourceContext : resourceContext.pending) as res}
+						<div class="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 dark:border-blue-800 dark:bg-blue-900/20 max-w-[200px]">
+							<Library size={14} class="text-blue-600 dark:text-blue-400 shrink-0" />
+							<div class="flex-1 min-w-0">
+								<p class="text-[11px] font-bold text-blue-700 dark:text-blue-300 truncate">{res.name}</p>
+							</div>
+							{#if !isStreaming}
+								<button
+									type="button"
+									onclick={() => { resourceContext.remove(res.uri); }}
+									class="shrink-0 rounded-full p-0.5 text-blue-500 hover:bg-blue-100 dark:hover:bg-blue-800/50 transition-colors"
+									title="Remove attached resource"
+								>
+									<CloseIcon size={12} />
+								</button>
+							{/if}
+						</div>
+					{/each}
+				</div>
+			{/if}
 			{#if attachments.length > 0}
 				<div class="mb-2 flex flex-wrap gap-2 px-2">
 					{#each attachments as att, i}
@@ -1303,7 +1342,7 @@
 	}
 
 	.token-container {
-		animation: token-fade-in 0.3s ease-out forwards;
+		animation: token-fade-in 1s ease-out forwards;
 	}
 
 	/* Optional: make the cursor more visible */

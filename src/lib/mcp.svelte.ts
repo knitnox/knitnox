@@ -218,8 +218,10 @@ export class MCPClient {
 			if (e.name !== 'AbortError') {
 				console.error('Streamable HTTP GET stream closed with error:', e);
 			}
-			// SSE stream died — close all pending requests so they don't hang
+			// SSE stream died — fail pending requests and reset session so next request re-connects
 			this.failAllPending(new Error(`MCP stream closed for ${this.url}: ${e.message || e}`));
+			this.sessionId = null;
+			this.abortController = null;
 		}
 	}
 

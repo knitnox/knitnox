@@ -441,7 +441,7 @@
 											<input
 												type="text"
 												bind:value={settings.mcpServers[i]}
-												placeholder="http://localhost:8000/sse"
+												placeholder="http://127.0.0.1:8000/mcp"
 												class="w-full rounded-xl border border-zinc-200 bg-white pl-3 pr-10 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
 											/>
 											<div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">

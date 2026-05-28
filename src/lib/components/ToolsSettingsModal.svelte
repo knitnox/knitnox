@@ -158,5 +158,5 @@
 		background: #e4e4e7;
 		border-radius: 10px;
 	}
-	.dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #3f3f46; }
+	:global(.dark) .custom-scrollbar::-webkit-scrollbar-thumb { background: #3f3f46; }
 </style>

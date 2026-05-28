@@ -1,11 +1,10 @@
 <script lang="ts">
 	import { settings } from '$lib/settings.svelte';
 	import { MCPClient } from '$lib/mcp.svelte';
-	import { X, Download, Upload, QrCode, Camera, Image as ImageIcon, Settings as SettingsIcon, Shield, Cpu, Layout, Type, Database, Share2, Scan, CheckCircle, AlertCircle, Loader2 } from '@lucide/svelte';
+	import { X, Download, Upload, QrCode, Camera, Image as ImageIcon, Settings as SettingsIcon, Type, Shield, Share2, Scan, CheckCircle, AlertCircle, Loader2, Layout, Database, Cpu } from '@lucide/svelte';
 	import QRCode from 'qrcode';
-	import jsQR from 'jsqr';
 	import { fade, fly } from 'svelte/transition';
-	import { tick } from 'svelte';
+	import { maskApiKey, createCameraScanner, handleQRImageImport } from '$lib/import-utils';
 	import ImportSuccessModal from './ImportSuccessModal.svelte';
 
 	let { isOpen = $bindable(false) } = $props();
@@ -13,12 +12,14 @@
 	let qrImportInput = $state<HTMLInputElement | null>(null);
 
 	let connectionStatuses = $state<Record<string, 'checking' | 'success' | 'error' | 'idle'>>({});
+	let mcpClients = new Map<string, MCPClient>();
 
 	async function checkMcpConnection(url: string) {
 		if (!url) return;
 		connectionStatuses[url] = 'checking';
 		try {
 			const client = new MCPClient(url);
+			mcpClients.set(url, client);
 			await client.getTools();
 			connectionStatuses[url] = 'success';
 		} catch (e) {
@@ -39,10 +40,15 @@
 	});
 
 	let showExportQR = $state(false);
-	let showCameraScanner = $state(false);
 	let videoElement = $state<HTMLVideoElement | null>(null);
-	let stream: MediaStream | null = null;
-	let animationFrameId: number;
+
+	const cameraScanner = createCameraScanner(
+		() => videoElement,
+		() => { stopCamera(); handleImportSuccess(); }
+	);
+	const startCamera = () => cameraScanner.startCamera();
+	const stopCamera = () => cameraScanner.stopCamera();
+	const showCameraScanner = $derived(cameraScanner.getShowCameraScanner());
 
 	let exportTagName = $state('');
 	let jsonExportName = $state('');
@@ -52,12 +58,6 @@
 	let importedModelName = $state('');
 	let importedBaseUrl = $state('');
 	let importedApiTokenMasked = $state('');
-
-	function maskApiKey(key: string) {
-		if (!key) return '';
-		if (key.length <= 8) return '****';
-		return key.substring(0, 4) + '...' + key.substring(key.length - 4);
-	}
 
 	function handleImportSuccess() {
 		importedModelName = settings.model;
@@ -71,7 +71,6 @@
 		isOpen = false;
 		setTimeout(() => {
 			showExportQR = false;
-			showCameraScanner = false;
 		}, 300);
 	}
 
@@ -90,68 +89,17 @@
 			}
 		};
 		reader.readAsText(file);
-		target.value = ''; // Reset
+		target.value = '';
 	}
 
-	async function startCamera() {
-		showCameraScanner = true;
-		await tick();
-		try {
-			stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-			if (videoElement) {
-				videoElement.srcObject = stream;
-				videoElement.setAttribute("playsinline", "true");
-				videoElement.play();
-				requestAnimationFrame(scanLoop);
-			}
-		} catch (err) {
-			console.error("Error accessing camera:", err);
-			alert("Could not access the camera. Please check permissions.");
-			showCameraScanner = false;
-		}
-	}
+	async function handleQRImport(e: Event) {
+		const target = e.target as HTMLInputElement;
+		const file = target.files?.[0];
+		if (!file) return;
 
-	function stopCamera() {
-		if (stream) {
-			stream.getTracks().forEach(track => track.stop());
-			stream = null;
-		}
-		if (animationFrameId) {
-			cancelAnimationFrame(animationFrameId);
-		}
-		showCameraScanner = false;
-	}
-
-	function scanLoop() {
-		if (!videoElement || videoElement.readyState !== videoElement.HAVE_ENOUGH_DATA) {
-			if (showCameraScanner) animationFrameId = requestAnimationFrame(scanLoop);
-			return;
-		}
-
-		const canvas = document.createElement('canvas');
-		canvas.width = videoElement.videoWidth;
-		canvas.height = videoElement.videoHeight;
-		const ctx = canvas.getContext('2d');
-		if (!ctx) return;
-
-		ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-		const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-		
-		const code = jsQR(imageData.data, imageData.width, imageData.height, {
-			inversionAttempts: "dontInvert",
-		});
-
-		if (code) {
-			if (settings.importFromQRCodeData(code.data)) {
-				stopCamera();
-				handleImportSuccess();
-				close();
-			} else {
-				if (showCameraScanner) animationFrameId = requestAnimationFrame(scanLoop);
-			}
-		} else {
-			if (showCameraScanner) animationFrameId = requestAnimationFrame(scanLoop);
-		}
+		const success = await handleQRImageImport(file);
+		if (success) handleImportSuccess();
+		target.value = '';
 	}
 
 	async function generateQR() {
@@ -209,37 +157,6 @@
 		a.click();
 	}
 
-	async function handleQRImport(e: Event) {
-		const target = e.target as HTMLInputElement;
-		const file = target.files?.[0];
-		if (!file) return;
-
-		const img = new Image();
-		img.onload = () => {
-			const canvas = document.createElement('canvas');
-			const ctx = canvas.getContext('2d');
-			if (!ctx) return;
-
-			canvas.width = img.width;
-			canvas.height = img.height;
-			ctx.drawImage(img, 0, 0);
-
-			const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-			const code = jsQR(imageData.data, imageData.width, imageData.height);
-
-			if (code) {
-				if (settings.importFromQRCodeData(code.data)) {
-					alert('Settings imported successfully from Tag!');
-				} else {
-					alert('Failed to decode settings from this image.');
-				}
-			} else {
-				alert('No QR code found in the image.');
-			}
-		};
-		img.src = URL.createObjectURL(file);
-		target.value = '';
-	}
 </script>
 
 {#if isOpen}
@@ -676,7 +593,7 @@
 		background: #e4e4e7;
 		border-radius: 10px;
 	}
-	.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+	:global(.dark) .custom-scrollbar::-webkit-scrollbar-thumb {
 		background: #3f3f46;
 	}
 </style>

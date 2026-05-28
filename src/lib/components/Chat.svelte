@@ -3,7 +3,7 @@
 	import { streamChat, generateChatTitle, summarizeChat } from '$lib/openai.svelte';
 	import { settings } from '$lib/settings.svelte';
 	import { toast } from '$lib/toast.svelte';
-	import { getAllTools, MCPClient } from '$lib/mcp.svelte';
+	import { getAllTools, mcpPool, MCPClient } from '$lib/mcp.svelte';
 	import { localTools } from '$lib/tools.svelte';
 	import ToolsSettingsModal from './ToolsSettingsModal.svelte';
 	import ToolInspectModal from './ToolInspectModal.svelte';
@@ -11,7 +11,7 @@
 	import LandingPage from './LandingPage.svelte';
 	import ConfirmModal from './ConfirmModal.svelte';
 	import { liveQuery } from 'dexie';
-	import { SendHorizontal, User, Bot, Loader2, Wrench, Toolbox, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check, Settings as SettingsIcon, Brain, MessageSquare, PlusCircle, Pencil, Database, Zap, Library, Terminal } from '@lucide/svelte';
+	import { SendHorizontal, User, Bot, Loader2, Wrench, Toolbox, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check, Settings as SettingsIcon, Brain, MessageSquare, PlusCircle, Pencil, Library, RefreshCw } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import { Marked } from 'marked';
 	import { markedHighlight } from 'marked-highlight';
@@ -112,41 +112,52 @@
 	let isStreaming = $state(false);
 	let isToolsModalOpen = $state(false);
 	let isMcpInspectOpen = $state(false);
-	let mcpInspectMode = $state<'resources' | 'prompts'>('resources');
 	let hasMcpResources = $state(false);
 	let hasMcpPrompts = $state(false);
+	let isRefreshingMcp = $state(false);
 
-	async function checkMcpCapabilities() {
-		try {
-			let resourcesCount = 0;
-			let promptsCount = 0;
-			for (const url of settings.mcpServers) {
-				if (!url) continue;
-				try {
-					const client = new MCPClient(url);
-					const r = await client.listResources();
-					const p = await client.listPrompts();
-					resourcesCount += r.length;
-					promptsCount += p.length;
-				} catch (e) {
-					// Silently skip offline servers
-				}
+	async function checkMcpCapabilities(showToast = false) {
+		let resourcesCount = 0;
+		let promptsCount = 0;
+		let toolsCount = 0;
+		for (const url of settings.mcpServers) {
+			if (!url) continue;
+			try {
+				const client = mcpPool.get(url);
+				const [r, p, t] = await Promise.all([
+					client.listResources(),
+					client.listPrompts(),
+					client.getTools()
+				]);
+				resourcesCount += r.length;
+				promptsCount += p.length;
+				toolsCount += t.length;
+			} catch (e) {
+				// Silently skip offline servers (including timeouts)
+				mcpPool.invalidate(url);
+				console.warn('MCP server unreachable:', url, e);
 			}
-			hasMcpResources = resourcesCount > 0;
-			hasMcpPrompts = promptsCount > 0;
-		} catch (e) {
-			console.warn('Failed to check MCP capabilities:', e);
 		}
+		hasMcpResources = resourcesCount > 0;
+		hasMcpPrompts = promptsCount > 0;
+		if (showToast) {
+			toast.add(
+				`MCP sync complete: ${toolsCount} tool${toolsCount !== 1 ? 's' : ''}, ${promptsCount} prompt${promptsCount !== 1 ? 's' : ''}, ${resourcesCount} resource${resourcesCount !== 1 ? 's' : ''}`,
+				'success'
+			);
+		}
+	}
+
+	async function refreshMcp() {
+		isRefreshingMcp = true;
+		await checkMcpCapabilities(true);
+		isRefreshingMcp = false;
 	}
 
 	$effect(() => {
 		// Run check on mount and whenever settings.mcpServers changes
 		const urls = settings.mcpServers;
 		checkMcpCapabilities();
-		
-		// Periodic sync every 10 seconds to catch servers started later
-		const interval = setInterval(checkMcpCapabilities, 10000);
-		return () => clearInterval(interval);
 	});
 
 	let abortController = $state<AbortController | null>(null);
@@ -646,20 +657,26 @@
 					const toolName = tc.function.name;
 					const toolArgs = JSON.parse(tc.function.arguments);
 					
-					const mcpTool = filteredMcpTools.find(t => t.tool.name === toolName);
-					if (mcpTool) {
-						const client = new MCPClient(mcpTool.serverUrl);
-						const result = await client.callTool(toolName, toolArgs);
-						
-						await db.messages.add({
-							chatId: chatId!,
-							role: 'tool',
-							content: JSON.stringify(result),
-							createdAt: Date.now(),
-							toolCallId: tc.id
-						} as any);
-						continue;
+				const mcpTool = filteredMcpTools.find(t => t.tool.name === toolName);
+				if (mcpTool) {
+					let result: any;
+					try {
+						const client = mcpPool.get(mcpTool.serverUrl);
+						result = await client.callTool(toolName, toolArgs);
+					} catch (e: any) {
+						mcpPool.invalidate(mcpTool.serverUrl);
+						result = { error: `MCP tool "${toolName}" failed: ${e.message || e}` };
 					}
+					
+					await db.messages.add({
+						chatId: chatId!,
+						role: 'tool',
+						content: JSON.stringify(result),
+						createdAt: Date.now(),
+						toolCallId: tc.id
+					} as any);
+					continue;
+				}
 
 					const localTool = filteredLocalTools.find(t => t.name === toolName);
 					if (localTool) {
@@ -752,7 +769,7 @@
 		</div>
 	</header>
 
-	<div bind:this={messagesContainer} use:autoscroll class="flex-1 overflow-y-auto p-1.5 sm:p-4 pb-36 sm:pb-40">
+	<div bind:this={messagesContainer} use:autoscroll class="flex-1 overflow-y-auto p-1.5 sm:p-4 pb-2 sm:pb-4">
 		<div class="mx-auto max-w-4xl space-y-3 sm:space-y-6">
 			{#if (messagesList && messagesList.length > 0) || isStreaming || streamingError}
 				{#if messagesList && messagesList.length > 0}
@@ -768,7 +785,7 @@
 										<div
 											class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg {message.role ===
 											'user'
-												? 'bg-gray-600 text-white'
+												? 'bg-[#b8b8bf] dark:bg-gray-600 text-[#4b4b4e] dark:text-white'
 												: 'bg-zinc-200 dark:bg-zinc-800'}"
 										>
 											{#if message.role === 'user'}
@@ -856,7 +873,7 @@
 										<div class="space-y-2 {message.role === 'user' && editingMessageId === message.id ? 'flex-1 min-w-0' : ''}">
 											<div
 												class="rounded-2xl px-3 py-1.5 {message.role === 'user'
-													? 'bg-gray-600 text-white'
+													? 'bg-[#b8b8bf] dark:bg-gray-600 text-[#4b4b4e] dark:text-white'
 													: 'bg-zinc-100 dark:bg-zinc-800 prose prose-sm dark:prose-invert max-w-none'}"
 											>
 												{#if message.attachments}
@@ -886,7 +903,7 @@
 															<textarea
 																bind:value={editingContent}
 																data-editing="true"
-																class="w-full bg-zinc-700 text-white rounded-lg p-2 outline-none border border-zinc-500 focus:border-blue-400 min-h-[100px]"
+																class="w-full bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-white rounded-lg p-2 outline-none border border-zinc-300 dark:border-zinc-500 focus:border-blue-400 min-h-[100px]"
 																onkeydown={(e) => {
 																	if (e.key === 'Enter' && !e.shiftKey) {
 																		e.preventDefault();
@@ -904,7 +921,7 @@
 																</button>
 																<button
 																	onclick={handleEditSubmit}
-																	class="px-2 py-1 text-xs font-medium bg-blue-600 hover:bg-blue-500 rounded transition-colors"
+																	class="px-2 py-1 text-xs font-medium bg-blue-600 hover:bg-blue-500 text-[#f4f4f5] dark:text-white rounded transition-colors"
 																>
 																	Save
 																</button>
@@ -960,20 +977,20 @@
 											</div>
 											{#if message.role === 'user' && editingMessageId !== message.id}
 												<div class="flex justify-end items-center gap-3 pr-2 -mt-1 -mb-1">
-													<button
-														onclick={() => handleEdit(message)}
-														class="text-white opacity-50 hover:opacity-100 transition-opacity drop-shadow-md"
-														title="Edit"
-													>
-														<Pencil size={18} />
-													</button>
-													<button
-														onclick={() => confirmDelete(message)}
-														class="text-white opacity-50 hover:opacity-100 hover:text-red-400 transition-colors drop-shadow-md"
-														title="Delete"
-													>
-														<Trash2 size={18} />
-													</button>
+												<button
+													onclick={() => handleEdit(message)}
+													class="text-zinc-700 dark:text-white opacity-60 dark:opacity-50 hover:opacity-100 transition-opacity"
+													title="Edit"
+												>
+													<Pencil size={18} />
+												</button>
+												<button
+													onclick={() => confirmDelete(message)}
+													class="text-zinc-700 dark:text-white opacity-60 dark:opacity-50 hover:opacity-100 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+													title="Delete"
+												>
+													<Trash2 size={18} />
+												</button>
 												</div>
 											{/if}
 										</div>
@@ -1109,152 +1126,152 @@
 		</div>
 	</div>
 
-	<div class="absolute bottom-0 left-0 right-0 w-full px-2 sm:px-4 pt-12 pb-1 pointer-events-none bg-gradient-to-t from-white via-white/95 to-transparent dark:from-zinc-900 dark:via-zinc-900/95 z-20">
-		<div class="pointer-events-auto">
-			<form onsubmit={handleSubmit} class="mx-auto max-w-4xl">
-				{#if attachments.length > 0}
-					<div class="mb-2 flex flex-wrap gap-2 px-2">
-						{#each attachments as att, i}
-							<div class="relative group">
-								<div class="h-16 w-16 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900">
-									{#if att.type === 'image'}
-										<img src={att.data} alt="preview" class="h-full w-full object-cover" />
-									{:else if att.type === 'audio'}
-										<div class="flex h-full w-full items-center justify-center">
-											<File size={20} class="text-blue-500" />
-										</div>
-									{:else if att.type === 'video'}
-										<video src={att.data} class="h-full w-full object-cover"></video>
-									{:else}
-										<div class="flex h-full w-full items-center justify-center">
-											<File size={20} />
-										</div>
-									{/if}
-								</div>
-								<button 
-									type="button"
-									onclick={() => removeAttachment(i)}
-									class="absolute -top-1.5 -right-1.5 rounded-full bg-zinc-800 p-0.5 text-white shadow-sm hover:bg-zinc-700 dark:bg-white dark:text-zinc-800"
-								>
-									<CloseIcon size={12} />
-								</button>
+	<div class="shrink-0 w-full px-2 sm:px-4 pt-2 pb-1 bg-white dark:bg-zinc-900">
+		<form onsubmit={handleSubmit} class="mx-auto max-w-4xl">
+			{#if attachments.length > 0}
+				<div class="mb-2 flex flex-wrap gap-2 px-2">
+					{#each attachments as att, i}
+						<div class="relative group">
+							<div class="h-16 w-16 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900">
+								{#if att.type === 'image'}
+									<img src={att.data} alt="preview" class="h-full w-full object-cover" />
+								{:else if att.type === 'audio'}
+									<div class="flex h-full w-full items-center justify-center">
+										<File size={20} class="text-blue-500" />
+									</div>
+								{:else if att.type === 'video'}
+									<video src={att.data} class="h-full w-full object-cover"></video>
+								{:else}
+									<div class="flex h-full w-full items-center justify-center">
+										<File size={20} />
+									</div>
+								{/if}
 							</div>
-						{/each}
-					</div>
-				{/if}
-
-				<div class="flex flex-col rounded-2xl border-2 border-dotted border-zinc-300 bg-zinc-50 p-1.5 focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20 dark:border-zinc-700 dark:bg-zinc-900 transition-all">
-					<div class="relative flex items-center">
-						{#if settings.supportsImages || settings.supportsAudio || settings.supportsVideo}
-							<input 
-								type="file" 
-								multiple 
-								class="hidden" 
-								accept={acceptedMimeTypes}
-								bind:this={fileInput}
-								onchange={handleFileChange}
-							/>
-							<button
+							<button 
 								type="button"
-								onclick={() => fileInput?.click()}
-								class="ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800 transition-all"
-								title="Attach Files"
+								onclick={() => removeAttachment(i)}
+								class="absolute -top-1.5 -right-1.5 rounded-full bg-zinc-800 p-0.5 text-white shadow-sm hover:bg-zinc-700 dark:bg-white dark:text-zinc-800"
 							>
-								<Paperclip size={20} />
-							</button>
-						{/if}
-
-						<textarea
-							bind:this={textareaElement}
-							bind:value={input}
-							rows="1"
-							placeholder="Message..."
-							class="flex-1 bg-transparent px-2 py-2 outline-none resize-none min-h-[44px] max-h-64 text-base sm:text-sm leading-relaxed"
-							onkeydown={(e) => {
-								if (e.key === 'Enter') {
-									if (isMobile) return;
-									if (!e.shiftKey) {
-										e.preventDefault();
-										handleSubmit(e as any);
-									}
-								}
-							}}
-						></textarea>
-					</div>
-
-					<div class="flex items-center justify-between mt-0.5 px-0.5">
-						<div class="flex items-center gap-0.5">
-							{#if hasMcpResources}
-								<button
-									type="button"
-									onclick={() => { mcpInspectMode = 'resources'; isMcpInspectOpen = true; }}
-									class="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800 transition-all"
-									title="MCP Resources"
-								>
-									<Library size={20} />
-								</button>
-							{/if}
-							{#if hasMcpPrompts}
-								<button
-									type="button"
-									onclick={() => { mcpInspectMode = 'prompts'; isMcpInspectOpen = true; }}
-									class="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800 transition-all"
-									title="MCP Prompts"
-								>
-									<Terminal size={20} />
-								</button>
-							{/if}
-							<button
-								type="button"
-								onclick={() => isToolsModalOpen = true}
-								class="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800 transition-all"
-								title="Tool Settings"
-							>
-								<Toolbox size={20} />
-							</button>
-							<button
-								type="button"
-								onclick={onOpenSettings}
-								class="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800 transition-all"
-								title="General Settings"
-							>
-								<Wrench size={20} />
+								<CloseIcon size={12} />
 							</button>
 						</div>
-
-						<div class="flex items-center gap-2">
-							{#if isStreaming}
-								<button
-									type="button"
-									onclick={stopGeneration}
-									class="flex h-9 w-9 items-center justify-center rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all cursor-pointer"
-									title="Stop Generation"
-								>
-									<Square size={16} fill="currentColor" />
-								</button>
-							{:else}
-								<button
-									type="submit"
-									disabled={(!input.trim() && attachments.length === 0)}
-									class="flex h-9 w-9 items-center justify-center rounded-xl text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
-									title="Send Message"
-								>
-									<SendHorizontal size={26} strokeWidth={2.5} />
-								</button>
-							{/if}
-						</div>
-					</div>
-				</div>
-			</form>
-			{#if chatId}
-				<div class="mx-auto max-w-4xl px-2 mt-0.5 flex items-center justify-center gap-2 text-[10px] sm:text-xs text-zinc-500 dark:text-zinc-400 font-mono">
-					<span>Last: {((currentChat?.lastInputTokens || 0) / 1000).toFixed(2)}k in / {((currentChat?.lastOutputTokens || 0) / 1000).toFixed(2)}k out</span>
-					<span class="opacity-30">|</span>
-					<span>Total: {((currentChat?.totalInputTokens || 0) / 1000).toFixed(2)}k in / {((currentChat?.totalOutputTokens || 0) / 1000).toFixed(2)}k out</span>
+					{/each}
 				</div>
 			{/if}
-		</div>
-	</div></div>
+
+			<div class="flex flex-col rounded-2xl border-2 border-dotted border-zinc-300 bg-zinc-50 p-1.5 focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20 dark:border-zinc-700 dark:bg-zinc-900 transition-all">
+				<div class="relative flex items-center">
+					{#if settings.supportsImages || settings.supportsAudio || settings.supportsVideo}
+						<input 
+							type="file" 
+							multiple 
+							class="hidden" 
+							accept={acceptedMimeTypes}
+							bind:this={fileInput}
+							onchange={handleFileChange}
+						/>
+						<button
+							type="button"
+							onclick={() => fileInput?.click()}
+							class="ml-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800 transition-all"
+							title="Attach Files"
+						>
+							<Paperclip size={20} />
+						</button>
+					{/if}
+
+					<textarea
+						bind:this={textareaElement}
+						bind:value={input}
+						rows="1"
+						placeholder="Message..."
+						class="flex-1 bg-transparent px-2 py-2 outline-none resize-none min-h-[44px] max-h-64 text-base sm:text-sm leading-relaxed"
+						onkeydown={(e) => {
+							if (e.key === 'Enter') {
+								if (isMobile) return;
+								if (!e.shiftKey) {
+									e.preventDefault();
+									handleSubmit(e as any);
+								}
+							}
+						}}
+					></textarea>
+				</div>
+
+				<div class="flex items-center justify-between mt-0.5 px-0.5">
+					<div class="flex items-center gap-0.5">
+						{#if hasMcpResources || hasMcpPrompts}
+							<button
+								type="button"
+								onclick={() => { isMcpInspectOpen = true; }}
+								class="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800 transition-all"
+								title="MCP Library (Resources & Prompts)"
+							>
+								<Library size={20} />
+							</button>
+						{/if}
+						{#if settings.mcpServers.length > 0}
+							<button
+								type="button"
+								onclick={refreshMcp}
+								disabled={isRefreshingMcp}
+								class="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800 transition-all disabled:opacity-50"
+								title="Refresh MCP Servers"
+							>
+								<RefreshCw size={18} class={isRefreshingMcp ? 'animate-spin' : ''} />
+							</button>
+						{/if}
+						<button
+							type="button"
+							onclick={() => isToolsModalOpen = true}
+							class="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800 transition-all"
+							title="Tool Settings"
+						>
+							<Toolbox size={20} />
+						</button>
+						<button
+							type="button"
+							onclick={onOpenSettings}
+							class="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800 transition-all"
+							title="General Settings"
+						>
+							<Wrench size={20} />
+						</button>
+					</div>
+
+					<div class="flex items-center gap-2">
+						{#if isStreaming}
+							<button
+								type="button"
+								onclick={stopGeneration}
+								class="flex h-9 w-9 items-center justify-center rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all cursor-pointer"
+								title="Stop Generation"
+							>
+								<Square size={16} fill="currentColor" />
+							</button>
+						{:else}
+							<button
+								type="submit"
+								disabled={(!input.trim() && attachments.length === 0)}
+								class="flex h-9 w-9 items-center justify-center rounded-xl text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
+								title="Send Message"
+							>
+								<SendHorizontal size={26} strokeWidth={2.5} />
+							</button>
+						{/if}
+					</div>
+				</div>
+			</div>
+		</form>
+		{#if chatId}
+			<div class="mx-auto max-w-4xl px-2 mt-0.5 flex items-center justify-center gap-2 text-[10px] sm:text-xs text-zinc-500 dark:text-zinc-400 font-mono">
+				<span>Last: {((currentChat?.lastInputTokens || 0) / 1000).toFixed(2)}k in / {((currentChat?.lastOutputTokens || 0) / 1000).toFixed(2)}k out</span>
+				<span class="opacity-30">|</span>
+				<span>Total: {((currentChat?.totalInputTokens || 0) / 1000).toFixed(2)}k in / {((currentChat?.totalOutputTokens || 0) / 1000).toFixed(2)}k out</span>
+			</div>
+		{/if}
+	</div>
+</div>
 
 <ToolsSettingsModal bind:isOpen={isToolsModalOpen} />
 <ToolInspectModal 
@@ -1263,7 +1280,7 @@
 	args={inspectToolData.args}
 	result={inspectToolData.result}
 />
-<MCPInspectModal bind:isOpen={isMcpInspectOpen} bind:mode={mcpInspectMode} />
+<MCPInspectModal bind:isOpen={isMcpInspectOpen} />
 <ConfirmModal
 	bind:isOpen={confirmModal.isOpen}
 	title={confirmModal.title}

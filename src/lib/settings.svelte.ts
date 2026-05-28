@@ -26,12 +26,6 @@ class Settings {
 
 	constructor() {
 		if (browser) {
-			// Migration: If the user has the old default prompt, update it to the new one
-			const currentPrompt = localStorage.getItem('systemPrompt');
-			if (currentPrompt === 'You are a helpful assistant.') {
-				this.systemPrompt = 'You are a helpful assistant. You have access to a persistent knowledge base via the "knowledge" tool. Use it to store and retrieve important facts, user preferences, and notes across conversations. Always check the knowledge base if you are unsure about something the user has previously told you.';
-			}
-
 			$effect.root(() => {
 				$effect(() => {
 					localStorage.setItem('baseUrl', this.baseUrl);

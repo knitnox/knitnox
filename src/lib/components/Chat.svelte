@@ -248,6 +248,16 @@
 	let currentChat = $state<import('$lib/db').Chat | null>(null);
 
 	let isCheckingSettings = $state(true);
+	let expandedMessages = $state<Set<number>>(new Set());
+
+	function toggleExpand(id: number) {
+		if (expandedMessages.has(id)) {
+			expandedMessages.delete(id);
+		} else {
+			expandedMessages.add(id);
+		}
+		expandedMessages = new Set(expandedMessages);
+	}
 	
 	let confirmModal = $state({
 		isOpen: false,
@@ -880,7 +890,7 @@
 				{#if messagesList && messagesList.length > 0}
 					{#each messagesList as message}
 						{#if message.role !== 'tool' && message.role !== 'system' && message.id !== streamingMessageId}
-							<div class="group/message flex gap-3 sm:gap-4 {message.role === 'user' ? 'justify-end' : ''}">
+							<div class="group/message flex gap-3 sm:gap-4 {message.role === 'user' ? 'flex-row-reverse' : ''}">
 								{#if message.role === 'assistant'}
 									<div class="flex flex-col w-full gap-2">
 										<div class="flex items-start gap-1 sm:gap-1.5">
@@ -1058,6 +1068,8 @@
 
 									<div class="flex flex-col gap-2 min-w-0 {editingMessageId !== message.id ? 'items-end' : 'flex-1 w-full'}">
 										{#if message.content}
+											{@const lineCount = message.content.split('\n').length}
+											{@const isExpanded = expandedMessages.has(message.id!)}
 											<div class="space-y-1 {editingMessageId === message.id ? 'w-full' : ''}">
 												<div
 													class="rounded-2xl px-3 py-1.5 {editingMessageId === message.id ? 'w-full' : ''} bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-tr-none"
@@ -1127,7 +1139,15 @@
 														</div>
 													{:else}
 														<div class="px-2 py-1">
-															<p class="whitespace-pre-wrap leading-relaxed text-sm">{message.content}</p>
+															<p class="whitespace-pre-wrap leading-relaxed text-sm {!isExpanded ? 'line-clamp-4' : ''}">{message.content}</p>
+															{#if lineCount > 4}
+																<button 
+																	onclick={() => toggleExpand(message.id!)}
+																	class="mt-1 text-[10px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors uppercase tracking-wider"
+																>
+																	{isExpanded ? 'Show less' : 'Show more'}
+																</button>
+															{/if}
 														</div>
 													{/if}
 												</div>

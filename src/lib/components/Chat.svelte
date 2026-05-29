@@ -1060,13 +1060,14 @@
 										{/if}
 									</div>
 								{:else}
-									<div
-										class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300"
-									>
-										<User size={18} />
-									</div>
+									<div class="flex items-start gap-1 sm:gap-1.5 flex-row-reverse w-full">
+										<div
+											class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300"
+										>
+											<User size={18} />
+										</div>
 
-									<div class="flex flex-col gap-2 min-w-0 {editingMessageId !== message.id ? 'items-end' : 'flex-1 w-full'}">
+										<div class="flex flex-col gap-2 min-w-0 {editingMessageId !== message.id ? 'items-end' : 'flex-1 w-full'}">
 										{#if message.content}
 											{@const lineCount = message.content.split('\n').length}
 											{@const isExpanded = expandedMessages.has(message.id!)}
@@ -1185,6 +1186,7 @@
 											</div>
 										{/if}
 									</div>
+								</div>
 								{/if}
 							</div>
 						{/if}

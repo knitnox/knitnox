@@ -4,6 +4,7 @@
 	import { settings } from '$lib/settings.svelte';
 	import { toast } from '$lib/toast.svelte';
 	import Toaster from '$lib/components/Toaster.svelte';
+	import { fade } from 'svelte/transition';
 
 	let { children } = $props();
 
@@ -57,5 +58,91 @@
 
 <svelte:body />
 
-{@render children()}
+{#if settings.isLoading}
+	<div out:fade={{ duration: 400 }} class="fixed inset-0 z-[100] flex items-center justify-center bg-white dark:bg-zinc-950">
+		<div class="flex flex-col items-center gap-6">
+			<div class="flex flex-col items-center">
+				<h1 class="logo-title">
+					{#each 'Knitnox'.split('') as char, i}
+						<span class={i === 5 ? 'fast-glow' : ''}>{char}</span>
+					{/each}
+				</h1>
+				<div class="logo-divider">
+					<span class="line"></span>
+					<span class="star fast-glow">⛤</span>
+					<span class="line"></span>
+				</div>
+			</div>
+			<p class="text-sm font-bold text-zinc-500 animate-pulse">Initializing Knitnox...</p>
+		</div>
+	</div>
+{:else}
+	{@render children()}
+{/if}
 <Toaster />
+
+<style>
+	.logo-title {
+		margin: 0;
+		font-size: 3rem;
+		font-family: 'Orbitron', sans-serif;
+		font-weight: 900;
+		letter-spacing: 4px;
+		color: #09090b;
+		display: flex;
+		justify-content: center;
+		transition: color 0.3s;
+		text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+	}
+
+	:global(.dark) .logo-title {
+		color: #ffffff;
+		text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+	}
+
+	.logo-title span {
+		display: inline-block;
+	}
+
+	.fast-glow {
+		animation: fastBulbGlow 0.8s ease-in-out infinite;
+		color: #f59e0b; /* tailwind orange-500 */
+	}
+
+	@keyframes fastBulbGlow {
+		0%, 100% { 
+			text-shadow: 0 0 5px rgba(245, 158, 11, 0.4),
+						 0 0 10px rgba(245, 158, 11, 0.3);
+		}
+		50% { 
+			text-shadow: 0 0 10px rgba(245, 158, 11, 0.6),
+						 0 0 20px rgba(245, 158, 11, 0.8),
+						 0 0 30px rgba(245, 158, 11, 0.5);
+		}
+	}
+
+	.logo-divider {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-top: -0.25rem;
+		width: 100%;
+		max-width: 200px;
+		opacity: 0.6;
+	}
+
+	.logo-divider .line {
+		flex: 1;
+		height: 1px;
+		background: linear-gradient(to right, transparent, #09090b, transparent);
+	}
+
+	:global(.dark) .logo-divider .line {
+		background: linear-gradient(to right, transparent, #ffffff, transparent);
+	}
+
+	.logo-divider .star {
+		font-size: 1.25rem;
+		color: #f59e0b;
+	}
+</style>

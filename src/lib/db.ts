@@ -50,17 +50,39 @@ export interface Knowledge {
 	updatedAt: number;
 }
 
+export interface Profile {
+	id?: number;
+	name: string;
+	baseUrl: string;
+	apiKey: string;
+	model: string;
+	systemPrompt: string;
+	enableThinking: boolean;
+	contextWindow: number;
+	maxAgentTurns: number;
+	supportsImages: boolean;
+	supportsAudio: boolean;
+	supportsVideo: boolean;
+	enableCompression: boolean;
+	mcpServers: string[];
+	disabledTools: string[];
+	createdAt: number;
+	updatedAt: number;
+}
+
 export class MyDatabase extends Dexie {
 	chats!: Table<Chat>;
 	messages!: Table<Message>;
 	knowledge!: Table<Knowledge>;
+	profiles!: Table<Profile>;
 
 	constructor() {
 		super('ChatDB');
-		this.version(5).stores({
+		this.version(6).stores({
 			chats: '++id, title, createdAt',
 			messages: '++id, chatId, role, createdAt',
-			knowledge: '++id, content, createdAt, updatedAt'
+			knowledge: '++id, content, createdAt, updatedAt',
+			profiles: '++id, name, createdAt'
 		}).upgrade(tx => {
 			// Optional: handle data migration if needed
 		});

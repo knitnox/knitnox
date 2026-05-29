@@ -8,13 +8,14 @@
 	import ToolsSettingsModal from './ToolsSettingsModal.svelte';
 	import ToolInspectModal from './ToolInspectModal.svelte';
 	import MCPInspectModal from './MCPInspectModal.svelte';
+	import MemoryModal from './MemoryModal.svelte';
 	import { resourceContext } from '$lib/resource-context.svelte';
 	import { promptContext } from '$lib/prompt-context.svelte';
 	import { type ResourceContent } from '$lib/db';
 	import LandingPage from './LandingPage.svelte';
 	import ConfirmModal from './ConfirmModal.svelte';
 	import { liveQuery } from 'dexie';
-	import { SendHorizontal, User, Bot, Loader2, Wrench, Toolbox, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check, Settings as SettingsIcon, Brain, MessageSquare, PlusCircle, Pencil, Library, RefreshCw } from '@lucide/svelte';
+	import { SendHorizontal, User, BrainCircuit, Loader2, Wrench, Toolbox, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check, Settings as SettingsIcon, Brain, MessageSquare, PlusCircle, Pencil, Library, RefreshCw, Database } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import { Marked } from 'marked';
 	import { markedHighlight } from 'marked-highlight';
@@ -115,6 +116,7 @@
 	let isStreaming = $state(false);
 	let isToolsModalOpen = $state(false);
 	let isMcpInspectOpen = $state(false);
+	let isMemoryModalOpen = $state(false);
 	let hasMcpResources = $state(false);
 	let hasMcpPrompts = $state(false);
 	let isRefreshingMcp = $state(false);
@@ -601,9 +603,10 @@
 
 			const memory = currentChat?.summary ? `\n\n[Long-term Memory/Summary of earlier conversation]:\n${currentChat.summary}` : '';
 			const turnInfo = `\n\n[System Info: Turn ${agentTurn}/${settings.maxAgentTurns} in agent loop.]`;
+			const timeInfo = `\n\n[Current Time & Date]: ${new Date().toLocaleString()}`;
 
 			const apiMessages = [
-				{ role: 'system', content: settings.systemPrompt + memory + turnInfo },
+				{ role: 'system', content: settings.systemPrompt + memory + turnInfo + timeInfo },
 				...windowMessages.map((m) => {
 					const hasAttachments = m.attachments && m.attachments.length > 0;
 					const hasResources = m.resources && m.resources.length > 0;
@@ -885,19 +888,19 @@
 	</header>
 
 	<div bind:this={messagesContainer} use:autoscroll class="flex-1 overflow-y-auto p-1.5 sm:p-4 pb-2 sm:pb-4">
-		<div class="mx-auto max-w-4xl space-y-1.5 sm:space-y-3">
+		<div class="mx-auto max-w-4xl space-y-1 sm:space-y-1.5">
 			{#if (messagesList && messagesList.length > 0) || isStreaming || streamingError}
 				{#if messagesList && messagesList.length > 0}
 					{#each messagesList as message}
 						{#if message.role !== 'tool' && message.role !== 'system' && message.id !== streamingMessageId}
 							<div class="group/message flex gap-3 sm:gap-4 {message.role === 'user' ? 'flex-row-reverse' : ''}">
 								{#if message.role === 'assistant'}
-									<div class="flex flex-col w-full gap-2">
+									<div class="flex flex-col w-full gap-1">
 										<div class="flex items-start gap-1 sm:gap-1.5">
 											<div
 												class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300"
 											>
-												<Bot size={18} />
+												<BrainCircuit size={18} />
 											</div>
 
 											<div class="flex flex-col gap-2 min-w-0 flex-1">
@@ -1199,7 +1202,7 @@
 							<div
 								class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300"
 							>
-								<Bot size={18} />
+								<BrainCircuit size={18} />
 							</div>
 
 							<div class="flex flex-col gap-2 min-w-0 flex-1 w-full">
@@ -1297,7 +1300,7 @@
 				{:else if isStreaming}
 					<div class="flex gap-2 sm:gap-3 flex-col sm:flex-row">
 						<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300">
-							<Bot size={18} />
+							<BrainCircuit size={18} />
 						</div>
 						<div class="flex items-center gap-2 rounded-2xl rounded-tl-none bg-zinc-100 px-3 py-1.5 dark:bg-zinc-800 w-fit">
 							<Loader2 size={18} class="animate-spin opacity-50" />
@@ -1308,7 +1311,7 @@
 				{#if streamingError}
 					<div class="flex gap-2 sm:gap-3 flex-col sm:flex-row">
 						<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300">
-							<Bot size={18} />
+							<BrainCircuit size={18} />
 						</div>
 						<div class="rounded-2xl rounded-tl-none bg-red-50 px-3 py-1.5 text-red-600 dark:bg-red-900/20 w-fit">
 							<p class="text-sm font-medium">Error: {streamingError}</p>
@@ -1454,6 +1457,14 @@
 						>
 							<Wrench size={20} />
 						</button>
+						<button
+							type="button"
+							onclick={() => isMemoryModalOpen = true}
+							class="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800 transition-all"
+							title="Memory Management"
+						>
+							<Database size={18} />
+						</button>
 					</div>
 
 					<div class="flex items-center gap-2">
@@ -1498,6 +1509,7 @@
 	result={inspectToolData.result}
 />
 <MCPInspectModal bind:isOpen={isMcpInspectOpen} />
+<MemoryModal bind:isOpen={isMemoryModalOpen} />
 <ConfirmModal
 	bind:isOpen={confirmModal.isOpen}
 	title={confirmModal.title}

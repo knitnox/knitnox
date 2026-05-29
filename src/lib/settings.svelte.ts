@@ -1,24 +1,34 @@
 import { browser } from '$app/environment';
 import LZString from 'lz-string';
+import { db, type Profile } from './db';
 
 class Settings {
-	baseUrl = $state(browser ? localStorage.getItem('baseUrl') || 'https://api.openai.com/v1' : 'https://api.openai.com/v1');
-	apiKey = $state(browser ? localStorage.getItem('apiKey') || '' : '');
-	model = $state(browser ? localStorage.getItem('model') || '' : '');
-	systemPrompt = $state(browser ? localStorage.getItem('systemPrompt') || 'You are a helpful and unbiased AI assistant named Knitnox Bombalala. You assist the user with any task without prejudice or external influence.' : 'You are a helpful assistant.');
-	enableThinking = $state(browser ? localStorage.getItem('enableThinking') !== 'false' : true);
-	contextWindow = $state(browser ? parseInt(localStorage.getItem('contextWindow') || '12') : 12);
-	maxAgentTurns = $state(browser ? parseInt(localStorage.getItem('maxAgentTurns') || '10') : 10);
-	supportsImages = $state(browser ? localStorage.getItem('supportsImages') === 'true' : false);
-	supportsAudio = $state(browser ? localStorage.getItem('supportsAudio') === 'true' : false);
-	supportsVideo = $state(browser ? localStorage.getItem('supportsVideo') === 'true' : false);
-	enableCompression = $state(browser ? localStorage.getItem('enableCompression') !== 'false' : true);
+	// Model-specific settings (now managed via profiles)
+	baseUrl = $state('https://api.openai.com/v1');
+	apiKey = $state('');
+	model = $state('');
+	systemPrompt = $state('You are a helpful and unbiased AI assistant named Knitnox Bombalala. You assist the user with any task without prejudice or external influence.');
+	enableThinking = $state(true);
+	contextWindow = $state(12);
+	maxAgentTurns = $state(10);
+	supportsImages = $state(false);
+	supportsAudio = $state(false);
+	supportsVideo = $state(false);
+	enableCompression = $state(true);
+	mcpServers = $state<string[]>([]);
+	disabledTools = $state<string[]>([]);
+
+	// Profile Management
+	profiles = $state<Profile[]>([]);
+	activeProfileId = $state<number | null>(null);
+	isLoading = $state(true);
+
+	// Global UI settings
 	fontSize = $state(browser ? localStorage.getItem('fontSize') || '16' : '16');
 	fontFamily = $state(browser ? localStorage.getItem('fontFamily') || 'sans' : 'sans');
 	theme = $state<'system' | 'light' | 'dark'>(browser ? (localStorage.getItem('theme') as any) || 'system' : 'system');
-	mcpServers = $state<string[]>(browser ? JSON.parse(localStorage.getItem('mcpServers') || '[]') : []);
-	disabledTools = $state<string[]>(browser ? JSON.parse(localStorage.getItem('disabledTools') || '[]') : []);
 	
+	// Global Token stats
 	totalInputTokens = $state(browser ? parseInt(localStorage.getItem('totalInputTokens') || '0') : 0);
 	totalOutputTokens = $state(browser ? parseInt(localStorage.getItem('totalOutputTokens') || '0') : 0);
 	lastInputTokens = $state(browser ? parseInt(localStorage.getItem('lastInputTokens') || '0') : 0);
@@ -26,40 +36,10 @@ class Settings {
 
 	constructor() {
 		if (browser) {
+			this.init();
+			
 			$effect.root(() => {
-				$effect(() => {
-					localStorage.setItem('baseUrl', this.baseUrl);
-				});
-				$effect(() => {
-					localStorage.setItem('apiKey', this.apiKey);
-				});
-				$effect(() => {
-					localStorage.setItem('model', this.model);
-				});
-				$effect(() => {
-					localStorage.setItem('systemPrompt', this.systemPrompt);
-				});
-				$effect(() => {
-					localStorage.setItem('enableThinking', String(this.enableThinking));
-				});
-				$effect(() => {
-					localStorage.setItem('contextWindow', String(this.contextWindow));
-				});
-				$effect(() => {
-					localStorage.setItem('maxAgentTurns', String(this.maxAgentTurns));
-				});
-				$effect(() => {
-					localStorage.setItem('supportsImages', String(this.supportsImages));
-				});
-				$effect(() => {
-					localStorage.setItem('supportsAudio', String(this.supportsAudio));
-				});
-				$effect(() => {
-					localStorage.setItem('supportsVideo', String(this.supportsVideo));
-				});
-				$effect(() => {
-					localStorage.setItem('enableCompression', String(this.enableCompression));
-				});
+				// Global UI settings effects
 				$effect(() => {
 					localStorage.setItem('fontSize', this.fontSize);
 				});
@@ -68,12 +48,6 @@ class Settings {
 				});
 				$effect(() => {
 					localStorage.setItem('theme', this.theme);
-				});
-				$effect(() => {
-					localStorage.setItem('mcpServers', JSON.stringify(this.mcpServers));
-				});
-				$effect(() => {
-					localStorage.setItem('disabledTools', JSON.stringify(this.disabledTools));
 				});
 				$effect(() => {
 					localStorage.setItem('totalInputTokens', String(this.totalInputTokens));
@@ -87,7 +61,179 @@ class Settings {
 				$effect(() => {
 					localStorage.setItem('lastOutputTokens', String(this.lastOutputTokens));
 				});
+
+				// Auto-save active profile whenever its settings change
+				$effect(() => {
+					if (this.activeProfileId !== null) {
+						this.saveActiveProfile();
+					}
+				});
 			});
+		}
+	}
+
+	async init() {
+		await this.loadProfiles();
+		
+		const savedActiveId = localStorage.getItem('activeProfileId');
+		if (savedActiveId && this.profiles.find(p => p.id === parseInt(savedActiveId))) {
+			await this.switchProfile(parseInt(savedActiveId));
+		} else if (this.profiles.length > 0) {
+			await this.switchProfile(this.profiles[0].id!);
+		} else {
+			// Create default profile from existing localStorage if available
+			const defaultProfile: Omit<Profile, 'id'> = {
+				name: 'Default Profile',
+				baseUrl: localStorage.getItem('baseUrl') || 'https://api.openai.com/v1',
+				apiKey: localStorage.getItem('apiKey') || '',
+				model: localStorage.getItem('model') || '',
+				systemPrompt: localStorage.getItem('systemPrompt') || 'You are a helpful and unbiased AI assistant named Knitnox Bombalala. You assist the user with any task without prejudice or external influence.',
+				enableThinking: localStorage.getItem('enableThinking') !== 'false',
+				contextWindow: parseInt(localStorage.getItem('contextWindow') || '12'),
+				maxAgentTurns: parseInt(localStorage.getItem('maxAgentTurns') || '10'),
+				supportsImages: localStorage.getItem('supportsImages') === 'true',
+				supportsAudio: localStorage.getItem('supportsAudio') === 'true',
+				supportsVideo: localStorage.getItem('supportsVideo') === 'true',
+				enableCompression: localStorage.getItem('enableCompression') !== 'false',
+				mcpServers: JSON.parse(localStorage.getItem('mcpServers') || '[]'),
+				disabledTools: JSON.parse(localStorage.getItem('disabledTools') || '[]'),
+				createdAt: Date.now(),
+				updatedAt: Date.now()
+			};
+			const id = await db.profiles.add(defaultProfile as Profile);
+			await this.loadProfiles();
+			await this.switchProfile(id);
+		}
+		this.isLoading = false;
+	}
+
+	async loadProfiles() {
+		this.profiles = await db.profiles.toArray();
+	}
+
+	async switchProfile(id: number) {
+		const profile = this.profiles.find(p => p.id === id);
+		if (profile) {
+			this.activeProfileId = id;
+			this.baseUrl = profile.baseUrl;
+			this.apiKey = profile.apiKey;
+			this.model = profile.model;
+			this.systemPrompt = profile.systemPrompt;
+			this.enableThinking = profile.enableThinking;
+			this.contextWindow = profile.contextWindow;
+			this.maxAgentTurns = profile.maxAgentTurns;
+			this.supportsImages = profile.supportsImages;
+			this.supportsAudio = profile.supportsAudio;
+			this.supportsVideo = profile.supportsVideo;
+			this.enableCompression = profile.enableCompression;
+			this.mcpServers = profile.mcpServers;
+			this.disabledTools = profile.disabledTools;
+			localStorage.setItem('activeProfileId', String(id));
+		}
+	}
+
+	async saveActiveProfile() {
+		if (this.activeProfileId === null) return;
+		
+		await db.profiles.update(this.activeProfileId, {
+			baseUrl: this.baseUrl,
+			apiKey: this.apiKey,
+			model: this.model,
+			systemPrompt: this.systemPrompt,
+			enableThinking: this.enableThinking,
+			contextWindow: this.contextWindow,
+			maxAgentTurns: this.maxAgentTurns,
+			supportsImages: this.supportsImages,
+			supportsAudio: this.supportsAudio,
+			supportsVideo: this.supportsVideo,
+			enableCompression: this.enableCompression,
+			mcpServers: $state.snapshot(this.mcpServers),
+			disabledTools: $state.snapshot(this.disabledTools),
+			updatedAt: Date.now()
+		});
+		// Update the profile in the local list too to keep it in sync
+		const idx = this.profiles.findIndex(p => p.id === this.activeProfileId);
+		if (idx !== -1) {
+			this.profiles[idx] = { ...this.profiles[idx], 
+				baseUrl: this.baseUrl,
+				apiKey: this.apiKey,
+				model: this.model,
+				systemPrompt: this.systemPrompt,
+				enableThinking: this.enableThinking,
+				contextWindow: this.contextWindow,
+				maxAgentTurns: this.maxAgentTurns,
+				supportsImages: this.supportsImages,
+				supportsAudio: this.supportsAudio,
+				supportsVideo: this.supportsVideo,
+				enableCompression: this.enableCompression,
+				mcpServers: $state.snapshot(this.mcpServers),
+				disabledTools: $state.snapshot(this.disabledTools),
+				updatedAt: Date.now()
+			};
+		}
+	}
+
+	async createProfile(name: string) {
+		const newProfile: Omit<Profile, 'id'> = {
+			name,
+			baseUrl: 'https://api.openai.com/v1',
+			apiKey: '',
+			model: '',
+			systemPrompt: 'You are a helpful and unbiased AI assistant named Knitnox Bombalala. You assist the user with any task without prejudice or external influence.',
+			enableThinking: true,
+			contextWindow: 12,
+			maxAgentTurns: 10,
+			supportsImages: false,
+			supportsAudio: false,
+			supportsVideo: false,
+			enableCompression: true,
+			mcpServers: [],
+			disabledTools: [],
+			createdAt: Date.now(),
+			updatedAt: Date.now()
+		};
+		const id = await db.profiles.add(newProfile as Profile);
+		await this.loadProfiles();
+		await this.switchProfile(id);
+		return id;
+	}
+
+	async duplicateProfile(id: number) {
+		const profile = this.profiles.find(p => p.id === id);
+		if (!profile) return;
+		
+		const { id: _, ...profileWithoutId } = profile;
+		const newProfile: Omit<Profile, 'id'> = {
+			...profileWithoutId,
+			name: `${profile.name} (Copy)`,
+			createdAt: Date.now(),
+			updatedAt: Date.now()
+		};
+		const newId = await db.profiles.add(newProfile as Profile);
+		await this.loadProfiles();
+		await this.switchProfile(newId);
+		return newId;
+	}
+
+	async deleteProfile(id: number) {
+		if (this.profiles.length <= 1) {
+			alert('Cannot delete the last profile.');
+			return;
+		}
+		
+		await db.profiles.delete(id);
+		await this.loadProfiles();
+		
+		if (this.activeProfileId === id) {
+			await this.switchProfile(this.profiles[0].id!);
+		}
+	}
+
+	async updateProfileName(id: number, newName: string) {
+		await db.profiles.update(id, { name: newName, updatedAt: Date.now() });
+		const idx = this.profiles.findIndex(p => p.id === id);
+		if (idx !== -1) {
+			this.profiles[idx].name = newName;
 		}
 	}
 

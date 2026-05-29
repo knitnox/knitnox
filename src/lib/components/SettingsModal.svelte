@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { settings } from '$lib/settings.svelte';
 	import { MCPClient } from '$lib/mcp.svelte';
-	import { X, Download, Upload, QrCode, Camera, Image as ImageIcon, Settings as SettingsIcon, Type, Shield, Share2, Scan, CheckCircle, AlertCircle, Loader2, Layout, Database, Cpu } from '@lucide/svelte';
+	import { X, Download, Upload, QrCode, Camera, Image as ImageIcon, Settings as SettingsIcon, Type, Shield, Share2, Scan, CheckCircle, AlertCircle, Loader2, Layout, Database, Cpu, Plus, Copy, Trash2, Edit3 } from '@lucide/svelte';
 	import QRCode from 'qrcode';
 	import { fade, fly } from 'svelte/transition';
 	import { maskApiKey, createCameraScanner, handleQRImageImport } from '$lib/import-utils.svelte';
@@ -253,141 +253,262 @@
 						</div>
 					</div>
 				{:else}
-					<!-- Connectivity Section -->
+					<!-- Model Profiles Section -->
 					<section class="space-y-4">
 						<h3 class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
-							<Cpu size={14} /> AI Connectivity
+							<Layout size={14} /> Model Profiles
 						</h3>
-						<div class="grid gap-4 rounded-2xl border border-zinc-100 bg-zinc-50/50 p-5 dark:border-zinc-800 dark:bg-zinc-800/30">
-							<div class="grid sm:grid-cols-2 gap-4">
-								<div class="space-y-1.5">
-									<label for="baseUrl" class="text-xs font-semibold text-zinc-500">BASE URL</label>
-									<input
-										id="baseUrl"
-										type="text"
-										bind:value={settings.baseUrl}
-										placeholder="https://api.openai.com/v1"
-										class="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
-									/>
+						<div class="grid gap-4 rounded-2xl border border-blue-100 bg-blue-50/30 p-5 dark:border-blue-900/20 dark:bg-blue-900/10">
+							<div class="flex flex-col sm:flex-row gap-4 items-end">
+								<div class="flex-1 space-y-1.5 w-full">
+									<label for="profileSelect" class="text-xs font-semibold text-blue-600/70">ACTIVE PROFILE</label>
+									<select
+										id="profileSelect"
+										value={settings.activeProfileId}
+										onchange={(e) => settings.switchProfile(parseInt(e.currentTarget.value))}
+										class="w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 dark:border-blue-800 dark:bg-zinc-900"
+									>
+										{#each settings.profiles as profile}
+											<option value={profile.id}>{profile.name}</option>
+										{/each}
+									</select>
 								</div>
-								<div class="space-y-1.5">
-									<label for="apiKey" class="text-xs font-semibold text-zinc-500">API KEY</label>
-									<input
-										id="apiKey"
-										type="password"
-										bind:value={settings.apiKey}
-										placeholder="sk-..."
-										class="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
-									/>
+								<div class="flex gap-2 w-full sm:w-auto">
+									<button 
+										onclick={() => {
+											const name = prompt('Enter profile name:');
+											if (name) settings.createProfile(name);
+										}}
+										title="Add New Profile"
+										class="flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-xl bg-blue-600 p-2.5 text-white hover:bg-blue-700 transition-all active:scale-95"
+									>
+										<Plus size={18} />
+									</button>
+									<button 
+										onclick={() => settings.activeProfileId && settings.duplicateProfile(settings.activeProfileId)}
+										title="Duplicate Current Profile"
+										class="flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white p-2.5 text-blue-600 hover:bg-blue-50 transition-all active:scale-95 dark:border-blue-800 dark:bg-zinc-900"
+									>
+										<Copy size={18} />
+									</button>
+									<button 
+										onclick={() => {
+											if (settings.activeProfileId && confirm('Are you sure you want to delete this profile?')) {
+												settings.deleteProfile(settings.activeProfileId);
+											}
+										}}
+										title="Delete Current Profile"
+										disabled={settings.profiles.length <= 1}
+										class="flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white p-2.5 text-red-600 hover:bg-red-50 transition-all active:scale-95 disabled:opacity-50 disabled:grayscale dark:border-red-900/30 dark:bg-zinc-900"
+									>
+										<Trash2 size={18} />
+									</button>
 								</div>
 							</div>
-							<div class="space-y-1.5">
-								<label for="model" class="text-xs font-semibold text-zinc-500">MODEL NAME</label>
-								<input
-									id="model"
-									type="text"
-									bind:value={settings.model}
-									placeholder="deepseek/deepseek-v4-flash"
-									class="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
-								/>
+							
+							<div class="space-y-1.5 pt-2 border-t border-blue-100 dark:border-blue-900/30">
+								<label for="profileName" class="text-xs font-semibold text-blue-600/70">RENAME PROFILE</label>
+								<div class="relative">
+									<input
+										id="profileName"
+										type="text"
+										value={settings.profiles.find(p => p.id === settings.activeProfileId)?.name || ''}
+										onchange={(e) => settings.activeProfileId && settings.updateProfileName(settings.activeProfileId, e.currentTarget.value)}
+										placeholder="e.g. Coding Assistant"
+										class="w-full rounded-xl border border-blue-200 bg-white pl-3 pr-10 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-blue-800 dark:bg-zinc-900"
+									/>
+									<Edit3 size={14} class="absolute right-3 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none" />
+								</div>
 							</div>
 						</div>
 					</section>
 
-					<!-- Intelligence Section -->
-					<section class="space-y-4">
-						<h3 class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
-							<Layout size={14} /> Behavior & Logic
-						</h3>
-						<div class="grid gap-6 rounded-2xl border border-zinc-100 bg-zinc-50/50 p-5 dark:border-zinc-800 dark:bg-zinc-800/30">
-							<div class="flex items-center justify-between">
-								<div class="space-y-0.5">
-									<span class="text-sm font-bold">Enable Thinking</span>
-									<p class="text-[10px] text-zinc-500">Show reasoning process for supporting models.</p>
-								</div>
-								<button 
-									onclick={() => settings.enableThinking = !settings.enableThinking}
-									class="relative h-6 w-11 rounded-full transition-colors {settings.enableThinking ? 'bg-blue-600' : 'bg-zinc-300 dark:bg-zinc-700'}"
-									aria-label="Toggle thinking"
-								>
-									<div class="absolute top-1 left-1 h-4 w-4 rounded-full bg-white transition-transform {settings.enableThinking ? 'translate-x-5' : ''}"></div>
-								</button>
-							</div>
-
-							<div class="flex items-center justify-between">
-								<div class="space-y-0.5">
-									<span class="text-sm font-bold">Context Compression</span>
-									<p class="text-[10px] text-zinc-500">Auto-summarize long conversations.</p>
-								</div>
-								<button 
-									onclick={() => settings.enableCompression = !settings.enableCompression}
-									class="relative h-6 w-11 rounded-full transition-colors {settings.enableCompression ? 'bg-blue-600' : 'bg-zinc-300 dark:bg-zinc-700'}"
-									aria-label="Toggle compression"
-								>
-									<div class="absolute top-1 left-1 h-4 w-4 rounded-full bg-white transition-transform {settings.enableCompression ? 'translate-x-5' : ''}"></div>
-								</button>
-							</div>
-
-							<div class="grid sm:grid-cols-2 gap-4 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-								<div class="space-y-1.5">
-									<div class="flex justify-between items-center">
-										<label for="contextWindow" class="text-xs font-semibold text-zinc-500 uppercase">Context window</label>
-										<span class="text-[10px] font-mono bg-blue-50 text-blue-600 px-1.5 rounded dark:bg-blue-900/30">{settings.contextWindow || '∞'}</span>
+					<div class="relative mt-4">
+						<div class="absolute -top-3 left-1/2 -translate-x-1/2 z-10 whitespace-nowrap">
+							<span class="bg-white px-3 text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:bg-zinc-900 border-2 border-dotted border-zinc-200 dark:border-zinc-800/50 rounded-full py-0.5">
+								Configuring: {settings.profiles.find(p => p.id === settings.activeProfileId)?.name || 'Default'}
+							</span>
+						</div>
+						<div class="rounded-[2rem] border-2 border-dotted border-zinc-200 p-6 pt-10 space-y-8 dark:border-zinc-800/50">
+							<!-- Connectivity Section -->
+							<section class="space-y-4">
+								<h3 class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
+									<Cpu size={14} /> AI Connectivity
+								</h3>
+							<div class="grid gap-4 rounded-2xl border border-zinc-100 bg-zinc-50/50 p-5 dark:border-zinc-800 dark:bg-zinc-800/30">
+								<div class="grid sm:grid-cols-2 gap-4">
+									<div class="space-y-1.5">
+										<label for="baseUrl" class="text-xs font-semibold text-zinc-500">BASE URL</label>
+										<input
+											id="baseUrl"
+											type="text"
+											bind:value={settings.baseUrl}
+											placeholder="https://api.openai.com/v1"
+											class="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
+										/>
 									</div>
-									<input
-										id="contextWindow"
-										type="number"
-										bind:value={settings.contextWindow}
-										min="0"
-										class="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
-									/>
+									<div class="space-y-1.5">
+										<label for="apiKey" class="text-xs font-semibold text-zinc-500">API KEY</label>
+										<input
+											id="apiKey"
+											type="password"
+											bind:value={settings.apiKey}
+											placeholder="sk-..."
+											class="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
+										/>
+									</div>
 								</div>
 								<div class="space-y-1.5">
-									<div class="flex justify-between items-center">
-										<label for="maxTurns" class="text-xs font-semibold text-zinc-500 uppercase">Agent Loop Limit</label>
-										<span class="text-[10px] font-mono bg-green-50 text-green-600 px-1.5 rounded dark:bg-green-900/30">{settings.maxAgentTurns}</span>
-									</div>
+									<label for="model" class="text-xs font-semibold text-zinc-500">MODEL NAME</label>
 									<input
-										id="maxTurns"
-										type="number"
-										bind:value={settings.maxAgentTurns}
-										min="1"
+										id="model"
+										type="text"
+										bind:value={settings.model}
+										placeholder="deepseek/deepseek-v4-flash"
 										class="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
 									/>
 								</div>
 							</div>
+						</section>
 
-							<div class="space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-								<span class="text-xs font-semibold text-zinc-500 uppercase">Capabilities</span>
-								<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-									{#each [{key: 'text', label: 'Text', disabled: true, checked: true}, {key: 'supportsImages', label: 'Images'}, {key: 'supportsAudio', label: 'Audio'}, {key: 'supportsVideo', label: 'Video'}] as cap}
-										<label class="flex items-center gap-2 rounded-xl border border-zinc-100 p-2 text-xs font-medium cursor-pointer hover:bg-white dark:border-zinc-800 dark:hover:bg-zinc-800 transition-colors">
-											<input 
-												type="checkbox" 
-												checked={cap.checked ?? (settings as any)[cap.key]} 
-												disabled={cap.disabled}
-												onchange={(e) => !(cap.disabled) && ((settings as any)[cap.key] = (e.target as HTMLInputElement).checked)}
-												class="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500" 
-											/>
-											{cap.label}
-										</label>
+						<!-- Intelligence Section -->
+						<section class="space-y-4">
+							<h3 class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
+								<Layout size={14} /> Behavior & Logic
+							</h3>
+							<div class="grid gap-6 rounded-2xl border border-zinc-100 bg-zinc-50/50 p-5 dark:border-zinc-800 dark:bg-zinc-800/30">
+								<div class="flex items-center justify-between">
+									<div class="space-y-0.5">
+										<span class="text-sm font-bold">Enable Thinking</span>
+										<p class="text-[10px] text-zinc-500">Show reasoning process for supporting models.</p>
+									</div>
+									<button 
+										onclick={() => settings.enableThinking = !settings.enableThinking}
+										class="relative h-6 w-11 rounded-full transition-colors {settings.enableThinking ? 'bg-blue-600' : 'bg-zinc-300 dark:bg-zinc-700'}"
+										aria-label="Toggle thinking"
+									>
+										<div class="absolute top-1 left-1 h-4 w-4 rounded-full bg-white transition-transform {settings.enableThinking ? 'translate-x-5' : ''}"></div>
+									</button>
+								</div>
+
+								<div class="flex items-center justify-between">
+									<div class="space-y-0.5">
+										<span class="text-sm font-bold">Context Compression</span>
+										<p class="text-[10px] text-zinc-500">Auto-summarize long conversations.</p>
+									</div>
+									<button 
+										onclick={() => settings.enableCompression = !settings.enableCompression}
+										class="relative h-6 w-11 rounded-full transition-colors {settings.enableCompression ? 'bg-blue-600' : 'bg-zinc-300 dark:bg-zinc-700'}"
+										aria-label="Toggle compression"
+									>
+										<div class="absolute top-1 left-1 h-4 w-4 rounded-full bg-white transition-transform {settings.enableCompression ? 'translate-x-5' : ''}"></div>
+									</button>
+								</div>
+
+								<div class="grid sm:grid-cols-2 gap-4 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+									<div class="space-y-1.5">
+										<div class="flex justify-between items-center">
+											<label for="contextWindow" class="text-xs font-semibold text-zinc-500 uppercase">Context window</label>
+											<span class="text-[10px] font-mono bg-blue-50 text-blue-600 px-1.5 rounded dark:bg-blue-900/30">{settings.contextWindow || '∞'}</span>
+										</div>
+										<input
+											id="contextWindow"
+											type="number"
+											bind:value={settings.contextWindow}
+											min="0"
+											class="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
+										/>
+									</div>
+									<div class="space-y-1.5">
+										<div class="flex justify-between items-center">
+											<label for="maxTurns" class="text-xs font-semibold text-zinc-500 uppercase">Agent Loop Limit</label>
+											<span class="text-[10px] font-mono bg-green-50 text-green-600 px-1.5 rounded dark:bg-green-900/30">{settings.maxAgentTurns}</span>
+										</div>
+										<input
+											id="maxTurns"
+											type="number"
+											bind:value={settings.maxAgentTurns}
+											min="1"
+											class="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
+										/>
+									</div>
+								</div>
+
+								<div class="space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+									<span class="text-xs font-semibold text-zinc-500 uppercase">Capabilities</span>
+									<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+										{#each [{key: 'text', label: 'Text', disabled: true, checked: true}, {key: 'supportsImages', label: 'Images'}, {key: 'supportsAudio', label: 'Audio'}, {key: 'supportsVideo', label: 'Video'}] as cap}
+											<label class="flex items-center gap-2 rounded-xl border border-zinc-100 p-2 text-xs font-medium cursor-pointer hover:bg-white dark:border-zinc-800 dark:hover:bg-zinc-800 transition-colors">
+												<input 
+													type="checkbox" 
+													checked={cap.checked ?? (settings as any)[cap.key]} 
+													disabled={cap.disabled}
+													onchange={(e) => !(cap.disabled) && ((settings as any)[cap.key] = (e.target as HTMLInputElement).checked)}
+													class="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500" 
+												/>
+												{cap.label}
+											</label>
+										{/each}
+									</div>
+								</div>
+
+								<div class="space-y-1.5">
+									<label for="systemPrompt" class="text-xs font-semibold text-zinc-500 uppercase">Global System Prompt</label>
+									<textarea
+										id="systemPrompt"
+										bind:value={settings.systemPrompt}
+										placeholder="You are a helpful assistant."
+										class="w-full h-24 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900 resize-none leading-relaxed"
+									></textarea>
+								</div>
+							</div>
+						</section>
+
+						<!-- MCP Section -->
+						<section class="space-y-4">
+							<h3 class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
+								<Database size={14} /> Extension Servers (MCP)
+							</h3>
+							<div class="rounded-2xl border border-zinc-100 bg-zinc-50/50 p-5 dark:border-zinc-800 dark:bg-zinc-800/30 space-y-4">
+								<div class="space-y-2">
+									{#each settings.mcpServers as server, i}
+										<div class="flex gap-2 animate-in slide-in-from-left-2 duration-200">
+											<div class="relative flex-1">
+												<input
+													type="text"
+													bind:value={settings.mcpServers[i]}
+													placeholder="http://127.0.0.1:8000/mcp"
+													class="w-full rounded-xl border border-zinc-200 bg-white pl-3 pr-10 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
+												/>
+												<div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+													{#if server && connectionStatuses[server] === 'checking'}
+														<Loader2 size={16} class="animate-spin text-zinc-400" />
+													{:else if server && connectionStatuses[server] === 'success'}
+														<CheckCircle size={16} class="text-green-500" />
+													{:else if server && connectionStatuses[server] === 'error'}
+														<AlertCircle size={16} class="text-red-500" />
+													{/if}
+												</div>
+											</div>
+											<button 
+												onclick={() => settings.mcpServers = settings.mcpServers.filter((_, j) => i !== j)}
+												class="text-red-500 hover:bg-red-50 p-2 rounded-xl transition-colors dark:hover:bg-red-900/20 shrink-0"
+											>
+												<X size={18} />
+											</button>
+										</div>
 									{/each}
 								</div>
+								<button
+									onclick={() => settings.mcpServers = [...settings.mcpServers, '']}
+									class="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-200 p-3 text-sm font-bold text-zinc-500 hover:border-blue-500 hover:text-blue-500 transition-all"
+								>
+									+ Add New MCP Server
+								</button>
 							</div>
+						</section>
 
-							<div class="space-y-1.5">
-								<label for="systemPrompt" class="text-xs font-semibold text-zinc-500 uppercase">Global System Prompt</label>
-								<textarea
-									id="systemPrompt"
-									bind:value={settings.systemPrompt}
-									placeholder="You are a helpful assistant."
-									class="w-full h-24 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900 resize-none leading-relaxed"
-								></textarea>
-							</div>
-						</div>
-					</section>
-
-					<!-- Visuals Section -->
+						<!-- Visuals Section -->
 					<section class="space-y-4">
 						<h3 class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
 							<Type size={14} /> Display & Theme
@@ -434,50 +555,6 @@
 						</div>
 					</section>
 
-					<!-- MCP Section -->
-					<section class="space-y-4">
-						<h3 class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
-							<Database size={14} /> Extension Servers (MCP)
-						</h3>
-						<div class="rounded-2xl border border-zinc-100 bg-zinc-50/50 p-5 dark:border-zinc-800 dark:bg-zinc-800/30 space-y-4">
-							<div class="space-y-2">
-								{#each settings.mcpServers as server, i}
-									<div class="flex gap-2 animate-in slide-in-from-left-2 duration-200">
-										<div class="relative flex-1">
-											<input
-												type="text"
-												bind:value={settings.mcpServers[i]}
-												placeholder="http://127.0.0.1:8000/mcp"
-												class="w-full rounded-xl border border-zinc-200 bg-white pl-3 pr-10 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
-											/>
-											<div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-												{#if server && connectionStatuses[server] === 'checking'}
-													<Loader2 size={16} class="animate-spin text-zinc-400" />
-												{:else if server && connectionStatuses[server] === 'success'}
-													<CheckCircle size={16} class="text-green-500" />
-												{:else if server && connectionStatuses[server] === 'error'}
-													<AlertCircle size={16} class="text-red-500" />
-												{/if}
-											</div>
-										</div>
-										<button 
-											onclick={() => settings.mcpServers = settings.mcpServers.filter((_, j) => i !== j)}
-											class="text-red-500 hover:bg-red-50 p-2 rounded-xl transition-colors dark:hover:bg-red-900/20 shrink-0"
-										>
-											<X size={18} />
-										</button>
-									</div>
-								{/each}
-							</div>
-							<button
-								onclick={() => settings.mcpServers = [...settings.mcpServers, '']}
-								class="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-200 p-3 text-sm font-bold text-zinc-500 hover:border-blue-500 hover:text-blue-500 transition-all"
-							>
-								+ Add New MCP Server
-							</button>
-						</div>
-					</section>
-
 					<!-- Export/Import Section -->
 					<section class="space-y-4">
 						<h3 class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
@@ -487,7 +564,7 @@
 							<!-- QR Tag Group -->
 							<div class="space-y-4">
 								<div class="flex flex-col gap-2">
-									<label for="tagName" class="text-xs font-bold text-blue-600">SETTINGS TAG (QR EXPORT)</label>
+									<label for="tagName" class="text-xs font-bold text-zinc-400 uppercase tracking-tight">SETTINGS TAG (QR EXPORT)</label>
 									<div class="flex flex-col sm:flex-row gap-2">
 										<input 
 											id="tagName"
@@ -498,9 +575,9 @@
 										/>
 										<button 
 											onclick={generateQR}
-											class="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition-all active:scale-95 w-full sm:w-auto"
+											class="group flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2 text-sm font-bold text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-100 dark:hover:text-zinc-900 transition-all active:scale-95 w-full sm:w-auto"
 										>
-											<QrCode size={18} />
+											<QrCode size={18} class="text-zinc-400 group-hover:text-zinc-900 transition-colors" />
 											Export
 										</button>
 									</div>
@@ -509,16 +586,16 @@
 								<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 									<button 
 										onclick={() => qrImportInput?.click()}
-										class="w-full flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 py-3 text-sm font-bold text-blue-600 hover:bg-blue-100 transition-all active:scale-95 dark:border-blue-900/50 dark:bg-blue-900/20 dark:text-blue-400"
+										class="group w-full flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 py-3 text-sm font-bold text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-100 dark:hover:text-zinc-900 transition-all active:scale-95"
 									>
-										<ImageIcon size={18} />
+										<ImageIcon size={18} class="text-zinc-400 group-hover:text-zinc-900 transition-colors" />
 										Upload QR Image
 									</button>
 									<button 
 										onclick={startCamera}
-										class="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-blue-600 bg-blue-600 py-3 text-sm font-bold text-white hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-500/20"
+										class="group w-full flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 py-3 text-sm font-bold text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-100 dark:hover:text-zinc-900 transition-all active:scale-95"
 									>
-										<Camera size={18} />
+										<Camera size={18} class="text-zinc-400 group-hover:text-zinc-900 transition-colors" />
 										Scan with Camera
 									</button>
 								</div>
@@ -545,9 +622,9 @@
 										/>
 										<button 
 											onclick={() => settings.exportSettings(jsonExportName)}
-											class="flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2 text-sm font-bold text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 transition-all active:scale-95 w-full sm:w-auto"
+											class="group flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2 text-sm font-bold text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-100 dark:hover:text-zinc-900 transition-all active:scale-95 w-full sm:w-auto"
 										>
-											<Download size={18} class="text-zinc-400" />
+											<Download size={18} class="text-zinc-400 group-hover:text-zinc-900 transition-colors" />
 											Export
 										</button>
 									</div>
@@ -555,9 +632,9 @@
 
 								<button 
 									onclick={() => importInput?.click()}
-									class="w-full flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 py-3 text-sm font-bold text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 transition-all active:scale-95"
+									class="group w-full flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 py-3 text-sm font-bold text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-100 dark:hover:text-zinc-900 transition-all active:scale-95"
 								>
-									<Upload size={18} class="text-zinc-400" />
+									<Upload size={18} class="text-zinc-400 group-hover:text-zinc-900 transition-colors" />
 									Import from JSON File
 								</button>
 							</div>
@@ -566,6 +643,8 @@
 							<input type="file" accept="image/*" class="hidden" bind:this={qrImportInput} onchange={handleQRImport} />
 						</div>
 					</section>
+					</div>
+					</div>
 				{/if}
 			</div>
 

@@ -87,7 +87,7 @@ export const localTools = [
 
 						return { 
 							success: true, 
-							results: filteredResults.map(r => ({ id: r.id, content: r.content, updatedAt: r.updatedAt })),
+							results: filteredResults.map(r => ({ id: r.id, content: r.content, updatedAt: new Date(r.updatedAt).toLocaleString() })),
 							pagination: { total: totalSearchCount, limit, offset, hasMore: totalSearchCount > offset + limit }
 						};
 
@@ -103,7 +103,7 @@ export const localTools = [
 						return { 
 							success: true, 
 							count: items.length, 
-							items: items.map(k => ({ id: k.id, content: k.content, updatedAt: k.updatedAt })),
+							items: items.map(k => ({ id: k.id, content: k.content, updatedAt: new Date(k.updatedAt).toLocaleString() })),
 							pagination: { total: totalCount, limit, offset, hasMore: totalCount > offset + limit }
 						};
 

@@ -3,6 +3,12 @@ import json
 import os
 import mimetypes
 from urllib.parse import unquote
+
+# Ensure config is initialized based on the current working directory,
+# especially if main.py is run directly instead of through cli.py
+import config
+config.init_config(os.getcwd())
+
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.server import TransportSecuritySettings
 from starlette.middleware.cors import CORSMiddleware
@@ -13,19 +19,12 @@ import signal
 import functools
 from mcp.types import PromptMessage, TextContent
 
-# --- Configuration ---
-TOOL_TIMEOUT = 30.0  # seconds - max time any single tool call can take
-REQUEST_TIMEOUT = 35.0  # seconds - overall HTTP request timeout (slightly > TOOL_TIMEOUT)
-
-# --- Blacklist patterns for tree/files resources ---
-BLACKLIST_NAMES = {
-    '.git', 'node_modules', '.env', 'dist', '.svelte-kit', 'build',
-    '__pycache__', '.DS_Store', '.vscode', '.idea', '.next', '.nuxt',
-    '.output', '.cache', 'coverage', '.nyc_output'
-}
-BLACKLIST_EXTENSIONS = {'.pyc', '.pyo', '.pyd', '.egg-info'}
-BLACKLIST_PREFIXES = {'.env'}
-
+# Import tools from modules
+import file_patcher
+import memory
+import scraping
+import system
+import config
 
 def get_size_str(size_bytes: int) -> str:
     """Return human-readable size string."""
@@ -36,19 +35,19 @@ def get_size_str(size_bytes: int) -> str:
     elif size_bytes < 1024 * 1024 * 1024:
         return f"{size_bytes / (1024 * 1024):.1f} MB"
     else:
-        return f"{size_bytes / (1024 * 1024 * 1024):.2f} GB"
+        return f"{size_bytes / (1024 * 1024 * 1024):.20f} GB"
 
 
 def is_blacklisted(name: str) -> bool:
     """Check if a file/directory name should be excluded."""
-    if name in BLACKLIST_NAMES:
+    if name in config.BLACKLIST_NAMES:
         return True
     if name.startswith('.'):
         return True  # Skip hidden files/folders
-    if any(name.startswith(prefix) for prefix in BLACKLIST_PREFIXES):
+    if any(name.startswith(prefix) for prefix in config.BLACKLIST_PREFIXES):
         return True
     _, ext = os.path.splitext(name)
-    if ext.lower() in BLACKLIST_EXTENSIONS:
+    if ext.lower() in config.BLACKLIST_EXTENSIONS:
         return True
     return False
 
@@ -146,37 +145,27 @@ def list_all_files(root_path: str = '.') -> list:
     return sorted(files, key=lambda x: x['path'])
 
 
-# --- Timeout Middleware ---
-class TimeoutMiddleware(BaseHTTPMiddleware):
-    """Enforces an overall request timeout on all endpoints."""
-    async def dispatch(self, request, call_next):
-        try:
-            return await asyncio.wait_for(call_next(request), timeout=REQUEST_TIMEOUT)
-        except asyncio.TimeoutError:
-            return JSONResponse(
-                {"jsonrpc": "2.0", "error": {"code": -32000, "message": f"Request timed out after {REQUEST_TIMEOUT}s"}, "id": None},
-                status_code=504
-            )
-
 # --- Timeout decorator for MCP tools ---
-def with_timeout(timeout: float = TOOL_TIMEOUT):
+def with_timeout(timeout: float = None):
     """Decorator that wraps an async tool function, enforcing an absolute timeout.
     Returns a clear MCP error instead of hanging indefinitely."""
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
+            # Resolve timeout at call time
+            actual_timeout = timeout if timeout is not None else config.TOOL_TIMEOUT
             try:
                 if asyncio.iscoroutinefunction(func):
-                    result = await asyncio.wait_for(func(*args, **kwargs), timeout=timeout)
+                    result = await asyncio.wait_for(func(*args, **kwargs), timeout=actual_timeout)
                 else:
                     # Run sync functions in a thread with a timeout
                     result = await asyncio.wait_for(
                         asyncio.to_thread(func, *args, **kwargs),
-                        timeout=timeout
+                        timeout=actual_timeout
                     )
                 return result
             except asyncio.TimeoutError:
-                return f"Error: Tool '{func.__name__}' timed out after {timeout}s. Please try again."
+                return f"Error: Tool '{func.__name__}' timed out after {actual_timeout}s. Please try again."
             except Exception as e:
                 return f"Error in tool '{func.__name__}': {str(e)}"
         return wrapper
@@ -184,7 +173,7 @@ def with_timeout(timeout: float = TOOL_TIMEOUT):
 
 # --- FastMCP Server ---
 mcp = FastMCP(
-    "MyTestServer",
+    "LocalAssistantServer",
     host="127.0.0.1",
     port=8000,
     transport_security=TransportSecuritySettings(
@@ -241,7 +230,9 @@ def system_logs() -> str:
 
 def register_file_resources():
     """Dynamically register every file in the project as an individual resource."""
-    all_files = list_all_files('.')
+    # Use current directory as root
+    root = "."
+    all_files = list_all_files(root)
     for f in all_files:
         path = f['path']
         mime = f['mimeType']
@@ -251,7 +242,7 @@ def register_file_resources():
             @mcp.resource(f"project://file/{p}", name=p, mime_type=m)
             def read_file_dynamic() -> str:
                 # Re-read from disk to ensure freshness
-                full_path = os.path.join('.', p)
+                full_path = os.path.join(root, p)
                 try:
                     with open(full_path, 'r', encoding='utf-8') as f_in:
                         return f_in.read()
@@ -260,9 +251,6 @@ def register_file_resources():
             return read_file_dynamic
         
         make_reader(path, mime)
-
-# Call registration
-register_file_resources()
 
 
 @mcp.resource("project://file/{path}")
@@ -368,21 +356,212 @@ def health() -> str:
     Use this as a pre-flight check before making other tool calls."""
     return "ok"
 
+# --- Tools from Modules ---
+
+@mcp.tool()
+@with_timeout(60.0)
+async def read_file(filepath: str) -> str:
+    """
+    Reads a file and returns its content with line numbers.
+    
+    Use this to examine the code, configuration, or content of a specific file. 
+    The path should be relative to the current directory.
+    
+    Parameters:
+    - filepath: The name or relative path of the file to read.
+    """
+    return await file_patcher.read_file(filepath)
+
+@mcp.tool()
+@with_timeout(60.0)
+async def apply_patch(filepath: str, old_text: str = "", new_text: str = "", action: str = "edit") -> str:
+    """
+    Create, edit, or delete files using precise text matching.
+    
+    This tool allows for surgical edits to files. 
+    - For 'edit': Matches 'old_text' to find the exact location for replacement with 'new_text'. 
+      Always provide a unique and sufficient context in 'old_text' to avoid ambiguity.
+    - For 'create': Creates a new file with 'new_text' as its content.
+    - For 'delete': Removes the specified file.
+    
+    Parameters:
+    - filepath: The name or relative path of the file to modify.
+    - old_text: The exact text segment to be replaced (required for 'edit').
+    - new_text: The new text to insert for 'edit' or the full content for 'create'.
+    - action: The action to perform: 'create', 'edit', or 'delete'.
+    """
+    return await file_patcher.apply_patch(filepath, old_text, new_text, action)
+
+@mcp.tool()
+async def list_files_in_scripts(directory: str = "") -> str:
+    """
+    Lists all files and directories within the current folder.
+    
+    Use this to discover available files or understand the structure of the 
+    directory before reading or modifying files.
+    
+    Parameters:
+    - directory: An optional subdirectory to list.
+    """
+    return await file_patcher.list_files(directory)
+
+if config.MEMORY_ENABLED:
+    @mcp.tool()
+    @with_timeout(60.0)
+    async def save_memory(user_id: str, text: str, relations: list) -> str:
+        """
+        Saves a memory to the graph database and builds connections in the Knowledge Graph.
+        
+        This tool stores natural language text as a memory and extracts structured 
+        knowledge (entities and relationships) to build a dynamic Knowledge Graph.
+
+        Parameters:
+        - user_id: The unique identifier for the user (e.g., "user123").
+        - text: The original natural language text stated by the user.
+        - relations: A list of dictionaries representing the facts.
+          Each dictionary MUST have:
+          - "head": Human-readable name of the source entity (e.g., "Apple").
+          - "head_id": UNIQUE identifier for the source entity (e.g., "apple_company").
+          - "relation": Relationship type in SCREAMING_SNAKE_CASE (e.g., "WORKS_AT").
+          - "tail": Human-readable name of the target entity (e.g., "iPhone").
+          - "tail_id": UNIQUE identifier for the target entity (e.g., "iphone_product").
+        """
+        return await memory.save_memory(user_id, text, relations)
+
+    @mcp.tool()
+    @with_timeout(60.0)
+    async def search_memory(query: str, k: int = 5) -> str:
+        """
+        Search for relevant memories using semantic (vector) similarity.
+        
+        Use this tool when you need to recall past interactions, preferences, or facts 
+        mentioned by the user that might not be directly linked in the knowledge graph 
+        but are semantically related to the query.
+
+        Parameters:
+        - query: The natural language search query or topic to find memories about.
+        - k: The maximum number of relevant memories to return (default is 5).
+        """
+        return await memory.search_memory(query, k)
+
+    @mcp.tool()
+    @with_timeout(60.0)
+    async def explore_graph(entity_id: str) -> str:
+        """
+        Explore the knowledge graph by traversing relationships connected to a specific entity ID.
+        
+        This tool is essential for finding deeper context and understanding the web of 
+        relationships surrounding an entity. It returns all outgoing and incoming 
+        relationships for the given entity ID.
+
+        Parameters:
+        - entity_id: The UNIQUE identifier for the entity to explore (e.g., "apple_company").
+        """
+        return await memory.explore_graph(entity_id)
+
+    @mcp.tool()
+    @with_timeout(60.0)
+    async def explore_graph_deep(entity_id: str) -> str:
+        """
+        Perform a deep (2-hop) exploration of the knowledge graph starting from an entity ID.
+        
+        Use this when you need a broader context or want to discover indirect connections 
+        (e.g., "A knows B, and B knows C"). It retrieves direct neighbors AND their connections.
+        
+        Parameters:
+        - entity_id: The UNIQUE identifier for the starting entity (e.g., "apple_company").
+        """
+        return await memory.explore_graph_deep(entity_id)
+
+@mcp.tool()
+@with_timeout(60.0)
+async def scrape_url(url: str) -> str:
+    """
+    Scrapes the content from a specified URL and returns clean text.
+    
+    Best for static websites without heavy JavaScript. It removes HTML tags, 
+    scripts, and styles to provide readable text content.
+    
+    Parameters:
+    - url: The full URL of the website to scrape.
+    """
+    return await scraping.scrape(url)
+
+@mcp.tool()
+@with_timeout(120.0)
+async def scrape_js_url(url: str, wait_time: int = 3) -> str:
+    """
+    Scrapes JavaScript-rendered content from a URL using a headless browser.
+    
+    Essential for modern web apps (React, Vue, etc.) where content is loaded dynamically.
+    The 'wait_time' allows the page to finish rendering before extraction.
+    
+    Parameters:
+    - url: The full URL of the website to scrape.
+    - wait_time: Seconds to wait after page load (default 3).
+    """
+    return await scraping.scrape_js(url, wait_time)
+
+@mcp.tool()
+@with_timeout(60.0)
+async def search_web(query: str, max_results: int = 5) -> str:
+    """
+    Performs a web search using DuckDuckGo and returns summarized results.
+    
+    Use this to find up-to-date information, documentation, or answers to 
+    questions that require external knowledge.
+    
+    Parameters:
+    - query: The search query.
+    - max_results: Maximum number of results to return (default 5).
+    """
+    return await scraping.search_web(query, max_results)
+
+@mcp.tool()
+@with_timeout(60.0)
+async def run_terminal_command(command: str) -> str:
+    """
+    Executes a shell command asynchronously and returns the output.
+    
+    Use this for system-level operations like checking process status, 
+    running scripts, or other CLI-based tasks. Includes security filters for 
+    dangerous commands.
+    
+    Parameters:
+    - command: The shell command to execute.
+    """
+    return await system.run_terminal_command(command)
+
+
+
 # --- Main ---
 
-if __name__ == "__main__":
-    print("Starting Streamable HTTP MCP Server on http://localhost:8000/mcp ...")
-    print(f"Tool timeout: {TOOL_TIMEOUT}s | Request timeout: {REQUEST_TIMEOUT}s")
+async def startup():
+    """Initialize resources on startup."""
+    if config.MEMORY_ENABLED:
+        print("Initializing memory database and clients...")
+        # Initialize Kuzu and embedding client
+        await memory.init_memory_db()
+        memory.init_client()
+    print("Startup complete.")
+
+def run_server():
+    print(f"Starting Local MCP Server on http://{config.HOST}:{config.PORT}/mcp ...")
+    print(f"Working Directory: {config.BASE_DIR}")
+    print(f"Tool timeout: {config.TOOL_TIMEOUT}s | Request timeout: {config.REQUEST_TIMEOUT}s")
+
+    # Register file resources now that config is fully initialized
+    register_file_resources()
 
     app = mcp.streamable_http_app()
 
-    # 1. Add timeout middleware (outermost, runs first)
-    app.add_middleware(TimeoutMiddleware)
+    # Add startup event handler
+    app.add_event_handler("startup", startup)
 
-    # 2. Add CORS middleware
+    # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=config.CORS_ORIGINS,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -392,8 +571,8 @@ if __name__ == "__main__":
     # Configure Uvicorn with robust settings to prevent hanging
     uvicorn.run(
         app,
-        host="127.0.0.1",
-        port=8000,
+        host=config.HOST,
+        port=config.PORT,
         timeout_keep_alive=30,          # Longer keep-alive for MCP sessions
         timeout_graceful_shutdown=10,   # Allow in-flight requests to finish
         limit_concurrency=50,           # Prevent overload from too many concurrent requests
@@ -401,3 +580,6 @@ if __name__ == "__main__":
         log_level="info",
         backlog=128,                    # Connection queue size
     )
+
+if __name__ == "__main__":
+    run_server()

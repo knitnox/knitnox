@@ -79,6 +79,7 @@ export class MCPClient {
 	private sessionId: string | null = null;
 	private endpoint: string | null = null;
 	private abortController: AbortController | null = null;
+	private connectingPromise: Promise<void> | null = null;
 	private pendingRequests: Map<
 		number | string,
 		{
@@ -111,74 +112,90 @@ export class MCPClient {
 
 	async connect(): Promise<void> {
 		if (this.sessionId) return;
+		if (this.connectingPromise) return this.connectingPromise;
 
-		try {
-			const initPayload = {
-				jsonrpc: '2.0',
-				id: this.messageIdCounter++,
-				method: 'initialize',
-				params: {
-					protocolVersion: '2024-11-05',
-					capabilities: {},
-					clientInfo: { name: 'KnitnoxClient', version: '1.0.0' }
-				}
-			};
-
-			const controller = new AbortController();
-			const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-
-			let initResponse: Response;
+		this.connectingPromise = (async () => {
 			try {
-				initResponse = await fetch(this.endpoint!, {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-						'Accept': 'application/json, text/event-stream'
-					},
-					body: JSON.stringify(initPayload),
-					signal: controller.signal
-				});
-			} finally {
-				clearTimeout(timer);
-			}
-
-			this.sessionId = initResponse.headers.get('mcp-session-id');
-			if (!this.sessionId) {
-				console.warn('No mcp-session-id returned during initialization. Might be a legacy server.');
-			}
-
-			// Read the init response
-			const initText = await initResponse.text();
-			this.processResponseText(initText);
-
-			// 2. Open persistent GET stream for server-to-client messages (Streamable HTTP standard)
-			if (this.sessionId) {
-				this.startMessageStream();
-			}
-
-			// 3. Send initialized notification
-			await this.sendRaw(
-				{
+				const initPayload = {
 					jsonrpc: '2.0',
-					method: 'notifications/initialized',
-					params: {}
-				},
-				true
-			);
-		} catch (e: any) {
-			// On any failure, reset so next call retries cleanly
-			this.sessionId = null;
-			if (this.abortController) {
-				this.abortController.abort();
-				this.abortController = null;
+					id: this.messageIdCounter++,
+					method: 'initialize',
+					params: {
+						protocolVersion: '2024-11-05',
+						capabilities: {},
+						clientInfo: { name: 'KnitnoxClient', version: '1.0.0' }
+					}
+				};
+
+				const controller = new AbortController();
+				const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+
+				let initResponse: Response;
+				try {
+					initResponse = await fetch(this.endpoint!, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'Accept': 'application/json, text/event-stream'
+						},
+						body: JSON.stringify(initPayload),
+						signal: controller.signal
+					});
+				} finally {
+					clearTimeout(timer);
+				}
+
+				if (!initResponse.ok) {
+					const errText = await initResponse.text();
+					throw new Error(`Initialize failed: ${initResponse.status} - ${errText}`);
+				}
+
+				this.sessionId = initResponse.headers.get('mcp-session-id');
+				if (!this.sessionId) {
+					console.warn('No mcp-session-id returned during initialization. Might be a legacy server.');
+				}
+
+				// Read the init response
+				const initText = await initResponse.text();
+				this.processResponseText(initText);
+
+				// 2. Open persistent GET stream for server-to-client messages (Streamable HTTP standard)
+				if (this.sessionId) {
+					await this.startMessageStream();
+				}
+
+				// 3. Send initialized notification
+				await this.sendRaw(
+					{
+						jsonrpc: '2.0',
+						method: 'notifications/initialized',
+						params: {}
+					},
+					true
+				);
+			} catch (e: any) {
+				// On any failure, reset so next call retries cleanly
+				this.sessionId = null;
+				if (this.abortController) {
+					this.abortController.abort();
+					this.abortController = null;
+				}
+				console.error('Failed to connect to MCP server:', e);
+				throw new Error(`MCP connection failed to ${this.url}: ${e.message || e}`);
+			} finally {
+				this.connectingPromise = null;
 			}
-			console.error('Failed to connect to MCP server:', e);
-			throw new Error(`MCP connection failed to ${this.url}: ${e.message || e}`);
-		}
+		})();
+
+		return this.connectingPromise;
 	}
 
 	private async startMessageStream() {
+		if (this.abortController) {
+			this.abortController.abort();
+		}
 		this.abortController = new AbortController();
+		
 		try {
 			const response = await fetch(this.endpoint!, {
 				method: 'GET',
@@ -189,39 +206,61 @@ export class MCPClient {
 				signal: this.abortController.signal
 			});
 
+			if (!response.ok) {
+				const errText = await response.text();
+				// If 409, it means the session is already streaming. 
+				// In some cases we might want to ignore this or handle it.
+				if (response.status === 409) {
+					console.warn(`MCP Session ${this.sessionId} already has an active stream.`);
+					return;
+				}
+				throw new Error(`Stream failed: ${response.status} - ${errText}`);
+			}
+
 			if (!response.body) return;
 
-			const reader = response.body.getReader();
-			const decoder = new TextDecoder();
-			let buffer = '';
+			// Handle the stream in the background
+			(async () => {
+				const reader = response.body!.getReader();
+				const decoder = new TextDecoder();
+				let buffer = '';
 
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
+				try {
+					while (true) {
+						const { done, value } = await reader.read();
+						if (done) break;
 
-				buffer += decoder.decode(value, { stream: true });
-				const lines = buffer.split('\n');
-				buffer = lines.pop() || '';
+						buffer += decoder.decode(value, { stream: true });
+						const lines = buffer.split('\n');
+						buffer = lines.pop() || '';
 
-				for (const line of lines) {
-					if (line.startsWith('data: ')) {
-						try {
-							const data = JSON.parse(line.substring(6));
-							this.handleIncomingMessage(data);
-						} catch (e) {
-							console.warn('Failed to parse SSE message data:', line, e);
+						for (const line of lines) {
+							if (line.startsWith('data: ')) {
+								try {
+									const data = JSON.parse(line.substring(6));
+									this.handleIncomingMessage(data);
+								} catch (e) {
+									console.warn('Failed to parse SSE message data:', line, e);
+								}
+							}
 						}
 					}
+				} catch (e: any) {
+					if (e.name !== 'AbortError') {
+						console.error('SSE reader loop error:', e);
+					}
+				} finally {
+					reader.releaseLock();
 				}
-			}
+			})();
 		} catch (e: any) {
 			if (e.name !== 'AbortError') {
-				console.error('Streamable HTTP GET stream closed with error:', e);
+				console.error('StartMessageStream failed:', e);
+				this.failAllPending(new Error(`MCP stream failed for ${this.url}: ${e.message || e}`));
+				this.sessionId = null;
+				this.abortController = null;
+				throw e;
 			}
-			// SSE stream died — fail pending requests and reset session so next request re-connects
-			this.failAllPending(new Error(`MCP stream closed for ${this.url}: ${e.message || e}`));
-			this.sessionId = null;
-			this.abortController = null;
 		}
 	}
 
@@ -417,9 +456,9 @@ export async function getAllTools(urls: string[]): Promise<{ tool: MCPTool; serv
 	for (const url of urls) {
 		if (!url) continue;
 		try {
-			const client = new MCPClient(url);
+			const client = mcpPool.get(url);
 			const tools = await client.getTools();
-			client.close();
+			// We don't close() the client here because it's now pooled
 			allTools.push(...tools.map((tool) => ({ tool, serverUrl: url })));
 		} catch (e) {
 			console.error(`Failed to get tools from ${url}`, e);

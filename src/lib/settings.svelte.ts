@@ -17,6 +17,13 @@ class Settings {
 	enableCompression = $state(true);
 	mcpServers = $state<string[]>([]);
 	disabledTools = $state<string[]>([]);
+	temperature = $state<number | undefined>(undefined);
+	top_p = $state<number | undefined>(undefined);
+	frequency_penalty = $state<number | undefined>(undefined);
+	presence_penalty = $state<number | undefined>(undefined);
+	response_format = $state<string | undefined>(undefined);
+	reasoning_effort = $state<'low' | 'medium' | 'high' | undefined>(undefined);
+	seed = $state<number | undefined>(undefined);
 
 	// Profile Management
 	profiles = $state<Profile[]>([]);
@@ -128,6 +135,13 @@ class Settings {
 			this.enableCompression = profile.enableCompression;
 			this.mcpServers = profile.mcpServers;
 			this.disabledTools = profile.disabledTools;
+			this.temperature = profile.temperature;
+			this.top_p = profile.top_p;
+			this.frequency_penalty = profile.frequency_penalty;
+			this.presence_penalty = profile.presence_penalty;
+			this.response_format = profile.response_format;
+			this.reasoning_effort = profile.reasoning_effort;
+			this.seed = profile.seed;
 			localStorage.setItem('activeProfileId', String(id));
 		}
 	}
@@ -149,6 +163,13 @@ class Settings {
 			enableCompression: this.enableCompression,
 			mcpServers: $state.snapshot(this.mcpServers),
 			disabledTools: $state.snapshot(this.disabledTools),
+			temperature: this.temperature,
+			top_p: this.top_p,
+			frequency_penalty: this.frequency_penalty,
+			presence_penalty: this.presence_penalty,
+			response_format: this.response_format,
+			reasoning_effort: this.reasoning_effort,
+			seed: this.seed,
 			updatedAt: Date.now()
 		});
 		// Update the profile in the local list too to keep it in sync
@@ -168,6 +189,13 @@ class Settings {
 				enableCompression: this.enableCompression,
 				mcpServers: $state.snapshot(this.mcpServers),
 				disabledTools: $state.snapshot(this.disabledTools),
+				temperature: this.temperature,
+				top_p: this.top_p,
+				frequency_penalty: this.frequency_penalty,
+				presence_penalty: this.presence_penalty,
+				response_format: this.response_format,
+				reasoning_effort: this.reasoning_effort,
+				seed: this.seed,
 				updatedAt: Date.now()
 			};
 		}

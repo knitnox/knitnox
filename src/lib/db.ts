@@ -66,6 +66,13 @@ export interface Profile {
 	enableCompression: boolean;
 	mcpServers: string[];
 	disabledTools: string[];
+	temperature?: number;
+	top_p?: number;
+	frequency_penalty?: number;
+	presence_penalty?: number;
+	response_format?: string;
+	reasoning_effort?: 'low' | 'medium' | 'high';
+	seed?: number;
 	createdAt: number;
 	updatedAt: number;
 }

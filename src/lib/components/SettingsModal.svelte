@@ -464,6 +464,103 @@
 							</div>
 						</section>
 
+						<!-- Advanced Settings Section -->
+						<section class="space-y-4">
+							<h3 class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
+								<SettingsIcon size={14} /> Advanced Parameters
+							</h3>
+							<div class="grid gap-6 rounded-2xl border border-zinc-100 bg-zinc-50/50 p-5 dark:border-zinc-800 dark:bg-zinc-800/30">
+								<div class="grid sm:grid-cols-2 gap-4">
+									<div class="space-y-1.5">
+										<label for="temperature" class="text-xs font-semibold text-zinc-500 uppercase">Temperature</label>
+										<input
+											id="temperature"
+											type="number"
+											bind:value={settings.temperature}
+											step="0.1"
+											min="0"
+											max="2"
+											placeholder="Default"
+											class="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
+										/>
+									</div>
+									<div class="space-y-1.5">
+										<label for="top_p" class="text-xs font-semibold text-zinc-500 uppercase">Top P</label>
+										<input
+											id="top_p"
+											type="number"
+											bind:value={settings.top_p}
+											step="0.1"
+											min="0"
+											max="1"
+											placeholder="Default"
+											class="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
+										/>
+									</div>
+									<div class="space-y-1.5">
+										<label for="frequency_penalty" class="text-xs font-semibold text-zinc-500 uppercase">Freq. Penalty</label>
+										<input
+											id="frequency_penalty"
+											type="number"
+											bind:value={settings.frequency_penalty}
+											step="0.1"
+											min="-2"
+											max="2"
+											placeholder="Default"
+											class="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
+										/>
+									</div>
+									<div class="space-y-1.5">
+										<label for="presence_penalty" class="text-xs font-semibold text-zinc-500 uppercase">Pres. Penalty</label>
+										<input
+											id="presence_penalty"
+											type="number"
+											bind:value={settings.presence_penalty}
+											step="0.1"
+											min="-2"
+											max="2"
+											placeholder="Default"
+											class="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
+										/>
+									</div>
+									<div class="space-y-1.5">
+										<label for="seed" class="text-xs font-semibold text-zinc-500 uppercase">Seed</label>
+										<input
+											id="seed"
+											type="number"
+											bind:value={settings.seed}
+											placeholder="Default"
+											class="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
+										/>
+									</div>
+									<div class="space-y-1.5">
+										<label for="reasoning_effort" class="text-xs font-semibold text-zinc-500 uppercase">Reasoning Effort</label>
+										<select
+											id="reasoning_effort"
+											bind:value={settings.reasoning_effort}
+											class="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
+										>
+											<option value={undefined}>Default</option>
+											<option value="low">Low</option>
+											<option value="medium">Medium</option>
+											<option value="high">High</option>
+										</select>
+									</div>
+								</div>
+								<div class="space-y-1.5 border-t border-zinc-100 dark:border-zinc-800 pt-4">
+									<label for="response_format" class="text-xs font-semibold text-zinc-500 uppercase">Response Format (JSON String)</label>
+									<input
+										id="response_format"
+										type="text"
+										bind:value={settings.response_format}
+										placeholder="&#123;&quot;type&quot;: &quot;json_object&quot;&#125;"
+										class="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
+									/>
+									<p class="text-[10px] text-zinc-500 mt-1">Leave empty for default. Only valid JSON is passed to the API.</p>
+								</div>
+							</div>
+						</section>
+
 						<!-- MCP Section -->
 						<section class="space-y-4">
 							<h3 class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">

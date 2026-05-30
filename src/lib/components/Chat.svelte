@@ -895,16 +895,15 @@
 						{#if message.role !== 'tool' && message.role !== 'system' && message.id !== streamingMessageId}
 							<div class="group/message flex gap-3 sm:gap-4 {message.role === 'user' ? 'flex-row-reverse' : ''}">
 								{#if message.role === 'assistant'}
-									<div class="flex flex-col w-full gap-1">
-										<div class="flex items-start gap-1 sm:gap-1.5">
-											<div
-												class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300"
-											>
-												<BrainCircuit size={18} />
-											</div>
+									<div class="flex w-full items-start gap-1 sm:gap-1.5">
+										<div
+											class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300"
+										>
+											<BrainCircuit size={18} />
+										</div>
 
-											<div class="flex flex-col gap-2 min-w-0 flex-1">
-												{#if message.thinkingContent}
+										<div class="flex flex-col gap-2 min-w-0 flex-1 w-full">
+											{#if message.thinkingContent}
 													<div class="w-full">
 														<details class="group rounded-xl rounded-tl-none border border-zinc-200 bg-zinc-50/50 p-2 dark:border-zinc-800 dark:bg-zinc-800/30">
 															<summary class="flex cursor-pointer list-none items-center gap-2 text-xs font-medium text-zinc-500">
@@ -966,101 +965,100 @@
 														{/each}
 													</div>
 												{/if}
-											</div>
-										</div>
 
-										{#if message.content}
-											<div class="space-y-1 sm:pl-[42px]">
-												<div
-													class="rounded-2xl px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-tl-none prose prose-sm dark:prose-invert max-w-none"
-												>
-													{#if message.resources}
-														<div class="mb-2 flex flex-wrap gap-2">
-															{#each message.resources as res}
-																<div class="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 dark:border-blue-800 dark:bg-blue-900/20 max-w-[200px]">
-																	<Library size={14} class="text-blue-600 dark:text-blue-400 shrink-0" />
-																	<div class="flex-1 min-w-0">
-																		<p class="text-[11px] font-bold text-blue-700 dark:text-blue-300 truncate">{res.name}</p>
+											{#if message.content}
+												<div class="space-y-1 w-full">
+													<div
+														class="rounded-2xl px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-tl-none prose prose-sm dark:prose-invert max-w-none"
+													>
+														{#if message.resources}
+															<div class="mb-2 flex flex-wrap gap-2">
+																{#each message.resources as res}
+																	<div class="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 dark:border-blue-800 dark:bg-blue-900/20 max-w-[200px]">
+																		<Library size={14} class="text-blue-600 dark:text-blue-400 shrink-0" />
+																		<div class="flex-1 min-w-0">
+																			<p class="text-[11px] font-bold text-blue-700 dark:text-blue-300 truncate">{res.name}</p>
+																		</div>
 																	</div>
-																</div>
-															{/each}
-														</div>
-													{/if}
+																{/each}
+															</div>
+														{/if}
 
-													<div class="markdown-content">
-														{#each marked.lexer(message.content) as token, i (i)}
-															{#if token.type === 'code'}
-																{@const codeId = `${message.id}-${i}`}
-																	<div class="group relative my-2 overflow-hidden rounded-xl bg-[#1e1e1e]">
-																		<div class="hidden items-center justify-between bg-white/5 px-3 py-1 backdrop-blur-sm sm:flex">
-																			<span class="text-[10px] font-mono font-medium text-zinc-500 uppercase tracking-wider">{token.lang || 'code'}</span>
+														<div class="markdown-content">
+															{#each marked.lexer(message.content) as token, i (i)}
+																{#if token.type === 'code'}
+																	{@const codeId = `${message.id}-${i}`}
+																		<div class="group relative my-2 overflow-hidden rounded-xl bg-[#1e1e1e]">
+																			<div class="hidden items-center justify-between bg-white/5 px-3 py-1 backdrop-blur-sm sm:flex">
+																				<span class="text-[10px] font-mono font-medium text-zinc-500 uppercase tracking-wider">{token.lang || 'code'}</span>
+																				<button
+																					onclick={() => copyToClipboard(token.text, codeId)}
+																					class="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-zinc-400 transition-all hover:bg-white/20 hover:text-white active:scale-95"
+																				>
+																					{#if copiedStates[codeId]}
+																						<Check size={12} class="text-green-500" />
+																						<span class="text-green-500 text-[10px] font-bold">Copied!</span>
+																					{:else}
+																						<Copy size={12} />
+																						<span class="text-[10px]">Copy</span>
+																					{/if}
+																				</button>
+																			</div>
 																			<button
 																				onclick={() => copyToClipboard(token.text, codeId)}
-																				class="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-zinc-400 transition-all hover:bg-white/20 hover:text-white active:scale-95"
+																				class="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900/90 text-zinc-400 backdrop-blur-md transition-all active:scale-90 sm:hidden border border-white/10"
+																				aria-label="Copy code"
 																			>
 																				{#if copiedStates[codeId]}
-																					<Check size={12} class="text-green-500" />
-																					<span class="text-green-500 text-[10px] font-bold">Copied!</span>
+																					<Check size={16} class="text-green-500" />
 																				{:else}
-																					<Copy size={12} />
-																					<span class="text-[10px]">Copy</span>
+																					<Copy size={16} class="hover:text-white" />
 																				{/if}
 																			</button>
+																			<div class="overflow-x-auto p-3 sm:p-2">
+																				{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
+																			</div>
 																		</div>
-																		<button
-																			onclick={() => copyToClipboard(token.text, codeId)}
-																			class="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900/90 text-zinc-400 backdrop-blur-md transition-all active:scale-90 sm:hidden border border-white/10"
-																			aria-label="Copy code"
-																		>
-																			{#if copiedStates[codeId]}
-																				<Check size={16} class="text-green-500" />
-																			{:else}
-																				<Copy size={16} class="hover:text-white" />
-																			{/if}
-																		</button>
-																		<div class="overflow-x-auto p-3 sm:p-2">
-																			{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
-																		</div>
-																	</div>
-															{:else}
-																{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
-															{/if}
-														{/each}
-													</div>
-												</div>
-												{#if editingMessageId !== message.id}
-													<div class="flex justify-start items-center mt-1">
-														<div class="flex items-center gap-1 px-1 py-1 rounded-lg border border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/50 opacity-100 [@media(hover:hover)]:sm:border-transparent [@media(hover:hover)]:sm:bg-transparent [@media(hover:hover)]:sm:opacity-0 [@media(hover:hover)]:sm:group-hover/message:opacity-100 [@media(hover:hover)]:sm:group-hover/message:border-zinc-200 [@media(hover:hover)]:sm:group-hover/message:dark:border-zinc-800 [@media(hover:hover)]:sm:group-hover/message:bg-zinc-50/50 [@media(hover:hover)]:sm:group-hover/message:dark:bg-zinc-800/50 transition-all duration-200">
-															<button
-																onclick={() => handleEdit(message)}
-																class="p-2 sm:p-1.5 text-zinc-500 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 rounded-md hover:bg-white dark:hover:bg-zinc-700 transition-colors shadow-sm border border-transparent hover:border-zinc-200 dark:hover:border-zinc-600"
-																title="Edit message"
-															>
-																<Pencil size={14} />
-															</button>
-															<button
-																onclick={() => confirmDelete(message)}
-																class="p-2 sm:p-1.5 text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 rounded-md hover:bg-white dark:hover:bg-zinc-700 transition-colors shadow-sm border border-transparent hover:border-zinc-200 dark:hover:border-zinc-600"
-																title="Delete from here"
-															>
-																<Trash2 size={14} />
-															</button>
-															<button
-																onclick={() => copyToClipboard(message.content, `msg-${message.id}`)}
-																class="p-2 sm:p-1.5 text-zinc-500 hover:text-green-600 dark:text-zinc-400 dark:hover:text-green-400 rounded-md hover:bg-white dark:hover:bg-zinc-700 transition-colors shadow-sm border border-transparent hover:border-zinc-200 dark:hover:border-zinc-600"
-																title="Copy message"
-															>
-																{#if copiedStates[`msg-${message.id}`]}
-																	<Check size={14} class="text-green-500" />
 																{:else}
-																	<Copy size={14} />
+																	{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
 																{/if}
-															</button>
+															{/each}
 														</div>
 													</div>
-												{/if}
-											</div>
-										{/if}
+													{#if editingMessageId !== message.id}
+														<div class="flex justify-start items-center mt-1">
+															<div class="flex items-center gap-1 px-1 py-1 rounded-lg border border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/50 opacity-100 [@media(hover:hover)]:sm:border-transparent [@media(hover:hover)]:sm:bg-transparent [@media(hover:hover)]:sm:opacity-0 [@media(hover:hover)]:sm:group-hover/message:opacity-100 [@media(hover:hover)]:sm:group-hover/message:border-zinc-200 [@media(hover:hover)]:sm:group-hover/message:dark:border-zinc-800 [@media(hover:hover)]:sm:group-hover/message:bg-zinc-50/50 [@media(hover:hover)]:sm:group-hover/message:dark:bg-zinc-800/50 transition-all duration-200">
+																<button
+																	onclick={() => handleEdit(message)}
+																	class="p-2 sm:p-1.5 text-zinc-500 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 rounded-md hover:bg-white dark:hover:bg-zinc-700 transition-colors shadow-sm border border-transparent hover:border-zinc-200 dark:hover:border-zinc-600"
+																	title="Edit message"
+																>
+																	<Pencil size={14} />
+																</button>
+																<button
+																	onclick={() => confirmDelete(message)}
+																	class="p-2 sm:p-1.5 text-zinc-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 rounded-md hover:bg-white dark:hover:bg-zinc-700 transition-colors shadow-sm border border-transparent hover:border-zinc-200 dark:hover:border-zinc-600"
+																	title="Delete from here"
+																>
+																	<Trash2 size={14} />
+																</button>
+																<button
+																	onclick={() => copyToClipboard(message.content, `msg-${message.id}`)}
+																	class="p-2 sm:p-1.5 text-zinc-500 hover:text-green-600 dark:text-zinc-400 dark:hover:text-green-400 rounded-md hover:bg-white dark:hover:bg-zinc-700 transition-colors shadow-sm border border-transparent hover:border-zinc-200 dark:hover:border-zinc-600"
+																	title="Copy message"
+																>
+																	{#if copiedStates[`msg-${message.id}`]}
+																		<Check size={14} class="text-green-500" />
+																	{:else}
+																		<Copy size={14} />
+																	{/if}
+																</button>
+															</div>
+														</div>
+													{/if}
+												</div>
+											{/if}
+										</div>
 									</div>
 								{:else}
 									<div class="flex items-start gap-1 sm:gap-1.5 flex-row-reverse w-full">
@@ -1198,7 +1196,7 @@
 
 				{#if streamingMessageId}
 					<div class="flex gap-3 sm:gap-4">
-						<div class="flex w-full gap-1 sm:gap-3 flex-col sm:flex-row">
+						<div class="flex w-full items-start gap-1 sm:gap-1.5">
 							<div
 								class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300"
 							>
@@ -1298,7 +1296,7 @@
 						</div>
 					</div>
 				{:else if isStreaming}
-					<div class="flex gap-2 sm:gap-3 flex-col sm:flex-row">
+					<div class="flex w-full items-start gap-1 sm:gap-1.5">
 						<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300">
 							<BrainCircuit size={18} />
 						</div>
@@ -1309,7 +1307,7 @@
 				{/if}
 
 				{#if streamingError}
-					<div class="flex gap-2 sm:gap-3 flex-col sm:flex-row">
+					<div class="flex w-full items-start gap-1 sm:gap-1.5">
 						<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300">
 							<BrainCircuit size={18} />
 						</div>
@@ -1552,5 +1550,10 @@
 	.matrix-text {
 		text-shadow: 0 0 5px rgba(113, 113, 122, 0.2);
 		letter-spacing: 0.15em;
+	}
+
+	:global(.markdown-content > *:first-child),
+	:global(.markdown-content > .token-container:first-child > *:first-child) {
+		margin-top: 0 !important;
 	}
 </style>

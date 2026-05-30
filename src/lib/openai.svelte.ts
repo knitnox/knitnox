@@ -29,7 +29,12 @@ export async function generateChatTitle(firstMessage: string) {
 					content: 'Generate a very short, 3-5 word title for a chat session based on the first message provided by the user. The title should be concise and in title case. Avoid using generic titles like "Chat Session" or "Conversation". Focus on the main topic or theme introduced in the first message.'
 				},
 				{ role: 'user', content: firstMessage }
-			]
+			],
+			...(settings.temperature !== undefined ? { temperature: settings.temperature } : {}),
+			...(settings.top_p !== undefined ? { top_p: settings.top_p } : {}),
+			...(settings.frequency_penalty !== undefined ? { frequency_penalty: settings.frequency_penalty } : {}),
+			...(settings.presence_penalty !== undefined ? { presence_penalty: settings.presence_penalty } : {}),
+			...(settings.seed !== undefined ? { seed: settings.seed } : {})
 		});
 		return response.choices[0]?.message?.content?.replace(/^["']|["']$/g, '') || firstMessage.slice(0, 30);
 	} catch (error) {
@@ -60,7 +65,12 @@ Respond ONLY with the formatted memory/summary.`;
 			messages: [
 				{ role: 'system', content: systemPrompt },
 				{ role: 'user', content: userContent }
-			]
+			],
+			...(settings.temperature !== undefined ? { temperature: settings.temperature } : {}),
+			...(settings.top_p !== undefined ? { top_p: settings.top_p } : {}),
+			...(settings.frequency_penalty !== undefined ? { frequency_penalty: settings.frequency_penalty } : {}),
+			...(settings.presence_penalty !== undefined ? { presence_penalty: settings.presence_penalty } : {}),
+			...(settings.seed !== undefined ? { seed: settings.seed } : {})
 		});
 		return response.choices[0]?.message?.content || '';
 	} catch (error: any) {
@@ -84,7 +94,14 @@ export async function* streamChat(messages: any[], tools?: any[], signal?: Abort
 			tools: tools?.length ? tools : undefined,
 			stream: true,
 			stream_options: { include_usage: true },
-			...(settings.enableThinking ? { include_reasoning: true } : {})
+			...(settings.enableThinking ? { include_reasoning: true } : {}),
+			...(settings.temperature !== undefined ? { temperature: settings.temperature } : {}),
+			...(settings.top_p !== undefined ? { top_p: settings.top_p } : {}),
+			...(settings.frequency_penalty !== undefined ? { frequency_penalty: settings.frequency_penalty } : {}),
+			...(settings.presence_penalty !== undefined ? { presence_penalty: settings.presence_penalty } : {}),
+			...(settings.reasoning_effort !== undefined ? { reasoning_effort: settings.reasoning_effort } : {}),
+			...(settings.seed !== undefined ? { seed: settings.seed } : {}),
+			...(settings.response_format ? { response_format: JSON.parse(settings.response_format) } : {})
 		} as any, { signal });
 
 		for await (const chunk of (stream as any)) {

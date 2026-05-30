@@ -88,35 +88,30 @@
 
 		<!-- Quick Settings Section -->
 		<div class="flex flex-col items-center gap-6 pt-8 animate-in fade-in slide-in-from-bottom-4 duration-1000 w-full">
-			<div class="flex flex-col sm:flex-row gap-3 w-full max-w-4xl">
+			<div class="flex flex-col sm:flex-row gap-2 w-full max-w-xl">
 				<button 
 					onclick={() => qrImportInput?.click()}
-					class="flex-1 flex items-center justify-center gap-3 rounded-2xl border-2 border-blue-100 bg-blue-50/50 dark:border-blue-900/30 dark:bg-blue-900/10 p-4 text-sm font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-blue-500/10"
+					class="flex-1 flex items-center justify-center gap-1.5 rounded-lg border-2 border-blue-100 bg-blue-50/50 dark:border-blue-900/30 dark:bg-blue-900/10 p-2 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-all hover:scale-[1.02] active:scale-95 shadow-md shadow-blue-500/5"
 				>
-					<ImageIcon size={20} class="shrink-0" />
+					<ImageIcon size={14} class="shrink-0" />
 					<span class="truncate text-center">Import Tag Image</span>
 				</button>
 
 				<button 
 					onclick={startCamera}
-					class="flex-1 flex items-center justify-center gap-3 rounded-2xl border-2 border-blue-100 bg-blue-50/50 dark:border-blue-900/30 dark:bg-blue-900/10 p-4 text-sm font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-blue-500/10"
+					class="flex-1 flex items-center justify-center gap-1.5 rounded-lg border-2 border-blue-100 bg-blue-50/50 dark:border-blue-900/30 dark:bg-blue-900/10 p-2 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-all hover:scale-[1.02] active:scale-95 shadow-md shadow-blue-500/5"
 				>
-					<Camera size={20} class="shrink-0" />
+					<Camera size={14} class="shrink-0" />
 					<span class="truncate text-center">Scan with Camera</span>
 				</button>
 				
 				<button 
 					onclick={() => importInput?.click()}
-					class="flex-1 flex items-center justify-center gap-3 rounded-2xl border-2 border-blue-100 bg-blue-50/50 dark:border-blue-900/30 dark:bg-blue-900/10 p-4 text-sm font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-blue-500/10"
+					class="flex-1 flex items-center justify-center gap-1.5 rounded-lg border-2 border-blue-100 bg-blue-50/50 dark:border-blue-900/30 dark:bg-blue-900/10 p-2 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/20 transition-all hover:scale-[1.02] active:scale-95 shadow-md shadow-blue-500/5"
 				>
-					<Upload size={20} class="shrink-0" />
+					<Upload size={14} class="shrink-0" />
 					<span class="truncate text-center">Import from JSON</span>
 				</button>
-			</div>
-			
-			<div class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
-				<QrCode size={12} />
-				Quick Start Options
 			</div>
 		</div>
 

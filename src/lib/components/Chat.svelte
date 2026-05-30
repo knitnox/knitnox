@@ -865,8 +865,11 @@
 						{:else}
 							<button 
 								onclick={onOpenSettings}
-								class="text-[11px] font-bold text-blue-600 hover:underline cursor-pointer"
+								class="flex items-center gap-1.5 text-[11px] font-bold text-blue-600 hover:underline cursor-pointer"
 							>
+								{#if settings.shouldFlashSettings}
+									<SettingsIcon size={14} class="animate-flash text-blue-500" />
+								{/if}
 								Open Settings
 							</button>
 						{/if}
@@ -1557,7 +1560,7 @@
 						<button
 							type="button"
 							onclick={onOpenSettings}
-							class="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800 transition-all"
+							class="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800 transition-all {settings.shouldFlashWrench ? 'animate-flash bg-blue-100 dark:bg-blue-900/30 text-blue-600' : ''}"
 							title="General Settings"
 						>
 							<Wrench size={20} />
@@ -1652,6 +1655,15 @@
 		50% {
 			opacity: 0.3;
 		}
+	}
+
+	@keyframes flash {
+		0%, 100% { opacity: 1; transform: scale(1); }
+		50% { opacity: 0.3; transform: scale(1.2); }
+	}
+
+	.animate-flash {
+		animation: flash 0.5s ease-in-out infinite;
 	}
 
 	.matrix-text {

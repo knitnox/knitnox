@@ -34,6 +34,8 @@ class Settings {
 	fontSize = $state(browser ? localStorage.getItem('fontSize') || '16' : '16');
 	fontFamily = $state(browser ? localStorage.getItem('fontFamily') || 'sans' : 'sans');
 	theme = $state<'system' | 'light' | 'dark'>(browser ? (localStorage.getItem('theme') as any) || 'system' : 'system');
+	shouldFlashSettings = $state(false);
+	shouldFlashWrench = $state(false);
 	
 	// Global Token stats
 	totalInputTokens = $state(browser ? parseInt(localStorage.getItem('totalInputTokens') || '0') : 0);

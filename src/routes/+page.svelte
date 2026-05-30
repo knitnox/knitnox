@@ -2,10 +2,27 @@
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import Chat from '$lib/components/Chat.svelte';
 	import SettingsModal from '$lib/components/SettingsModal.svelte';
+	import { settings } from '$lib/settings.svelte';
 
 	let currentChatId: number | null = $state(null);
 	let isSettingsOpen = $state(false);
 	let isSidebarOpen = $state(false);
+
+	let hasAutoOpened = false;
+	$effect(() => {
+		if (!settings.isLoading && !settings.model?.trim() && !hasAutoOpened) {
+			isSettingsOpen = true;
+			hasAutoOpened = true;
+			settings.shouldFlashSettings = true;
+			setTimeout(() => {
+				settings.shouldFlashSettings = false;
+				settings.shouldFlashWrench = true;
+				setTimeout(() => {
+					settings.shouldFlashWrench = false;
+				}, 3000);
+			}, 3000);
+		}
+	});
 
 	function handleSelectChat(id: number) {
 		currentChatId = id;

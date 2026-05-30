@@ -5,8 +5,25 @@
 	import { toast } from '$lib/toast.svelte';
 	import Toaster from '$lib/components/Toaster.svelte';
 	import { fade } from 'svelte/transition';
+	import { pwaInfo } from 'virtual:pwa-info';
+	import { onMount } from 'svelte';
 
 	let { children } = $props();
+
+	onMount(async () => {
+		if (typeof window !== 'undefined' && 'serviceWorker' in navigator && !import.meta.env.DEV) {
+			const { registerSW } = await import('virtual:pwa-register');
+			registerSW({
+				immediate: true,
+				onRegistered(r) {
+					console.log('SW Registered:', r);
+				},
+				onRegisterError(error) {
+					console.log('SW Registration error:', error);
+				}
+			});
+		}
+	});
 
 	let family = $derived(
 		settings.fontFamily === 'mono' ? 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' : 
@@ -54,6 +71,7 @@
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
 	<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&display=swap" rel="stylesheet">
+	{@html pwaInfo?.webManifest.linkTag}
 </svelte:head>
 
 <svelte:body />

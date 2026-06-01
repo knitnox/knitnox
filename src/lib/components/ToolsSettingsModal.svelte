@@ -79,12 +79,12 @@
 					<h3 class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400">
 						<Blocks size={14} /> Core Capabilities
 					</h3>
-					<div class="grid gap-2">
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
 						{#each localTools as tool}
 							<div class="group flex items-center justify-between gap-4 rounded-2xl border border-zinc-100 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-800/30 hover:bg-white dark:hover:bg-zinc-800 transition-all">
 								<div class="flex flex-1 flex-col overflow-hidden">
 									<span class="truncate text-sm font-bold">{tool.name}</span>
-									<span class="text-xs text-zinc-500 leading-relaxed">{tool.description}</span>
+									<span class="text-xs text-zinc-500 truncate">{tool.description}</span>
 								</div>
 								<button 
 									onclick={() => toggleTool(tool.name)}
@@ -116,7 +116,7 @@
 							<p class="text-[10px] text-zinc-400 mt-1 uppercase tracking-tight">Connect servers in main settings</p>
 						</div>
 					{:else}
-						<div class="grid gap-2">
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
 							{#each mcpTools as { tool }}
 								<div class="group flex items-center justify-between gap-4 rounded-2xl border border-zinc-100 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-800/30 hover:bg-white dark:hover:bg-zinc-800 transition-all">
 									<div class="flex flex-col flex-1 min-w-0">

@@ -15,7 +15,7 @@
 	import LandingPage from './LandingPage.svelte';
 	import ConfirmModal from './ConfirmModal.svelte';
 	import { liveQuery } from 'dexie';
-	import { SendHorizontal, User, BrainCircuit, Loader2, Wrench, Toolbox, ChevronRight, ChevronDown, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check, Settings as SettingsIcon, Brain, MessageSquare, PlusCircle, Pencil, Library, RefreshCw, Database } from '@lucide/svelte';
+	import { SendHorizontal, User, BrainCircuit, Loader2, Wrench, Toolbox, ChevronRight, ChevronDown, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check, Settings as SettingsIcon, Brain, MessageSquare, PlusCircle, Pencil, Library, RefreshCw, Database, GripHorizontal } from '@lucide/svelte';
 	import { tick } from 'svelte';
 	import { fly } from 'svelte/transition';
 	import { Marked } from 'marked';
@@ -430,6 +430,33 @@
 	function cancelEdit() {
 		editingMessageId = null;
 		editingContent = '';
+	}
+
+	function handleResize(e: MouseEvent | TouchEvent) {
+		const target = (e instanceof MouseEvent ? e.target : e.touches[0].target) as HTMLElement;
+		const textarea = target.closest('.group\\/edit-container')?.querySelector('textarea');
+		if (!textarea) return;
+
+		const startY = e instanceof MouseEvent ? e.clientY : e.touches[0].clientY;
+		const startHeight = textarea.offsetHeight;
+
+		function onMove(moveEvent: MouseEvent | TouchEvent) {
+			const currentY = moveEvent instanceof MouseEvent ? moveEvent.clientY : moveEvent.touches[0].clientY;
+			const deltaY = currentY - startY;
+			textarea!.style.height = `${startHeight + deltaY}px`;
+		}
+
+		function onEnd() {
+			window.removeEventListener('mousemove', onMove);
+			window.removeEventListener('mouseup', onEnd);
+			window.removeEventListener('touchmove', onMove);
+			window.removeEventListener('touchend', onEnd);
+		}
+
+		window.addEventListener('mousemove', onMove);
+		window.addEventListener('mouseup', onEnd);
+		window.addEventListener('touchmove', onMove);
+		window.addEventListener('touchend', onEnd);
 	}
 
 	async function handleEditSubmit() {
@@ -1046,64 +1073,100 @@
 
 											{#if message.content}
 												<div class="space-y-1 w-full">
-													<div
-														class="rounded-2xl px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-tl-none prose prose-sm dark:prose-invert max-w-none"
-													>
-														{#if message.resources}
-															<div class="mb-2 flex flex-wrap gap-2">
-																{#each message.resources as res}
-																	<div class="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 dark:border-blue-800 dark:bg-blue-900/20 max-w-[200px]">
-																		<Library size={14} class="text-blue-600 dark:text-blue-400 shrink-0" />
-																		<div class="flex-1 min-w-0">
-																			<p class="text-[11px] font-bold text-blue-700 dark:text-blue-300 truncate">{res.name}</p>
-																		</div>
-																	</div>
-																{/each}
+													{#if editingMessageId === message.id}
+														<div class="group/edit-container relative flex flex-col gap-2 w-full rounded-2xl px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-tl-none border border-blue-400/50 pb-5">
+															<textarea
+																bind:value={editingContent}
+																data-editing="true"
+																class="w-full bg-transparent text-zinc-900 dark:text-white outline-none min-h-[100px] text-sm leading-relaxed resize-none"
+																onkeydown={(e) => {
+																	if (e.key === 'Enter' && !e.shiftKey) {
+																		e.preventDefault();
+																		handleEditSubmit();
+																	}
+																	if (e.key === 'Escape') cancelEdit();
+																}}
+															></textarea>
+															<div 
+																onmousedown={handleResize}
+																ontouchstart={handleResize}
+																class="absolute bottom-0 left-1/2 -translate-x-1/2 w-full flex justify-center py-1 cursor-ns-resize text-zinc-300 dark:text-zinc-600 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+															>
+																<GripHorizontal size={16} />
 															</div>
-														{/if}
+															<div class="flex justify-end gap-2">
+																<button
+																	onclick={cancelEdit}
+																	class="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+																>
+																	Cancel
+																</button>
+																<button
+																	onclick={handleEditSubmit}
+																	class="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors"
+																>
+																	Save
+																</button>
+															</div>
+														</div>
+													{:else}
+														<div
+															class="rounded-2xl px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-tl-none prose prose-sm dark:prose-invert max-w-none"
+														>
+															{#if message.resources}
+																<div class="mb-2 flex flex-wrap gap-2">
+																	{#each message.resources as res}
+																		<div class="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 dark:border-blue-800 dark:bg-blue-900/20 max-w-[200px]">
+																			<Library size={14} class="text-blue-600 dark:text-blue-400 shrink-0" />
+																			<div class="flex-1 min-w-0">
+																				<p class="text-[11px] font-bold text-blue-700 dark:text-blue-300 truncate">{res.name}</p>
+																			</div>
+																		</div>
+																	{/each}
+																</div>
+															{/if}
 
-														<div class="markdown-content">
-															{#each marked.lexer(message.content) as token, i (i)}
-																{#if token.type === 'code'}
-																	{@const codeId = `${message.id}-${i}`}
-																		<div class="group relative my-2 overflow-hidden rounded-xl bg-[#1e1e1e]">
-																			<div class="hidden items-center justify-between bg-white/5 px-3 py-1 backdrop-blur-sm sm:flex">
-																				<span class="text-[10px] font-mono font-medium text-zinc-500 uppercase tracking-wider">{token.lang || 'code'}</span>
+															<div class="markdown-content">
+																{#each marked.lexer(message.content) as token, i (i)}
+																	{#if token.type === 'code'}
+																		{@const codeId = `${message.id}-${i}`}
+																			<div class="group relative my-2 overflow-hidden rounded-xl bg-[#1e1e1e]">
+																				<div class="hidden items-center justify-between bg-white/5 px-3 py-1 backdrop-blur-sm sm:flex">
+																					<span class="text-[10px] font-mono font-medium text-zinc-500 uppercase tracking-wider">{token.lang || 'code'}</span>
+																					<button
+																						onclick={() => copyToClipboard(token.text, codeId)}
+																						class="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-zinc-400 transition-all hover:bg-white/20 hover:text-white active:scale-95"
+																					>
+																						{#if copiedStates[codeId]}
+																							<Check size={12} class="text-green-500" />
+																							<span class="text-green-500 text-[10px] font-bold">Copied!</span>
+																						{:else}
+																							<Copy size={12} />
+																							<span class="text-[10px]">Copy</span>
+																						{/if}
+																					</button>
+																				</div>
 																				<button
 																					onclick={() => copyToClipboard(token.text, codeId)}
-																					class="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-zinc-400 transition-all hover:bg-white/20 hover:text-white active:scale-95"
+																					class="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900/90 text-zinc-400 backdrop-blur-md transition-all active:scale-90 sm:hidden border border-white/10"
+																					aria-label="Copy code"
 																				>
 																					{#if copiedStates[codeId]}
-																						<Check size={12} class="text-green-500" />
-																						<span class="text-green-500 text-[10px] font-bold">Copied!</span>
+																						<Check size={16} class="text-green-500" />
 																					{:else}
-																						<Copy size={12} />
-																						<span class="text-[10px]">Copy</span>
+																						<Copy size={16} class="hover:text-white" />
 																					{/if}
 																				</button>
+																				<div class="overflow-x-auto p-3 sm:p-2">
+																					{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
+																				</div>
 																			</div>
-																			<button
-																				onclick={() => copyToClipboard(token.text, codeId)}
-																				class="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900/90 text-zinc-400 backdrop-blur-md transition-all active:scale-90 sm:hidden border border-white/10"
-																				aria-label="Copy code"
-																			>
-																				{#if copiedStates[codeId]}
-																					<Check size={16} class="text-green-500" />
-																				{:else}
-																					<Copy size={16} class="hover:text-white" />
-																				{/if}
-																			</button>
-																			<div class="overflow-x-auto p-3 sm:p-2">
-																				{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
-																			</div>
-																		</div>
-																{:else}
-																	{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
-																{/if}
-															{/each}
+																	{:else}
+																		{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
+																	{/if}
+																{/each}
+															</div>
 														</div>
-													</div>
-													{#if editingMessageId !== message.id}
 														<div class="flex justify-start items-center mt-1">
 															<div class="flex items-center gap-1 px-1 py-1 rounded-lg border border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/50 opacity-100 [@media(hover:hover)]:sm:border-transparent [@media(hover:hover)]:sm:bg-transparent [@media(hover:hover)]:sm:opacity-0 [@media(hover:hover)]:sm:group-hover/message:opacity-100 [@media(hover:hover)]:sm:group-hover/message:border-zinc-200 [@media(hover:hover)]:sm:group-hover/message:dark:border-zinc-800 [@media(hover:hover)]:sm:group-hover/message:bg-zinc-50/50 [@media(hover:hover)]:sm:group-hover/message:dark:bg-zinc-800/50 transition-all duration-200">
 																<button
@@ -1147,64 +1210,100 @@
 												<div class="flex flex-col gap-2 min-w-0 flex-1 w-full">
 													{#if message.content}
 														<div class="space-y-1 w-full">
-															<div
-																class="rounded-2xl px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-tl-none prose prose-sm dark:prose-invert max-w-none"
-															>
-																{#if message.resources}
-																	<div class="mb-2 flex flex-wrap gap-2">
-																		{#each message.resources as res}
-																			<div class="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 dark:border-blue-800 dark:bg-blue-900/20 max-w-[200px]">
-																				<Library size={14} class="text-blue-600 dark:text-blue-400 shrink-0" />
-																				<div class="flex-1 min-w-0">
-																					<p class="text-[11px] font-bold text-blue-700 dark:text-blue-300 truncate">{res.name}</p>
-																				</div>
-																			</div>
-																		{/each}
+															{#if editingMessageId === message.id}
+																<div class="group/edit-container relative flex flex-col gap-2 w-full rounded-2xl px-3 py-2 bg-zinc-100 dark:bg-zinc-800 rounded-tl-none border border-blue-400/50 pb-5">
+																	<textarea
+																		bind:value={editingContent}
+																		data-editing="true"
+																		class="w-full bg-transparent text-zinc-900 dark:text-white outline-none resize-none min-h-[100px] text-sm leading-relaxed"
+																		onkeydown={(e) => {
+																			if (e.key === 'Enter' && !e.shiftKey) {
+																				e.preventDefault();
+																				handleEditSubmit();
+																			}
+																			if (e.key === 'Escape') cancelEdit();
+																		}}
+																	></textarea>
+																	<div 
+																		onmousedown={handleResize}
+																		ontouchstart={handleResize}
+																		class="absolute bottom-0 left-1/2 -translate-x-1/2 w-full flex justify-center py-1 cursor-ns-resize text-zinc-300 dark:text-zinc-600 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+																	>
+																		<GripHorizontal size={16} />
 																	</div>
-																{/if}
+																	<div class="flex justify-end gap-2">
+																		<button
+																			onclick={cancelEdit}
+																			class="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+																		>
+																			Cancel
+																		</button>
+																		<button
+																			onclick={handleEditSubmit}
+																			class="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors"
+																		>
+																			Save
+																		</button>
+																	</div>
+																</div>
+															{:else}
+																<div
+																	class="rounded-2xl px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-tl-none prose prose-sm dark:prose-invert max-w-none"
+																>
+																	{#if message.resources}
+																		<div class="mb-2 flex flex-wrap gap-2">
+																			{#each message.resources as res}
+																				<div class="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 dark:border-blue-800 dark:bg-blue-900/20 max-w-[200px]">
+																					<Library size={14} class="text-blue-600 dark:text-blue-400 shrink-0" />
+																					<div class="flex-1 min-w-0">
+																						<p class="text-[11px] font-bold text-blue-700 dark:text-blue-300 truncate">{res.name}</p>
+																					</div>
+																				</div>
+																			{/each}
+																		</div>
+																	{/if}
 
-																<div class="markdown-content">
-																	{#each marked.lexer(message.content) as token, i (i)}
-																		{#if token.type === 'code'}
-																			{@const codeId = `${message.id}-${i}`}
-																				<div class="group relative my-2 overflow-hidden rounded-xl bg-[#1e1e1e]">
-																					<div class="hidden items-center justify-between bg-white/5 px-3 py-1 backdrop-blur-sm sm:flex">
-																						<span class="text-[10px] font-mono font-medium text-zinc-500 uppercase tracking-wider">{token.lang || 'code'}</span>
+																	<div class="markdown-content">
+																		{#each marked.lexer(message.content) as token, i (i)}
+																			{#if token.type === 'code'}
+																				{@const codeId = `${message.id}-${i}`}
+																					<div class="group relative my-2 overflow-hidden rounded-xl bg-[#1e1e1e]">
+																						<div class="hidden items-center justify-between bg-white/5 px-3 py-1 backdrop-blur-sm sm:flex">
+																							<span class="text-[10px] font-mono font-medium text-zinc-500 uppercase tracking-wider">{token.lang || 'code'}</span>
+																							<button
+																								onclick={() => copyToClipboard(token.text, codeId)}
+																								class="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-zinc-400 transition-all hover:bg-white/20 hover:text-white active:scale-95"
+																							>
+																								{#if copiedStates[codeId]}
+																									<Check size={12} class="text-green-500" />
+																									<span class="text-green-500 text-[10px] font-bold">Copied!</span>
+																								{:else}
+																									<Copy size={12} />
+																									<span class="text-[10px]">Copy</span>
+																								{/if}
+																							</button>
+																						</div>
 																						<button
 																							onclick={() => copyToClipboard(token.text, codeId)}
-																							class="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-zinc-400 transition-all hover:bg-white/20 hover:text-white active:scale-95"
+																							class="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900/90 text-zinc-400 backdrop-blur-md transition-all active:scale-90 sm:hidden border border-white/10"
+																							aria-label="Copy code"
 																						>
 																							{#if copiedStates[codeId]}
-																								<Check size={12} class="text-green-500" />
-																								<span class="text-green-500 text-[10px] font-bold">Copied!</span>
+																								<Check size={16} class="text-green-500" />
 																							{:else}
-																								<Copy size={12} />
-																								<span class="text-[10px]">Copy</span>
+																								<Copy size={16} class="hover:text-white" />
 																							{/if}
 																						</button>
+																						<div class="overflow-x-auto p-3 sm:p-2">
+																							{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
+																						</div>
 																					</div>
-																					<button
-																						onclick={() => copyToClipboard(token.text, codeId)}
-																						class="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900/90 text-zinc-400 backdrop-blur-md transition-all active:scale-90 sm:hidden border border-white/10"
-																						aria-label="Copy code"
-																					>
-																						{#if copiedStates[codeId]}
-																							<Check size={16} class="text-green-500" />
-																						{:else}
-																							<Copy size={16} class="hover:text-white" />
-																						{/if}
-																					</button>
-																					<div class="overflow-x-auto p-3 sm:p-2">
-																						{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
-																					</div>
-																				</div>
-																		{:else}
-																			{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
-																		{/if}
-																	{/each}
+																			{:else}
+																				{@html DOMPurify.sanitize(marked.parse(token.raw) as string)}
+																			{/if}
+																		{/each}
+																	</div>
 																</div>
-															</div>
-															{#if editingMessageId !== message.id}
 																<div class="flex justify-start items-center mt-1">
 																	<div class="flex items-center gap-1 px-1 py-1 rounded-lg border border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/50 opacity-100 [@media(hover:hover)]:sm:border-transparent [@media(hover:hover)]:sm:bg-transparent [@media(hover:hover)]:sm:opacity-0 [@media(hover:hover)]:sm:group-hover/message:opacity-100 [@media(hover:hover)]:sm:group-hover/message:border-zinc-200 [@media(hover:hover)]:sm:group-hover/message:dark:border-zinc-800 [@media(hover:hover)]:sm:group-hover/message:bg-zinc-50/50 [@media(hover:hover)]:sm:group-hover/message:dark:bg-zinc-800/50 transition-all duration-200">
 																		<button
@@ -1292,11 +1391,11 @@
 													{/if}
 
 													{#if editingMessageId === message.id}
-														<div class="flex flex-col gap-2 w-full">
+														<div class="group/edit-container relative flex flex-col gap-2 w-full pb-5">
 															<textarea
 																bind:value={editingContent}
 																data-editing="true"
-																class="w-full bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-white rounded-lg p-2 outline-none border border-zinc-300 dark:border-zinc-500 focus:border-blue-400 min-h-[100px]"
+																class="w-full bg-zinc-100 dark:bg-zinc-700 text-zinc-900 dark:text-white rounded-lg p-2 outline-none border border-zinc-300 dark:border-zinc-500 focus:border-blue-400 min-h-[100px] resize-none"
 																onkeydown={(e) => {
 																	if (e.key === 'Enter' && !e.shiftKey) {
 																		e.preventDefault();
@@ -1305,6 +1404,13 @@
 																	if (e.key === 'Escape') cancelEdit();
 																}}
 															></textarea>
+															<div 
+																onmousedown={handleResize}
+																ontouchstart={handleResize}
+																class="absolute bottom-0 left-1/2 -translate-x-1/2 w-full flex justify-center py-1 cursor-ns-resize text-zinc-400 dark:text-zinc-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+															>
+																<GripHorizontal size={16} />
+															</div>
 															<div class="flex justify-end gap-2">
 																<button
 																	onclick={cancelEdit}

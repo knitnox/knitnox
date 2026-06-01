@@ -474,33 +474,20 @@ if config.MEMORY_ENABLED:
         return await memory.explore_graph_deep(entity_id)
 
 @mcp.tool()
-@with_timeout(60.0)
-async def scrape_url(url: str) -> str:
-    """
-    Scrapes the content from a specified URL and returns clean text.
-    
-    Best for static websites without heavy JavaScript. It removes HTML tags, 
-    scripts, and styles to provide readable text content.
-    
-    Parameters:
-    - url: The full URL of the website to scrape.
-    """
-    return await scraping.scrape(url)
-
-@mcp.tool()
 @with_timeout(120.0)
-async def scrape_js_url(url: str, wait_time: int = 3) -> str:
+async def browse_web(url: str, wait_time: int = 3) -> str:
     """
-    Scrapes JavaScript-rendered content from a URL using a headless browser.
+    Browses a website using a headless browser, simulating a real user.
     
-    Essential for modern web apps (React, Vue, etc.) where content is loaded dynamically.
-    The 'wait_time' allows the page to finish rendering before extraction.
+    Use this to access any website, especially those with dynamic content 
+    (React, Vue, etc.) or when you need to see the full content and links 
+    on a page. Returns clean text content and a list of useful links.
     
     Parameters:
-    - url: The full URL of the website to scrape.
+    - url: The full URL of the website to browse.
     - wait_time: Seconds to wait after page load (default 3).
     """
-    return await scraping.scrape_js(url, wait_time)
+    return await scraping.browse_web(url, wait_time)
 
 @mcp.tool()
 @with_timeout(60.0)

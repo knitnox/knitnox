@@ -1,6 +1,6 @@
 [project]
 name = "code-server"
-version = "0.1.5"
+version = "0.1.9"
 description = "Local MCP for Assistant with Memory and File Tools"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -16,6 +16,7 @@ dependencies = [
     "starlette<0.35.0",
     "uvicorn>=0.48.0",
     "rich>=13.0.0",
+    "playwright-stealth>=2.0.3",
 ]
 
 [project.scripts]

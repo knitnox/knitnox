@@ -1630,14 +1630,6 @@
 						</button>
 						<button
 							type="button"
-							onclick={onOpenSettings}
-							class="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800 transition-all {settings.shouldFlashWrench ? 'animate-flash bg-blue-100 dark:bg-blue-900/30 text-blue-600' : ''}"
-							title="General Settings"
-						>
-							<Wrench size={20} />
-						</button>
-						<button
-							type="button"
 							onclick={() => isMemoryModalOpen = true}
 							class="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-200/50 dark:hover:bg-zinc-800 transition-all"
 							title="Memory Management"

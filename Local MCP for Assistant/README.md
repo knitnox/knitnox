@@ -53,6 +53,8 @@ python cli.py
 
 ## 🛠 Features
 
+> **🧪 Tested by:** Knitnox Bombalala ✅
+
 - **📂 Project-Local Context:** Automatically creates a `.code-server/` folder in your current directory to store `config.json` and `mcp_memory.db`.
 - **🧠 Knowledge Graph Memory:** Stores facts and relationships in a Kuzu graph database with vector embeddings for semantic search.
 - **✂️ Surgical File Edits:** Tools to read, create, and apply precise patches to files without rewriting the entire file.

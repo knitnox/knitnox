@@ -393,7 +393,7 @@ async def apply_patch(filepath: str, old_text: str = "", new_text: str = "", act
     return await file_patcher.apply_patch(filepath, old_text, new_text, action)
 
 @mcp.tool()
-async def list_files_in_scripts(directory: str = "") -> str:
+async def list_files(directory: str = "") -> str:
     """
     Lists all files and directories within the current folder.
     

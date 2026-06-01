@@ -40,10 +40,20 @@ async def run_terminal_command(command: str) -> str:
 
         if process.returncode == 0:
             output = stdout.decode('utf-8', errors='replace')
-            return output[:2000] if output else "Command executed successfully (no output)."
+            if not output:
+                return "Command executed successfully (no output)."
+            
+            # Increase limit to 8000 characters for more reliability
+            if len(output) > 8000:
+                return output[:8000] + "\n\n[Output truncated due to length...]"
+            return output
         else:
             err_output = stderr.decode('utf-8', errors='replace')
-            return f"Command Failed:\n{err_output}"
+            out_output = stdout.decode('utf-8', errors='replace')
+            combined = f"Command Failed (exit code {process.returncode}):\n{err_output}"
+            if out_output:
+                combined += f"\n\nStandard Output:\n{out_output}"
+            return combined[:8000]
             
     except Exception as e:
         return f"Error executing command: {str(e)}"

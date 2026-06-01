@@ -87,52 +87,48 @@ def _apply_patch_worker(
         if not original_content:
             return "ERROR: File is empty. Use action='create' or action='edit' with a non-empty file."
 
-        # Find the best match for old_text using difflib.SequenceMatcher
-        matcher = difflib.SequenceMatcher(None, original_content, old_text)
-        match = matcher.find_longest_match(
-            0, len(original_content), 0, len(old_text)
-        )
-
-        # Heuristic: if the match ratio is very low, try a more flexible approach
-        if match.size < max(len(old_text) * 0.5, 5):
-            # Try matching line-by-line for better partial matches
-            original_lines = original_content.splitlines(keepends=True)
-            old_lines = old_text.strip().splitlines()
-
-            best_start = -1
-            best_end = -1
-            best_ratio = 0.0
-
-            # Slide over the file looking for the best contiguous block match
-            for i in range(len(original_lines)):
-                for j in range(i + 1, len(original_lines) + 1):
-                    candidate_block = "".join(original_lines[i:j])
-                    line_matcher = difflib.SequenceMatcher(
-                        None, candidate_block.strip(), old_text.strip()
-                    )
-                    ratio = line_matcher.ratio()
-                    # Prefer longer matches with decent ratio
-                    score = ratio * (j - i)
-                    if score > best_ratio and ratio > 0.4:
-                        best_ratio = score
-                        best_start = i
-                        best_end = j
-
-            if best_start >= 0 and best_ratio > 0.4:
-                match_start = sum(
-                    len(line) for line in original_lines[:best_start]
-                )
-                match_end = sum(len(line) for line in original_lines[:best_end])
-            else:
-                return (
-                    f"ERROR: Could not find a good match for the provided old_text. "
-                    f"The file has {len(original_content)} chars. "
-                    "Use read_file_agent first to inspect the file content, "
-                    "then provide the exact text you want to replace."
-                )
+        # 1. Try exact match first (most efficient)
+        match_start = original_content.find(old_text)
+        if match_start != -1:
+            match_end = match_start + len(old_text)
         else:
-            match_start = match.a
-            match_end = match.a + match.size
+            # 2. Try exact match with stripped lines (handles indentation/newline differences)
+            # This is a bit more complex but still much faster than SequenceMatcher
+            orig_lines = original_content.splitlines(keepends=True)
+            old_lines = old_text.splitlines()
+            
+            best_start_idx = -1
+            best_line_count = -1
+            
+            # Simple heuristic: try to find a block of lines that matches after stripping
+            for i in range(len(orig_lines) - len(old_lines) + 1):
+                match = True
+                for j in range(len(old_lines)):
+                    if orig_lines[i+j].strip() != old_lines[j].strip():
+                        match = False
+                        break
+                if match:
+                    best_start_idx = i
+                    best_line_count = len(old_lines)
+                    break
+            
+            if best_start_idx != -1:
+                match_start = sum(len(l) for l in orig_lines[:best_start_idx])
+                match_end = sum(len(l) for l in orig_lines[:best_start_idx + best_line_count])
+            else:
+                # 3. Fallback to difflib.SequenceMatcher but with limited scope
+                matcher = difflib.SequenceMatcher(None, original_content, old_text)
+                match = matcher.find_longest_match(0, len(original_content), 0, len(old_text))
+                
+                if match.size >= max(len(old_text) * 0.8, 10): # Require 80% match or at least 10 chars
+                    match_start = match.a
+                    match_end = match.a + match.size
+                else:
+                    return (
+                        f"ERROR: Could not find a reliable match for the provided old_text.\n"
+                        f"Please ensure you've copied the text exactly from the file.\n"
+                        f"Hint: Provide more context or check for small typos."
+                    )
 
         # Perform the edit
         new_content = (

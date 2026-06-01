@@ -1,6 +1,6 @@
 [project]
 name = "code-server"
-version = "0.1.2"
+version = "0.1.5"
 description = "Local MCP for Assistant with Memory and File Tools"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -8,6 +8,7 @@ dependencies = [
     "aiohttp>=3.13.5",
     "beautifulsoup4>=4.14.3",
     "duckduckgo-search>=8.1.1",
+    "ddgs>=9.14.2",
     "kuzu>=0.11.3",
     "mcp>=1.27.1",
     "openai>=2.38.0",

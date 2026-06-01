@@ -15,8 +15,9 @@
 	import LandingPage from './LandingPage.svelte';
 	import ConfirmModal from './ConfirmModal.svelte';
 	import { liveQuery } from 'dexie';
-	import { SendHorizontal, User, BrainCircuit, Loader2, Wrench, Toolbox, ChevronRight, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check, Settings as SettingsIcon, Brain, MessageSquare, PlusCircle, Pencil, Library, RefreshCw, Database } from '@lucide/svelte';
+	import { SendHorizontal, User, BrainCircuit, Loader2, Wrench, Toolbox, ChevronRight, ChevronDown, Trash2, Paperclip, File, X as CloseIcon, Menu, Square, Copy, Check, Settings as SettingsIcon, Brain, MessageSquare, PlusCircle, Pencil, Library, RefreshCw, Database } from '@lucide/svelte';
 	import { tick } from 'svelte';
+	import { fly } from 'svelte/transition';
 	import { Marked } from 'marked';
 	import { markedHighlight } from 'marked-highlight';
 	import hljs from 'highlight.js';
@@ -251,6 +252,23 @@
 
 	let isCheckingSettings = $state(true);
 	let expandedMessages = $state<Set<number>>(new Set());
+	let isProfileDropdownOpen = $state(false);
+
+	function handleClickOutside(e: MouseEvent) {
+		if (isProfileDropdownOpen) {
+			const target = e.target as HTMLElement;
+			if (!target.closest('.profile-dropdown-container')) {
+				isProfileDropdownOpen = false;
+			}
+		}
+	}
+
+	$effect(() => {
+		if (typeof window !== 'undefined') {
+			window.addEventListener('click', handleClickOutside);
+			return () => window.removeEventListener('click', handleClickOutside);
+		}
+	});
 
 	function toggleExpand(id: number) {
 		if (expandedMessages.has(id)) {
@@ -856,11 +874,64 @@
 						{#if isCheckingSettings}
 							<SettingsIcon size={12} class="animate-spin opacity-50" />
 						{:else if settings.model?.trim()}
-							<div class="flex items-center gap-1 text-zinc-400">
-								<Brain size={14} />
-								<span class="text-[11px] font-mono tracking-widest matrix-text">
-									{toTitleCase(settings.model)}
-								</span>
+							<div class="relative profile-dropdown-container">
+								<button 
+									onclick={() => isProfileDropdownOpen = !isProfileDropdownOpen}
+									class="flex items-center gap-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors group"
+								>
+									<Brain size={14} />
+									<span class="text-[11px] font-mono tracking-widest matrix-text truncate max-w-[120px] sm:max-w-[200px]">
+										{toTitleCase(settings.model)}
+									</span>
+									<ChevronDown size={12} class="transition-transform duration-200 {isProfileDropdownOpen ? 'rotate-180' : ''}" />
+								</button>
+
+								{#if isProfileDropdownOpen}
+									<div 
+										transition:fly={{ y: 8, duration: 200 }}
+										class="absolute left-0 top-full mt-2 w-56 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-zinc-800 dark:bg-zinc-900 z-50"
+									>
+										<div class="px-2 py-1.5 mb-1 border-b border-zinc-100 dark:border-zinc-800">
+											<p class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Switch Profile</p>
+										</div>
+										<div class="max-h-64 overflow-y-auto custom-scrollbar">
+											{#each settings.profiles as profile}
+												<button
+													onclick={() => {
+														settings.switchProfile(profile.id!);
+														isProfileDropdownOpen = false;
+													}}
+													class="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 {settings.activeProfileId === profile.id ? 'bg-blue-50/50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' : 'text-zinc-600 dark:text-zinc-300'}"
+												>
+													<div class="flex items-center gap-2 min-w-0">
+														<div class="shrink-0 rounded-md p-1 {settings.activeProfileId === profile.id ? 'bg-blue-100 dark:bg-blue-900/40' : 'bg-zinc-100 dark:bg-zinc-800'}">
+															<User size={12} />
+														</div>
+														<div class="flex flex-col min-w-0">
+															<span class="font-bold truncate">{profile.name}</span>
+															<span class="text-[10px] opacity-60 truncate">{profile.model}</span>
+														</div>
+													</div>
+													{#if settings.activeProfileId === profile.id}
+														<Check size={14} class="shrink-0" />
+													{/if}
+												</button>
+											{/each}
+										</div>
+										<div class="mt-1 border-t border-zinc-100 pt-1 dark:border-zinc-800">
+											<button
+												onclick={() => {
+													onOpenSettings();
+													isProfileDropdownOpen = false;
+												}}
+												class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs font-bold text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100 transition-colors"
+											>
+												<SettingsIcon size={12} />
+												Manage Profiles
+											</button>
+										</div>
+									</div>
+								{/if}
 							</div>
 						{:else}
 							<button 

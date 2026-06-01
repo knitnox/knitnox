@@ -66,7 +66,17 @@
 	}
 </script>
 
-<aside class="flex h-full w-72 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 shadow-xl">
+<aside class="relative flex h-full w-72 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 shadow-xl">
+	{#if onToggleSidebar}
+		<button
+			onclick={onToggleSidebar}
+			class="absolute top-2 right-2 rounded-lg p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-500 transition-colors z-10"
+			aria-label="Close sidebar"
+		>
+			<X size={18} />
+		</button>
+	{/if}
+
 	<!-- Sidebar Logo -->
 	<div class="flex flex-col items-center pt-5 pb-3 px-4 w-full">
 		<h1 class="sidebar-logo-title">
@@ -81,7 +91,7 @@
 		</div>
 	</div>
 
-	<div class="flex items-center justify-between px-3 pb-3">
+	<div class="flex items-center px-3 pb-3">
 		<button
 			onclick={onNewChat}
 			class="flex flex-1 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800 transition-all cursor-pointer"
@@ -89,15 +99,6 @@
 			<Plus size={16} />
 			New Chat
 		</button>
-		{#if onToggleSidebar}
-			<button
-				onclick={onToggleSidebar}
-				class="ml-2 rounded-lg p-1.5 hover:bg-zinc-200 dark:hover:bg-zinc-800 text-zinc-500 transition-colors"
-				aria-label="Close sidebar"
-			>
-				<X size={18} />
-			</button>
-		{/if}
 	</div>
 
 	<div class="flex-1 overflow-y-auto px-1.5">

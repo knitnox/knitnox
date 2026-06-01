@@ -1,6 +1,7 @@
 import { browser } from '$app/environment';
 import LZString from 'lz-string';
 import { db, type Profile } from './db';
+import { toast } from './toast.svelte';
 
 class Settings {
 	// Model-specific settings (now managed via profiles)
@@ -29,6 +30,7 @@ class Settings {
 	profiles = $state<Profile[]>([]);
 	activeProfileId = $state<number | null>(null);
 	isLoading = $state(true);
+	private isSwitchingProfile = false;
 
 	// Global UI settings
 	fontSize = $state(browser ? localStorage.getItem('fontSize') || '16' : '16');
@@ -73,7 +75,18 @@ class Settings {
 
 				// Auto-save active profile whenever its settings change
 				$effect(() => {
-					if (this.activeProfileId !== null) {
+					// Track dependencies
+					const _ = [
+						this.activeProfileId, this.baseUrl, this.apiKey, this.model, 
+						this.systemPrompt, this.enableThinking, this.contextWindow, 
+						this.maxAgentTurns, this.supportsImages, this.supportsAudio, 
+						this.supportsVideo, this.enableCompression, this.mcpServers, 
+						this.disabledTools, this.temperature, this.top_p, 
+						this.frequency_penalty, this.presence_penalty, 
+						this.response_format, this.reasoning_effort, this.seed
+					];
+					
+					if (this.activeProfileId !== null && !this.isSwitchingProfile) {
 						this.saveActiveProfile();
 					}
 				});
@@ -123,6 +136,8 @@ class Settings {
 	async switchProfile(id: number) {
 		const profile = this.profiles.find(p => p.id === id);
 		if (profile) {
+			this.isSwitchingProfile = true;
+			
 			this.activeProfileId = id;
 			this.baseUrl = profile.baseUrl;
 			this.apiKey = profile.apiKey;
@@ -144,7 +159,13 @@ class Settings {
 			this.response_format = profile.response_format;
 			this.reasoning_effort = profile.reasoning_effort;
 			this.seed = profile.seed;
+			
 			localStorage.setItem('activeProfileId', String(id));
+			
+			// Reset flag in next tick to allow auto-save effect to skip this batch
+			setTimeout(() => {
+				this.isSwitchingProfile = false;
+			}, 0);
 		}
 	}
 
@@ -229,20 +250,59 @@ class Settings {
 	}
 
 	async duplicateProfile(id: number) {
-		const profile = this.profiles.find(p => p.id === id);
-		if (!profile) return;
-		
-		const { id: _, ...profileWithoutId } = profile;
-		const newProfile: Omit<Profile, 'id'> = {
-			...profileWithoutId,
-			name: `${profile.name} (Copy)`,
-			createdAt: Date.now(),
-			updatedAt: Date.now()
-		};
-		const newId = await db.profiles.add(newProfile as Profile);
-		await this.loadProfiles();
-		await this.switchProfile(newId);
-		return newId;
+		try {
+			const profile = this.profiles.find(p => p.id === id);
+			if (!profile) {
+				toast.add('Profile not found', 'error');
+				return;
+			}
+			
+			// Get clean data from snapshot
+			const snapped = $state.snapshot(profile);
+			const { id: _, ...profileWithoutId } = snapped;
+			
+			const newProfile: Omit<Profile, 'id'> = {
+				...profileWithoutId,
+				name: `${profile.name} (Copy)`,
+				createdAt: Date.now(),
+				updatedAt: Date.now()
+			};
+
+			// If duplicating the active profile, ensure we have the absolute latest live settings
+			if (id === this.activeProfileId) {
+				Object.assign(newProfile, {
+					baseUrl: this.baseUrl,
+					apiKey: this.apiKey,
+					model: this.model,
+					systemPrompt: this.systemPrompt,
+					enableThinking: this.enableThinking,
+					contextWindow: this.contextWindow,
+					maxAgentTurns: this.maxAgentTurns,
+					supportsImages: this.supportsImages,
+					supportsAudio: this.supportsAudio,
+					supportsVideo: this.supportsVideo,
+					enableCompression: this.enableCompression,
+					mcpServers: $state.snapshot(this.mcpServers),
+					disabledTools: $state.snapshot(this.disabledTools),
+					temperature: this.temperature,
+					top_p: this.top_p,
+					frequency_penalty: this.frequency_penalty,
+					presence_penalty: this.presence_penalty,
+					response_format: this.response_format,
+					reasoning_effort: this.reasoning_effort,
+					seed: this.seed
+				});
+			}
+
+			const newId = await db.profiles.add(newProfile as Profile);
+			await this.loadProfiles();
+			await this.switchProfile(newId);
+			toast.add(`Duplicated profile as "${newProfile.name}"`, 'success');
+			return newId;
+		} catch (error) {
+			console.error('Failed to duplicate profile:', error);
+			toast.add('Failed to duplicate profile', 'error');
+		}
 	}
 
 	async deleteProfile(id: number) {

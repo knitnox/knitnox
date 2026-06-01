@@ -509,6 +509,8 @@ async def search_web(query: str, max_results: int = 5) -> str:
 async def run_terminal_command(command: str) -> str:
     """
     Executes a shell command asynchronously and returns the output.
+    Only ONE terminal process can run at a time. Starting a new one will 
+    automatically stop any previously running process.
     
     Use this for system-level operations like checking process status, 
     running scripts, or other CLI-based tasks. Includes security filters for 
@@ -519,6 +521,26 @@ async def run_terminal_command(command: str) -> str:
     """
     return await system.run_terminal_command(command)
 
+@mcp.tool()
+async def stop_terminal_command() -> str:
+    """
+    Stops the currently running terminal process, if any.
+    
+    Use this to terminate long-running processes (like servers or watchers) 
+    once they are no longer needed. Only one process can run at a time.
+    """
+    return await system.stop_terminal_command()
+
+@mcp.tool()
+async def kill_process_on_port(port: int) -> str:
+    """
+    Finds and terminates any process listening on the specified port.
+    
+    Use this as a reliable fallback for stopping servers that were started 
+    in the background or have become orphaned.
+    """
+    return await system.kill_process_on_port(port)
+
 
 
 # --- Main ---
@@ -527,9 +549,8 @@ async def startup():
     """Initialize resources on startup."""
     if config.MEMORY_ENABLED:
         print("Initializing memory database and clients...")
-        # Initialize Kuzu and embedding client
+        # Initialize Kuzu
         await memory.init_memory_db()
-        memory.init_client()
     print("Startup complete.")
 
 def run_server():

@@ -1,5 +1,5 @@
 # Code-Nimai Installer for Windows
-# Usage: iex (iwr https://raw.githubusercontent.com/YOUR_USER/YOUR_REPO/main/install.ps1)
+# Usage: iex (iwr https://raw.githubusercontent.com/knitnox/knitnox/main/install.ps1)
 
 $installDir = "$HOME\.code-nimai"
 $binDir = "$installDir\bin"
@@ -13,9 +13,8 @@ if (!(Test-Path $binDir)) {
 
 Write-Host "🚀 Installing Code-Nimai..." -ForegroundColor Cyan
 
-# Download the latest binary (Replace with your actual GitHub Release URL)
-# For now, we assume the binary is uploaded to your repo
-$downloadUrl = "https://github.com/YOUR_USER/YOUR_REPO/releases/latest/download/mcp-codebase-server.exe"
+# Download the latest binary
+$downloadUrl = "https://raw.githubusercontent.com/knitnox/knitnox/main/go_mcp-codebase-server/code-nimai.exe"
 
 try {
     Write-Host "📥 Downloading binary..."

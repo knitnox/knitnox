@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Code-Nimai Installer for Linux/macOS
-# Usage: curl -sSL https://raw.githubusercontent.com/YOUR_USER/YOUR_REPO/main/install.sh | sudo bash
+# Usage: curl -sSL https://raw.githubusercontent.com/knitnox/knitnox/main/install.sh | sudo bash
 
 BINARY_NAME="code-nimai"
 INSTALL_DIR="/usr/local/bin"
-REPO_URL="https://github.com/YOUR_USER/YOUR_REPO/releases/latest/download"
+REPO_URL="https://raw.githubusercontent.com/knitnox/knitnox/main/go_mcp-codebase-server"
 
 # Detect Architecture
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')

@@ -131,13 +131,18 @@
 			try {
 				const client = mcpPool.get(url);
 				const [r, p, t] = await Promise.all([
-					client.listResources(),
-					client.listPrompts(),
-					client.getTools()
+					client.listResources().catch(() => []),
+					client.listPrompts().catch(() => []),
+					client.getTools().catch(() => [])
 				]);
 				resourcesCount += r.length;
 				promptsCount += p.length;
 				toolsCount += t.length;
+				
+				if (t.length === 0 && r.length === 0 && p.length === 0) {
+					// If everything is empty, the server might be unreachable or returning empty
+					// but we don't invalidate here as the catch block below handles actual connection errors
+				}
 			} catch (e) {
 				// Silently skip offline servers (including timeouts)
 				mcpPool.invalidate(url);

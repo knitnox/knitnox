@@ -121,6 +121,8 @@ func newMCPServer(rootDir string, allowedDirs []string) *server.MCPServer {
 	mcpServer.AddTool(projectTreeTool(), makeProjectTreeHandler(rootDir, allowedDirs))
 	mcpServer.AddTool(analyzeCodebaseTool(), makeAnalyzeCodebaseHandler(rootDir, allowedDirs))
 
+	// Bug finding
+	mcpServer.AddTool(findBugsTool(), makeFindBugsHandler(rootDir, allowedDirs))
 	// Terminal
 	mcpServer.AddTool(runCommandTool(), makeRunCommandHandler(rootDir, allowedDirs))
 	mcpServer.AddTool(terminateCommandTool(), makeTerminateCommandHandler())

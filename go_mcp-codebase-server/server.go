@@ -25,7 +25,13 @@ func getAbsPath(path string) (string, error) {
 }
 
 func validatePath(path string, rootDir string, allowedDirs []string) (string, error) {
-	absPath, err := filepath.Abs(filepath.Join(rootDir, path))
+	var fullPath string
+	if filepath.IsAbs(path) {
+		fullPath = path
+	} else {
+		fullPath = filepath.Join(rootDir, path)
+	}
+	absPath, err := filepath.Abs(fullPath)
 	if err != nil {
 		return "", fmt.Errorf("invalid path: %w", err)
 	}
@@ -114,6 +120,12 @@ func newMCPServer(rootDir string, allowedDirs []string) *server.MCPServer {
 	// Analysis
 	mcpServer.AddTool(projectTreeTool(), makeProjectTreeHandler(rootDir, allowedDirs))
 	mcpServer.AddTool(analyzeCodebaseTool(), makeAnalyzeCodebaseHandler(rootDir, allowedDirs))
+
+	// Terminal
+	mcpServer.AddTool(runCommandTool(), makeRunCommandHandler(rootDir, allowedDirs))
+	mcpServer.AddTool(terminateCommandTool(), makeTerminateCommandHandler())
+	mcpServer.AddTool(listProcessesTool(), makeListProcessesHandler())
+	mcpServer.AddTool(getProcessOutputTool(), makeGetProcessOutputHandler())
 
 	return mcpServer
 }

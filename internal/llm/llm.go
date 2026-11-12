@@ -80,6 +80,32 @@ type Request struct {
 	// OnReasoning receives "thinking" deltas (reasoning_content / reasoning)
 	// from providers that stream them. Optional.
 	OnReasoning func(string)
+	// IdleTimeout ends the call when the provider sends nothing for this long,
+	// before the answer starts or in the middle of it. 0 = DefaultIdleTimeout,
+	// negative = never.
+	IdleTimeout time.Duration
+}
+
+// DefaultIdleTimeout is how long a provider may stay silent before a call is
+// given up. Models that think before they answer can be quiet for minutes.
+const DefaultIdleTimeout = 5 * time.Minute
+
+// ErrStalled is returned when the provider stopped sending data.
+var ErrStalled = errors.New("the provider stopped answering (no data for too long)")
+
+// idleBody cancels the request when no bytes arrive for the idle time.
+type idleBody struct {
+	io.ReadCloser
+	timer *time.Timer
+	idle  time.Duration
+}
+
+func (b *idleBody) Read(p []byte) (int, error) {
+	n, err := b.ReadCloser.Read(p)
+	if n > 0 {
+		b.timer.Reset(b.idle)
+	}
+	return n, err
 }
 
 // Result is the fully assembled response of one streamed completion.
@@ -146,6 +172,25 @@ func Stream(ctx context.Context, req Request, onDelta func(string)) (*Result, er
 	if err != nil {
 		return nil, err
 	}
+	idle := req.IdleTimeout
+	if idle == 0 {
+		idle = DefaultIdleTimeout
+	}
+	// The watchdog covers the wait for the first byte as well as every gap
+	// after it, so a provider that hangs can never hold a run for ever.
+	ctx, stop := context.WithCancelCause(ctx)
+	defer stop(nil)
+	var watchdog *time.Timer
+	if idle > 0 {
+		watchdog = time.AfterFunc(idle, func() { stop(ErrStalled) })
+		defer watchdog.Stop()
+	}
+	stalled := func(err error) error {
+		if err != nil && context.Cause(ctx) == ErrStalled {
+			return ErrStalled
+		}
+		return err
+	}
 	hreq, err := http.NewRequestWithContext(ctx, http.MethodPost, req.BaseURL+"/chat/completions", bytes.NewReader(buf))
 	if err != nil {
 		return nil, err
@@ -157,7 +202,7 @@ func Stream(ctx context.Context, req Request, onDelta func(string)) (*Result, er
 	}
 	resp, err := client.Do(hreq)
 	if err != nil {
-		return nil, err
+		return nil, stalled(err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode/100 != 2 {
@@ -165,7 +210,13 @@ func Stream(ctx context.Context, req Request, onDelta func(string)) (*Result, er
 		return nil, &HTTPError{Status: resp.StatusCode, Body: strings.TrimSpace(string(b)),
 			RetryAfter: parseRetryAfter(resp.Header.Get("Retry-After"))}
 	}
-	return parseStream(resp.Body, onDelta, req.OnReasoning)
+	var stream io.Reader = resp.Body
+	if watchdog != nil {
+		watchdog.Reset(idle)
+		stream = &idleBody{ReadCloser: resp.Body, timer: watchdog, idle: idle}
+	}
+	res, err := parseStream(stream, onDelta, req.OnReasoning)
+	return res, stalled(err)
 }
 
 type chunk struct {
@@ -278,8 +329,8 @@ func Complete(ctx context.Context, req Request) (*Result, error) {
 
 // IsRetryable reports whether an error from Stream is worth retrying.
 func IsRetryable(err error) bool {
-	if err == nil || errors.Is(err, context.Canceled) {
-		return false
+	if err == nil || errors.Is(err, context.Canceled) || errors.Is(err, ErrStalled) {
+		return false // a provider that went silent is not asked again; the user can retry
 	}
 	var he *HTTPError
 	if errors.As(err, &he) {

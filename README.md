@@ -67,6 +67,7 @@ All configuration is through environment variables. Everything else is set in th
 | `KNITNOX_SECRET` | *(generated)* | Passphrase that encrypts API keys and MCP headers at rest. If unset, a random key is written to `$KNITNOX_DATA/secret.key` |
 | `KNITNOX_SECURE_COOKIES` | off | Set to `1` when served over HTTPS |
 | `KNITNOX_LOG` | `info` | `debug`, `info` or `warn` |
+| `KNITNOX_BACKUP_DIR` | `$KNITNOX_DATA/backups` | Where automatic backups are written. Point it at **another disk** if you can. `off` disables them |
 
 PowerShell: `$env:KNITNOX_ADDR=":3000"; go run ./cmd/knitnox`
 Bash: `KNITNOX_ADDR=:3000 go run ./cmd/knitnox`
@@ -87,6 +88,9 @@ Bash: `KNITNOX_ADDR=:3000 go run ./cmd/knitnox`
 | System prompt | … | Prepended to every chat (followed by the user's and the chat's custom instructions) |
 | Max replies generating at once | 8 | Across all chats. Extra runs wait for a free slot ("Waiting for a free slot…"). `0` = unlimited |
 | Tool approval timeout | 30 min | An "ask first" tool call nobody answers is treated as denied after this |
+| Give up on a silent model after | 300 s | If the provider sends no data for this long (before or during an answer), the reply fails with what it has so far instead of hanging. `0` = wait for ever |
+| Longest time for one reply | 60 min | A reply or agent run still going after this is stopped, so a slot is always given back. `0` = no limit |
+| Back up every / Backups to keep | 24 h / 7 | Automatic backups (see Maintenance). `0` hours = off |
 
 Each user also has, under **Settings**: custom instructions, API keys, MCP servers (with the Automatic / Ask-first switch), notifications, and "Log out everywhere".
 
@@ -239,7 +243,11 @@ Run **one instance only**. Workers and the event hub live in process memory (see
 ## Maintenance
 
 ### Backups
-One command, safe to run while the server is up:
+**Automatic:** the server writes a backup every 24 hours into `KNITNOX_BACKUP_DIR` (default `data/backups`) and keeps the newest 7. Both numbers are under **Admin → Settings → Backups**, which also shows when the last backup ran, warns when it failed (it is then retried every hour) and has a **Back up now** button. Every backup's database copy is opened and checked (`PRAGMA integrity_check`) before the backup counts as written; a backup that fails half-way is removed.
+
+The default folder is on the same disk as the data, which protects against a bad upgrade or a deleted chat but **not against a broken disk**. Set `KNITNOX_BACKUP_DIR` to another disk, or copy the folder elsewhere on a schedule. Each backup is a full copy, uploads included, so with many uploads keep fewer of them.
+
+**By hand:** one command, safe to run while the server is up:
 ```bash
 knitnox backup /backups            # → /backups/knitnox-20261109-150405/{knitnox.db, secret.key, uploads/}
 ```
@@ -252,12 +260,23 @@ What the backup contains and why:
 
 To restore: stop the server, put `knitnox.db`, `secret.key` and `uploads/` back into `KNITNOX_DATA`, start it.
 
-### Locked out / forgot the admin password
+### Forgotten passwords and usernames
+Knitnox has no e-mail, so nothing is recovered by a link. Instead:
+
+| Who | Forgot | What to do |
+|---|---|---|
+| A user | password | An admin sets a new one: **Admin → Users → ⋯ → New password**. The user is signed out everywhere and can change it again under Settings |
+| A user | username | An admin sees every name under **Admin → Users**, and can rename an account there |
+| Anyone signed in | wants another username or password | **Settings → Username** / **Password** (the current password is asked for). Changing the password signs the other devices out |
+| The admin | password or username | On the machine where Knitnox runs (see below) |
+
 ```bash
-knitnox reset-password admin 'new-password'   # also re-enables the account
-knitnox create-admin alice 'password123'
+knitnox list-users                            # every account: id, username, role, active/disabled
+knitnox reset-password alice 'new-password'   # also re-enables the account and signs it out everywhere
+knitnox rename-user alice alice.b
+knitnox create-admin carol 'password123'      # a second admin is the simplest safety net
 ```
-These commands use the same `KNITNOX_DATA` / `KNITNOX_SECRET` environment as the server.
+These commands use the same `KNITNOX_DATA` / `KNITNOX_SECRET` environment as the server and can be run while it is up. Whoever can run them owns the server, so they need no password. Sign-up asks for the password twice.
 
 ### Upgrading from Parley (the old name)
 The app was renamed from Parley to Knitnox. Existing installs keep working without changes:
@@ -281,8 +300,13 @@ Migrations in `internal/store/migrations/NNN_name.sql` run automatically at star
 ### Restarts
 A reply that is generating during a restart is marked **interrupted**, and its partial text is kept. Queued messages **resume automatically** on startup.
 
+### When something goes wrong inside a run
+- A provider that stops sending data fails the reply after the idle time above; the text so far is kept and the user can press Retry. Stalled calls are not retried automatically.
+- A bug (panic) in one reply, agent run, media job or notification is caught: that run is marked failed, the error and stack go to the log (`panic while running a reply`, `panic in background work`), and the server keeps running.
+- Still run Knitnox under something that restarts it (systemd `Restart=on-failure`, Docker `--restart unless-stopped`, or a Windows service), for the cases no program can catch, like running out of memory.
+
 ### Logs
-Logs are structured text on stderr (`log/slog`). Worth watching: `run failed`, `mcp connect failed`, `retrying LLM call`, `thread compacted`.
+Logs are structured text on stderr (`log/slog`). Worth watching: `run failed`, `run hit the time limit`, `backup failed`, `panic …`, `mcp connect failed`, `retrying LLM call`, `thread compacted`.
 
 ### Updating vendored JS and fonts
 `internal/web/static/vendor/` holds htmx 2.0.4, marked 15.0.7, DOMPurify 3.2.4 and highlight.js 11.11.1 (common-languages build). Replace the files to upgrade, and keep DOMPurify current because it is the XSS barrier for model output.

@@ -37,7 +37,10 @@ type Server struct {
 	log    *slog.Logger
 	pages  map[string]*template.Template
 	secure bool // set Secure on cookies (behind HTTPS)
-	logins *loginLimiter
+
+	dataDir   string // where knitnox.db and secret.key live
+	backupDir string // automatic backups go here ("" = off)
+	logins    *loginLimiter
 
 	vapidPublic, vapidPrivate string
 	watchMu                   sync.Mutex
@@ -63,10 +66,13 @@ func staticVersion() string {
 
 type Options struct {
 	SecureCookies bool
+	DataDir       string // the data directory (for backups)
+	BackupDir     string // where automatic backups are written; "" turns them off
 }
 
 func New(st *store.Store, eng *engine.Engine, h *hub.Hub, log *slog.Logger, opt Options) (*Server, error) {
 	s := &Server{st: st, eng: eng, hub: h, log: log, secure: opt.SecureCookies,
+		dataDir: opt.DataDir, backupDir: opt.BackupDir,
 		logins: newLoginLimiter(), watchers: map[int64]map[int64]int{}, assetVersion: staticVersion()}
 	if err := s.parseTemplates(); err != nil {
 		return nil, err
@@ -324,6 +330,7 @@ func (s *Server) Handler() http.Handler {
 
 	u("GET /settings", s.settingsPage)
 	u("POST /settings/password", s.changePassword)
+	u("POST /settings/username", s.changeUsername)
 	u("POST /settings/instructions", s.saveInstructions)
 	u("POST /settings/timezone", s.saveTimezone)
 	u("POST /settings/logout-all", s.logoutEverywhere)
@@ -374,6 +381,8 @@ func (s *Server) Handler() http.Handler {
 	a("GET /admin/settings", s.adminSettings)
 	a("POST /admin/settings", s.adminSettingsSave)
 	a("POST /admin/settings/embed-test", s.adminEmbedTest)
+	a("POST /admin/backup", s.adminBackupNow)
+	a("POST /admin/users/{uid}/username", s.adminUserRename)
 	a("POST /feed/p/{id}/unshare", s.feedUnshare)
 
 	return s.recoverer(s.securityHeaders(mux))
@@ -612,9 +621,18 @@ func (s *Server) StartJanitor(ctx context.Context) {
 		} else if n > 0 {
 			s.log.Info("removed orphaned uploads", "count", n)
 		}
+		s.autoBackup() // last: it copies the folders the sweeps above just tidied
+	}
+	safeSweep := func() {
+		defer func() {
+			if v := recover(); v != nil {
+				s.log.Error("panic in the hourly clean-up", "value", fmt.Sprint(v))
+			}
+		}()
+		sweep()
 	}
 	go func() {
-		sweep()
+		safeSweep()
 		t := time.NewTicker(time.Hour)
 		defer t.Stop()
 		for {
@@ -622,7 +640,7 @@ func (s *Server) StartJanitor(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case <-t.C:
-				sweep()
+				safeSweep()
 			}
 		}
 	}()

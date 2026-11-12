@@ -80,7 +80,10 @@ func (e *Engine) scheduler() {
 		case <-e.baseCtx.Done():
 			return
 		case <-t.C:
-			e.RunDueAgents()
+			func() {
+				defer e.recoverPanic("agent scheduler")
+				e.RunDueAgents()
+			}()
 		}
 	}
 }

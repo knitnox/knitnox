@@ -3,6 +3,8 @@
 //	knitnox                         start the server (same as "knitnox serve")
 //	knitnox create-admin USER PASS  create an admin account
 //	knitnox reset-password USER PASS
+//	knitnox list-users              show every account (for a forgotten username)
+//	knitnox rename-user OLD NEW     change a username
 //	knitnox backup DIR              snapshot database, secret key and uploads into DIR/knitnox-<time>/
 //
 // Configuration (environment variables):
@@ -11,6 +13,7 @@
 //	KNITNOX_DATA            data directory            (default "./data")
 //	KNITNOX_SECRET          encryption passphrase     (default: generated into DATA/secret.key)
 //	KNITNOX_SECURE_COOKIES  "1" when served over HTTPS
+//	KNITNOX_BACKUP_DIR      automatic backups         (default DATA/backups; "off" disables them)
 //	KNITNOX_LOG             "debug" | "info" | "warn"  (default "info")
 package main
 
@@ -104,6 +107,14 @@ func main() {
 			os.Exit(2)
 		}
 		err = userCommand(cmd, os.Args[2], os.Args[3])
+	case "list-users":
+		err = listUsers()
+	case "rename-user":
+		if len(os.Args) != 4 {
+			fmt.Fprintln(os.Stderr, "usage: knitnox rename-user OLD_USERNAME NEW_USERNAME")
+			os.Exit(2)
+		}
+		err = renameUser(os.Args[2], os.Args[3])
 	case "backup":
 		if len(os.Args) != 3 {
 			fmt.Fprintln(os.Stderr, "usage: knitnox backup DIR")
@@ -111,7 +122,7 @@ func main() {
 		}
 		err = backup(os.Args[2])
 	default:
-		fmt.Fprintln(os.Stderr, "usage: knitnox [serve | create-admin USER PASS | reset-password USER PASS | backup DIR]")
+		fmt.Fprintln(os.Stderr, "usage: knitnox [serve | list-users | create-admin USER PASS | reset-password USER PASS | rename-user OLD NEW | backup DIR]")
 		os.Exit(2)
 	}
 	if err != nil {
@@ -154,7 +165,15 @@ func serve(log *slog.Logger) error {
 	if err := eng.Start(); err != nil {
 		return err
 	}
-	srv, err := web.New(st, eng, h, log, web.Options{SecureCookies: env("KNITNOX_SECURE_COOKIES", "") == "1"})
+	dataDir := env("KNITNOX_DATA", "./data")
+	backupDir := env("KNITNOX_BACKUP_DIR", filepath.Join(dataDir, "backups"))
+	if backupDir == "off" {
+		backupDir = ""
+	} else {
+		log.Info("automatic backups", "dir", backupDir, "hint", "keep this folder on another disk than the data, or copy it elsewhere")
+	}
+	srv, err := web.New(st, eng, h, log, web.Options{SecureCookies: env("KNITNOX_SECURE_COOKIES", "") == "1",
+		DataDir: dataDir, BackupDir: backupDir})
 	if err != nil {
 		return err
 	}
@@ -241,7 +260,56 @@ func userCommand(cmd, username, password string) error {
 	if err := st.SetPassword(u.ID, string(hash)); err != nil {
 		return err
 	}
-	st.SetUserDisabled(u.ID, false)
-	fmt.Println("password reset and account enabled:", username)
+	if err := st.SetUserDisabled(u.ID, false); err != nil {
+		return err
+	}
+	if err := st.DeleteUserSessions(u.ID); err != nil { // whoever knew the old password is signed out
+		return err
+	}
+	fmt.Println("password reset, account enabled and signed out everywhere:", u.Username)
+	return nil
+}
+
+// listUsers prints every account, so a forgotten username can be looked up.
+func listUsers() error {
+	st, err := openStore()
+	if err != nil {
+		return err
+	}
+	defer st.Close()
+	users, err := st.ListUsers()
+	if err != nil {
+		return err
+	}
+	if len(users) == 0 {
+		fmt.Println("no accounts yet; the first one to sign up becomes the admin")
+		return nil
+	}
+	fmt.Printf("%-4s  %-32s  %-6s  %s\n", "ID", "USERNAME", "ROLE", "STATE")
+	for _, u := range users {
+		state := "active"
+		if u.Disabled {
+			state = "disabled"
+		}
+		fmt.Printf("%-4d  %-32s  %-6s  %s\n", u.ID, u.Username, u.Role, state)
+	}
+	return nil
+}
+
+// renameUser changes a username from the command line.
+func renameUser(oldName, newName string) error {
+	st, err := openStore()
+	if err != nil {
+		return err
+	}
+	defer st.Close()
+	u, _, err := st.UserAuth(oldName)
+	if err != nil {
+		return fmt.Errorf("user %q not found (see: knitnox list-users)", oldName)
+	}
+	if err := st.SetUsername(u.ID, newName); err != nil {
+		return err
+	}
+	fmt.Printf("renamed %s to %s\n", u.Username, strings.TrimSpace(newName))
 	return nil
 }

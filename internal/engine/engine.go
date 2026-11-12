@@ -9,7 +9,9 @@ package engine
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"sync"
 	"time"
 	"unicode/utf16"
@@ -55,6 +57,10 @@ type Engine struct {
 	OnApproval    func(ApprovalEvent)
 	// ApprovalTimeout overrides the admin setting when > 0 (tests).
 	ApprovalTimeout time.Duration
+	// runLimit, when set, replaces the length of the per-run time limit (tests).
+	runLimit func(time.Duration) time.Duration
+	// beforeRun is called before every run (tests use it to make a run panic).
+	beforeRun func(*store.Run)
 	// VideoPoll is how often a video being made is looked at (0 = every 5 seconds; tests shorten it).
 	VideoPoll time.Duration
 
@@ -328,8 +334,47 @@ func (e *Engine) work(threadID int64) {
 			}
 			e.mu.Unlock()
 		}
-		e.process(run)
+		e.safeProcess(run)
 	}
+}
+
+// recoverPanic keeps one broken piece of background work from taking the
+// whole server down. Use it as: defer e.recoverPanic("what was running").
+func (e *Engine) recoverPanic(what string) {
+	if v := recover(); v != nil {
+		e.log.Error("panic in background work", "where", what, "value", fmt.Sprint(v), "stack", string(debug.Stack()))
+	}
+}
+
+// safeProcess runs one run. If the code behind it panics, the run is marked
+// failed (so it is not picked up again) and the worker carries on.
+func (e *Engine) safeProcess(run *store.Run) {
+	defer func() {
+		v := recover()
+		if v == nil {
+			return
+		}
+		e.log.Error("panic while running a reply", "run", run.ID, "thread", run.ThreadID, "value", fmt.Sprint(v), "stack", string(debug.Stack()))
+		const msg = "something went wrong inside Knitnox; the details are in the server log"
+		e.st.FailStreamingMessages(run.ID)
+		if err := e.st.FinishRun(run.ID, store.RunFailed, msg, 0); err != nil {
+			e.log.Error("finish run after panic", "run", run.ID, "err", err)
+		}
+		e.hub.Publish(run.ThreadID, EvRun, map[string]any{"run_id": run.ID, "status": store.RunFailed, "error": msg})
+		e.hub.Publish(run.ThreadID, EvMessages, nil)
+	}()
+	if e.beforeRun != nil {
+		e.beforeRun(run)
+	}
+	e.process(run)
+}
+
+// hook calls an optional callback in its own goroutine, shielded from panics.
+func (e *Engine) hook(name string, fn func()) {
+	go func() {
+		defer e.recoverPanic(name)
+		fn()
+	}()
 }
 
 // process executes one run and records its final status.
@@ -381,7 +426,24 @@ func (e *Engine) process(run *store.Run) {
 	e.publishQueue(run.ThreadID)
 	e.hub.Publish(run.ThreadID, EvMessages, nil)
 
-	steps, err := e.execute(ctx, run)
+	// Hard limit on one run, counted from the moment it starts (waiting for a
+	// slot does not count). Together with the idle timeout on model calls it
+	// guarantees that a slot is always given back.
+	runCtx, cancelRun := ctx, context.CancelFunc(func() {})
+	maxMin := 0
+	if st, err := e.st.LoadSettings(); err == nil {
+		maxMin = st.RunMaxMinutes
+	}
+	if maxMin > 0 {
+		limit := time.Duration(maxMin) * time.Minute
+		if e.runLimit != nil {
+			limit = e.runLimit(limit)
+		}
+		runCtx, cancelRun = context.WithTimeout(ctx, limit)
+	}
+	defer cancelRun()
+
+	steps, err := e.execute(runCtx, run)
 
 	status, errMsg := store.RunDone, ""
 	if err != nil {
@@ -393,6 +455,9 @@ func (e *Engine) process(run *store.Run) {
 			status, errMsg = store.RunCancelled, "stopped"
 		case e.baseCtx.Err() != nil:
 			status, errMsg = store.RunInterrupted, "server shutting down"
+		case ctx.Err() == nil && runCtx.Err() != nil:
+			status, errMsg = store.RunFailed, fmt.Sprintf("stopped after %d minutes, the longest a reply may take (an admin can change this limit)", maxMin)
+			e.log.Warn("run hit the time limit", "run", run.ID, "thread", run.ThreadID, "minutes", maxMin)
 		default:
 			status, errMsg = store.RunFailed, err.Error()
 			e.log.Warn("run failed", "run", run.ID, "thread", run.ThreadID, "err", err)
@@ -405,7 +470,8 @@ func (e *Engine) process(run *store.Run) {
 	e.hub.Publish(run.ThreadID, EvRun, map[string]any{"run_id": run.ID, "status": status, "error": errMsg})
 	e.hub.Publish(run.ThreadID, EvMessages, nil)
 	if e.OnRunFinished != nil {
-		go e.OnRunFinished(RunEvent{ThreadID: run.ThreadID, RunID: run.ID, AuthorID: run.AuthorUserID, Status: status, Error: errMsg})
+		ev := RunEvent{ThreadID: run.ThreadID, RunID: run.ID, AuthorID: run.AuthorUserID, Status: status, Error: errMsg}
+		e.hook("run-finished hook", func() { e.OnRunFinished(ev) })
 	}
 }
 

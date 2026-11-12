@@ -11,6 +11,7 @@ import (
 	_ "image/gif" // sizes of pictures the models send back
 	_ "image/jpeg"
 	_ "image/png"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -127,6 +128,13 @@ func (e *Engine) CreateFeedPost(userID int64, in store.FeedPostInput, by store.F
 		e.wg.Add(1)
 		go func() {
 			defer e.wg.Done()
+			defer func() { // a post must never stay "being made" for ever
+				if v := recover(); v != nil {
+					e.log.Error("panic while making feed media", "post", id, "value", fmt.Sprint(v), "stack", string(debug.Stack()))
+					e.st.FailFeedMedia(id, "something went wrong inside Knitnox")
+					e.announceFeed(userID, id, false, true)
+				}
+			}()
 			e.makeFeedMedia(userID, id, in.MediaKind, in.MediaPrompt, checkModel, by.ThreadID)
 		}()
 	}

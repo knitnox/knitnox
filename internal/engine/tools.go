@@ -117,6 +117,7 @@ func (e *Engine) connectServers(ctx context.Context, ts *toolset, servers []stor
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			defer e.recoverPanic("connecting to tool server " + srv.Name)
 			cctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 			defer cancel()
 			c, err := mcp.Connect(cctx, srv.URL, srv.Headers)
@@ -252,8 +253,9 @@ func (e *Engine) awaitApproval(ctx context.Context, tc *turnCtx, msgID int64, ca
 		if tc.thread.OwnerUserID != tc.run.AuthorUserID {
 			approvers = append(approvers, tc.thread.OwnerUserID)
 		}
-		go e.OnApproval(ApprovalEvent{ThreadID: tc.thread.ID, RunID: tc.run.ID, ApprovalID: id,
-			Approvers: approvers, ToolName: route.name, ServerName: route.server})
+		ev := ApprovalEvent{ThreadID: tc.thread.ID, RunID: tc.run.ID, ApprovalID: id,
+			Approvers: approvers, ToolName: route.name, ServerName: route.server}
+		e.hook("approval hook", func() { e.OnApproval(ev) })
 	}
 
 	timeout := time.Duration(max(tc.settings.ApprovalTimeoutMin, 1)) * time.Minute

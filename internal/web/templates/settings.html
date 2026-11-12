@@ -14,6 +14,7 @@
           <a class="chip" href="#keys">{{template "i-key"}}API keys</a>
           <a class="chip" href="#tools">{{template "i-plug"}}Tools</a>
           <a class="chip" href="#notifications">{{template "i-bell"}}Notifications</a>
+          <a class="chip" href="#username">{{template "i-user-plus"}}Username</a>
           <a class="chip" href="#password">{{template "i-lock"}}Password</a>
           <a class="chip" href="#shortcuts">{{template "i-keyboard"}}Shortcuts</a>
         </nav>
@@ -145,6 +146,18 @@
           </div>
         </section>
 
+        <section class="section" id="username">
+          <div class="section-head">
+            <div class="section-icon">{{template "i-user-plus"}}</div>
+            <div><h2>Username</h2><p>The name you sign in with and that others see in group chats. Your chats and settings stay as they are.</p></div>
+          </div>
+          <form class="card form-grid" hx-post="/settings/username">
+            <label>New username <input name="username" value="{{.Me.Username}}" required minlength="3" maxlength="32" pattern="[a-zA-Z0-9_.\-]{3,32}" autocomplete="username" autocapitalize="none" spellcheck="false" title="3 to 32 characters: letters, digits, _ . -"></label>
+            <label>Current password <small class="muted">to confirm it is you</small><input name="current" type="password" required autocomplete="current-password"></label>
+            <div class="span-2 row wrap"><button type="submit" class="btn primary">Change username</button></div>
+          </form>
+        </section>
+
         <section class="section" id="password">
           <div class="section-head">
             <div class="section-icon">{{template "i-lock"}}</div>
@@ -153,6 +166,8 @@
           <form class="card form-grid" hx-post="/settings/password" data-reset>
             <label>Current password <input name="current" type="password" required autocomplete="current-password"></label>
             <label>New password <input name="new" type="password" required minlength="8" autocomplete="new-password"></label>
+            <label>New password again <input name="new2" type="password" required minlength="8" autocomplete="new-password" data-same-as="new"></label>
+            <p class="span-2 muted small">Changing your password signs you out on your other devices. Forgot it? An administrator can set a new one for you.</p>
             <div class="span-2 row wrap">
               <button type="submit" class="btn primary">Update password</button>
               <span class="grow"></span>

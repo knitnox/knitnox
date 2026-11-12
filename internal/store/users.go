@@ -3,6 +3,7 @@ package store
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"strings"
@@ -122,6 +123,76 @@ func (s *Store) PasswordHash(userID int64) (string, error) {
 
 func (s *Store) SetPassword(userID int64, hash string) error {
 	_, err := s.DB.Exec(`UPDATE users SET password_hash = ? WHERE id = ?`, hash, userID)
+	return err
+}
+
+// Username rules, checked wherever a name is chosen or changed.
+var (
+	ErrBadUsername   = errors.New("a username is 3 to 32 characters: letters, digits, _ . -")
+	ErrUsernameTaken = errors.New("that username is taken")
+)
+
+// ValidUsername reports whether name may be used as a username.
+func ValidUsername(name string) bool {
+	if len(name) < 3 || len(name) > 32 {
+		return false
+	}
+	for _, r := range name {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '_' || r == '.' || r == '-') {
+			return false
+		}
+	}
+	return true
+}
+
+// SetUsername renames an account. Names are unique whatever their case, but
+// one person may change the case of their own name.
+func (s *Store) SetUsername(userID int64, name string) error {
+	name = strings.TrimSpace(name)
+	if !ValidUsername(name) {
+		return ErrBadUsername
+	}
+	var other int64
+	err := s.DB.QueryRow(`SELECT id FROM users WHERE username = ? AND id != ?`, name, userID).Scan(&other)
+	if err == nil {
+		return ErrUsernameTaken
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	res, err := s.DB.Exec(`UPDATE users SET username = ? WHERE id = ?`, name, userID)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") { // someone took it in the same moment
+			return ErrUsernameTaken
+		}
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// ListUsers returns every account, oldest first.
+func (s *Store) ListUsers() ([]User, error) {
+	rows, err := s.DB.Query(`SELECT ` + userCols + ` FROM users ORDER BY id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *u)
+	}
+	return out, rows.Err()
+}
+
+// DeleteOtherSessions signs the user out everywhere except the session of keepToken.
+func (s *Store) DeleteOtherSessions(userID int64, keepToken string) error {
+	_, err := s.DB.Exec(`DELETE FROM sessions WHERE user_id = ? AND token_hash != ?`, userID, hashToken(keepToken))
 	return err
 }
 

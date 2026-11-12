@@ -109,6 +109,7 @@ type app struct {
 	st  *store.Store
 	eng *engine.Engine
 	srv *httptest.Server
+	web *Server
 }
 
 func newApp(t *testing.T) *app {
@@ -132,7 +133,7 @@ func newApp(t *testing.T) *app {
 	}
 	srv := httptest.NewServer(s.Handler())
 	t.Cleanup(srv.Close)
-	return &app{t: t, st: st, eng: eng, srv: srv}
+	return &app{t: t, st: st, eng: eng, srv: srv, web: s}
 }
 
 // client is a signed-in browser with its own cookie jar and CSRF token.
@@ -148,7 +149,7 @@ var csrfRe = regexp.MustCompile(`data-csrf="([^"]+)"`)
 func (a *app) register(username string) *client {
 	jar, _ := cookiejar.New(nil)
 	c := &client{a: a, http: &http.Client{Jar: jar, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
-	r, err := c.http.PostForm(a.srv.URL+"/register", url.Values{"username": {username}, "password": {"password123"}})
+	r, err := c.http.PostForm(a.srv.URL+"/register", url.Values{"username": {username}, "password": {"password123"}, "password2": {"password123"}})
 	if err != nil {
 		a.t.Fatal(err)
 	}

@@ -97,7 +97,7 @@ func (e *Engine) maybeCompact(ctx context.Context, tc *turnCtx) error {
 
 	var res *llm.Result
 	for attempt := 0; ; attempt++ {
-		res, err = llm.Complete(cctx, llm.Request{BaseURL: provider.BaseURL, APIKey: provider.APIKey, Model: model.Name, Messages: msgs})
+		res, err = llm.Complete(cctx, llm.Request{BaseURL: provider.BaseURL, APIKey: provider.APIKey, Model: model.Name, Messages: msgs, IdleTimeout: idleTimeout(st)})
 		if err == nil || attempt >= st.LLMMaxRetries || !llm.IsRetryable(err) {
 			break
 		}

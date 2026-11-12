@@ -12,6 +12,7 @@
       <input type="hidden" name="next" value="{{.Next}}">
       <label>Username <input name="username" value="{{.Username}}" required autofocus autocomplete="username" autocapitalize="none" spellcheck="false"></label>
       <label>Password <input name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="At least 8 characters"></label>
+      <label>Password again <input name="password2" type="password" required minlength="8" autocomplete="new-password" placeholder="Type it once more" data-same-as="password"></label>
       <button type="submit" class="btn primary block lg">Create account</button>
     </form>
     {{if not .First}}<p class="auth-alt">Already have an account? <a href="/login{{if .Next}}?next={{.Next}}{{end}}">Log in</a></p>{{end}}
@@ -26,6 +27,11 @@
       <button type="submit" class="btn primary block lg">Log in</button>
     </form>
     {{if .AllowSignup}}<p class="auth-alt">New here? <a href="/register{{if .Next}}?next={{.Next}}{{end}}">Create an account</a></p>{{end}}
+    <details class="auth-help">
+      <summary>Forgot your password or username?</summary>
+      <p>Ask an administrator of this Knitnox. They can tell you your username and set a new password for you under <b>Admin → Users</b>.</p>
+      <p>If you are the administrator, run <span class="mono">knitnox list-users</span> and <span class="mono">knitnox reset-password NAME NEW-PASSWORD</span> on the computer where Knitnox runs.</p>
+    </details>
     {{end}}
   </div>
 </main>

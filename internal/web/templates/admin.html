@@ -113,7 +113,29 @@
               <label>Retries per model call <input name="llm_max_retries" type="number" min="0" max="10" value="{{.S.LLMMaxRetries}}"></label>
               <label>Max replies generating at once <small class="muted">across all chats · 0 = unlimited</small><input name="max_parallel_runs" type="number" min="0" max="1000" value="{{.S.MaxParallelRuns}}"></label>
               <label>Tool approval timeout (minutes) <small class="muted">unanswered approvals are denied after this</small><input name="approval_timeout_min" type="number" min="1" max="1440" value="{{.S.ApprovalTimeoutMin}}"></label>
+              <label>Give up on a silent model after (seconds) <small class="muted">if the AI provider sends nothing for this long, the reply fails instead of hanging · 0 = wait for ever</small><input name="llm_idle_seconds" type="number" min="0" max="3600" value="{{.S.LLMIdleSeconds}}"></label>
+              <label>Longest time for one reply (minutes) <small class="muted">a reply or agent run still going after this is stopped · 0 = no limit</small><input name="run_max_minutes" type="number" min="0" max="1440" value="{{.S.RunMaxMinutes}}"></label>
             </div>
+          </div>
+          <div class="card" id="backups">
+            <div class="h-row"><h3 class="card-title">Backups</h3>
+              {{template "tip-open" "What is saved?"}}A backup is a folder with a checked copy of the database (every chat, account and setting), the key that unlocks saved API keys, and all uploaded files. To go back to one: stop Knitnox, copy the folder's contents over the data folder, start it again. Keep the backup folder on a <b>different disk</b> than the data, or copy it elsewhere, so one broken disk cannot take both.{{template "tip-close"}}
+            </div>
+            {{if not .Backup.Dir}}
+            <p class="muted">Automatic backups are off on this server (no backup folder is set).</p>
+            {{else}}
+            <p class="muted">
+              {{if not .Backup.At}}No backup has been made yet. The first one runs within the hour.
+              {{else if .Backup.OK}}{{template "i-check"}} Last backup: {{.Backup.At}} UTC · {{.Backup.Count}} kept in <span class="mono">{{.Backup.Dir}}</span>
+              {{else}}{{template "i-alert"}} <b>The last backup failed</b> ({{.Backup.At}} UTC): {{.Backup.Detail}}. It is tried again every hour.{{end}}
+              {{if not .Backup.Enabled}}<br>Automatic backups are switched off below.{{end}}
+            </p>
+            <div class="form-grid">
+              <label>Back up every (hours) <small class="muted">24 = once a day · 0 = never</small><input name="backup_every_hours" type="number" min="0" max="720" value="{{.S.BackupEveryHours}}"></label>
+              <label>Backups to keep <small class="muted">older ones are deleted</small><input name="backup_keep" type="number" min="1" max="365" value="{{.S.BackupKeep}}"></label>
+            </div>
+            <div class="row wrap"><button type="button" class="btn" hx-post="/admin/backup">Back up now</button></div>
+            {{end}}
           </div>
           <div class="card" id="memory">
             <div class="h-row"><h3 class="card-title">Long-term memory: smart search</h3>
@@ -196,8 +218,12 @@
             <button hx-post="/admin/users/{{.ID}}/toggle-admin" hx-target="#users" hx-swap="outerHTML">{{template "i-shield"}}{{if eq .Role "admin"}}Remove admin{{else}}Make admin{{end}}</button>
             <button hx-post="/admin/users/{{.ID}}/toggle-disabled" hx-target="#users" hx-swap="outerHTML">{{template "i-power"}}{{if .Disabled}}Enable account{{else}}Disable account{{end}}</button>
             <form class="menu-form" hx-post="/admin/users/{{.ID}}/password" data-reset>
-              <input name="password" type="password" placeholder="New password" minlength="8" required autocomplete="new-password" aria-label="New password">
+              <input name="password" type="password" placeholder="New password" minlength="8" required autocomplete="new-password" aria-label="New password for {{.Username}}">
               <button type="submit" class="btn sm">Set</button>
+            </form>
+            <form class="menu-form" hx-post="/admin/users/{{.ID}}/username" hx-target="#users" hx-swap="outerHTML">
+              <input name="username" value="{{.Username}}" minlength="3" maxlength="32" required autocomplete="off" autocapitalize="none" spellcheck="false" aria-label="New username for {{.Username}}">
+              <button type="submit" class="btn sm">Rename</button>
             </form>
             <div class="menu-sep"></div>
             <button class="danger-text" hx-post="/admin/users/{{.ID}}/delete" hx-target="#users" hx-swap="outerHTML" hx-confirm="Delete {{.Username}} and all their chats?">{{template "i-trash"}}Delete user</button>

@@ -317,7 +317,9 @@ Both need the site to be served over `https://`.
 
 ## Your account
 
-Under **Settings** you can change your password, see how much of your token allowance you have used, add your own API keys, and **Log out everywhere**.
+Under **Settings** you can change your username and your password, see how much of your token allowance you have used, add your own API keys, and **Log out everywhere**. Changing your password signs you out on your other devices.
+
+**Forgot your password or username?** Ask an administrator of your Knitnox: they can tell you your username and set a new password for you under **Admin → Users**. There is no e-mail reset.
 
 Only shared models count toward your allowance. Your own keys are never limited.
 

@@ -215,6 +215,16 @@
     renderAll(e.target);
     if (panel && e.target === panel) { panel.hidden = false; panelScrim.hidden = false; }
   });
+  // A box marked data-same-as="other" must hold the same text as that other box
+  // (typing a new password twice). The browser then shows the message itself.
+  document.addEventListener("input", (e) => {
+    const form = e.target.form;
+    if (!form) return;
+    for (const el of form.querySelectorAll("[data-same-as]")) {
+      const other = form.elements[el.dataset.sameAs];
+      el.setCustomValidity(other && el.value && other.value !== el.value ? "The two passwords are not the same." : "");
+    }
+  });
   document.addEventListener("htmx:afterRequest", (e) => {
     const form = e.target.closest?.("form[data-reset]");
     if (form && e.detail.successful && e.detail.elt === form) { form.reset(); $("[data-refocus]", form)?.focus(); } // ready for the next one

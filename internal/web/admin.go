@@ -190,10 +190,39 @@ func (s *Server) adminUserPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	uid := pathID(r, "uid")
-	s.st.SetPassword(uid, hash)
+	if _, err := s.st.UserByID(uid); err != nil {
+		s.errorPage(w, r, http.StatusNotFound, "User not found.")
+		return
+	}
+	if err := s.st.SetPassword(uid, hash); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	s.st.DeleteUserSessions(uid)
 	s.audit(r, "user.password_reset", s.userName(uid), "")
 	s.flash(w, r, "Password updated. The user has been logged out everywhere.")
+}
+
+// adminUserRename changes someone's username (for a person who wants another
+// name, or who cannot sign in to change it).
+func (s *Server) adminUserRename(w http.ResponseWriter, r *http.Request) {
+	uid := pathID(r, "uid")
+	u, err := s.st.UserByID(uid)
+	if err != nil {
+		s.errorPage(w, r, http.StatusNotFound, "User not found.")
+		return
+	}
+	name := strings.TrimSpace(r.FormValue("username"))
+	if err := s.st.SetUsername(uid, name); err != nil {
+		if msg := usernameProblem(err); msg != "" {
+			s.flash(w, r, msg)
+			return
+		}
+		s.serverError(w, r, err)
+		return
+	}
+	s.audit(r, "user.rename", u.Username, "now "+name)
+	s.renderUsers(w, r, false)
 }
 
 func (s *Server) adminUserDelete(w http.ResponseWriter, r *http.Request) {
@@ -271,7 +300,7 @@ func (s *Server) adminSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	models, _ := s.st.AllGlobalModelOptions()
 	providers, _ := s.st.ListProviders(nil) // for the memory embedding model
-	s.render(w, r, "admin", map[string]any{"Tab": "settings", "S": st, "Models": models, "Providers": providers,
+	s.render(w, r, "admin", map[string]any{"Tab": "settings", "S": st, "Models": models, "Providers": providers, "Backup": s.backupStatus(st),
 		"Saved": r.URL.Query().Get("saved") == "1"})
 }
 
@@ -293,6 +322,10 @@ func (s *Server) adminSettingsSave(w http.ResponseWriter, r *http.Request) {
 		SystemPrompt:           strings.TrimSpace(r.FormValue("system_prompt")),
 		MaxParallelRuns:        clamp("max_parallel_runs", int64(d.MaxParallelRuns), 0, 1000),
 		ApprovalTimeoutMin:     clamp("approval_timeout_min", int64(d.ApprovalTimeoutMin), 1, 1440),
+		LLMIdleSeconds:         clamp("llm_idle_seconds", int64(d.LLMIdleSeconds), 0, 3600),
+		RunMaxMinutes:          clamp("run_max_minutes", int64(d.RunMaxMinutes), 0, 1440),
+		BackupEveryHours:       clamp("backup_every_hours", int64(d.BackupEveryHours), 0, 720),
+		BackupKeep:             clamp("backup_keep", int64(d.BackupKeep), 1, 365),
 		EmbedProviderID:        formInt(r, "embed_provider_id", 0),
 		EmbedModel:             strings.TrimSpace(r.FormValue("embed_model")),
 		EmbedDimensions:        clamp("embed_dimensions", 0, 0, 8192),

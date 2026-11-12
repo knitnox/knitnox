@@ -1,0 +1,4 @@
+# Keep LF line endings on every OS: the files are embedded in the binary and the shell scripts need LF.
+* text=auto eol=lf
+*.png binary
+*.woff2 binary

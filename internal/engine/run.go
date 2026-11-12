@@ -440,7 +440,7 @@ func (e *Engine) streamStep(ctx context.Context, tc *turnCtx, msgs []llm.Message
 	}
 
 	req := llm.Request{BaseURL: tc.provider.BaseURL, APIKey: tc.provider.APIKey, Model: tc.model.Name,
-		Messages: msgs, Tools: defs, OnReasoning: onReasoning}
+		Messages: msgs, Tools: defs, OnReasoning: onReasoning, IdleTimeout: idleTimeout(tc.settings)}
 	var res *llm.Result
 	for attempt := 0; ; attempt++ {
 		res, err = llm.Stream(ctx, req, onDelta)
@@ -488,6 +488,14 @@ func (e *Engine) streamStep(ctx context.Context, tc *turnCtx, msgs []llm.Message
 	e.recordUsage(tc, "chat", tc.run.AuthorUserID, tc.model, tc.provider, msgs, res)
 	e.hub.Publish(threadID, EvMessages, nil)
 	return res, msgID, nil
+}
+
+// idleTimeout turns the admin setting into the llm package's form.
+func idleTimeout(st store.Settings) time.Duration {
+	if st.LLMIdleSeconds <= 0 {
+		return -1 // never give up
+	}
+	return time.Duration(st.LLMIdleSeconds) * time.Second
 }
 
 func (e *Engine) recordUsage(tc *turnCtx, kind string, userID int64, m *store.Model, p *store.Provider, in []llm.Message, res *llm.Result) {

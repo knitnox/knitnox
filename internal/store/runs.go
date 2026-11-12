@@ -184,6 +184,12 @@ func (s *Store) RecoverAfterRestart() error {
 	return s.ExpirePendingApprovals()
 }
 
+// FailStreamingMessages closes the half-written answers of a run that broke.
+func (s *Store) FailStreamingMessages(runID int64) error {
+	_, err := s.DB.Exec(`UPDATE messages SET status = 'failed' WHERE run_id = ? AND status = 'streaming'`, runID)
+	return err
+}
+
 func (s *Store) ThreadsWithPendingRuns() ([]int64, error) {
 	rows, err := s.DB.Query(`SELECT DISTINCT thread_id FROM runs WHERE status = 'pending'`)
 	if err != nil {

@@ -17,6 +17,10 @@ type Settings struct {
 	SystemPrompt           string
 	MaxParallelRuns        int // generations running at once across all chats (0 = unlimited)
 	ApprovalTimeoutMin     int // minutes a tool call waits for approval before it is denied
+	LLMIdleSeconds         int // a model call is given up after this long without data (0 = never)
+	RunMaxMinutes          int // a reply or agent run is stopped after this long (0 = never)
+	BackupEveryHours       int // automatic backups (0 = off)
+	BackupKeep             int // how many automatic backups are kept
 	// Long-term memory: the embedding model that powers "smart search" for
 	// everyone who has not set their own. Provider 0 or an empty model = off.
 	EmbedProviderID int64
@@ -41,6 +45,10 @@ func DefaultSettings() Settings {
 		SystemPrompt:           "You are a helpful assistant. Answer concisely and use Markdown when it helps.",
 		MaxParallelRuns:        8,
 		ApprovalTimeoutMin:     30,
+		LLMIdleSeconds:         300,
+		RunMaxMinutes:          60,
+		BackupEveryHours:       24,
+		BackupKeep:             7,
 		FeedPublic:             true,
 		FeedMediaDaily:         20,
 	}
@@ -91,6 +99,14 @@ func (s *Store) LoadSettings() (Settings, error) {
 			st.MaxParallelRuns = atoi(st.MaxParallelRuns)
 		case "approval_timeout_min":
 			st.ApprovalTimeoutMin = atoi(st.ApprovalTimeoutMin)
+		case "llm_idle_seconds":
+			st.LLMIdleSeconds = atoi(st.LLMIdleSeconds)
+		case "run_max_minutes":
+			st.RunMaxMinutes = atoi(st.RunMaxMinutes)
+		case "backup_every_hours":
+			st.BackupEveryHours = atoi(st.BackupEveryHours)
+		case "backup_keep":
+			st.BackupKeep = atoi(st.BackupKeep)
 		case "embed_provider_id":
 			st.EmbedProviderID = int64(atoi(0))
 		case "embed_model":
@@ -120,6 +136,10 @@ func (s *Store) SaveSettings(st Settings) error {
 		"system_prompt":            st.SystemPrompt,
 		"max_parallel_runs":        strconv.Itoa(st.MaxParallelRuns),
 		"approval_timeout_min":     strconv.Itoa(st.ApprovalTimeoutMin),
+		"llm_idle_seconds":         strconv.Itoa(st.LLMIdleSeconds),
+		"run_max_minutes":          strconv.Itoa(st.RunMaxMinutes),
+		"backup_every_hours":       strconv.Itoa(st.BackupEveryHours),
+		"backup_keep":              strconv.Itoa(st.BackupKeep),
 		"embed_provider_id":        strconv.FormatInt(st.EmbedProviderID, 10),
 		"embed_model":              st.EmbedModel,
 		"embed_dimensions":         strconv.Itoa(st.EmbedDimensions),

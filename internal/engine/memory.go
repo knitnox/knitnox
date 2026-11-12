@@ -145,6 +145,7 @@ func (e *Engine) IndexMemoriesSoon(userID int64) {
 	go func() {
 		defer e.wg.Done()
 		defer memIndexing.Delete(userID)
+		defer e.recoverPanic("memory indexing")
 		ctx, cancel := context.WithTimeout(e.baseCtx, 10*time.Minute)
 		defer cancel()
 		if n, err := e.IndexMemories(ctx, userID); err != nil && ctx.Err() == nil {

@@ -193,6 +193,14 @@ func hashPassword(p string) (string, error) {
 	return string(h), err
 }
 
+// passwordProblem turns a hashing error into words for the person typing.
+func passwordProblem(err error) string {
+	if errors.Is(err, bcrypt.ErrPasswordTooLong) {
+		return "That password is too long. Use at most 72 characters."
+	}
+	return "That password could not be used: " + err.Error()
+}
+
 func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 	n, _ := s.st.CountUsers()
 	st, _ := s.st.LoadSettings()
@@ -210,9 +218,13 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 		fail(err.Error())
 		return
 	}
+	if r.FormValue("password2") != password {
+		fail("The two passwords are not the same. Type the same password in both boxes.")
+		return
+	}
 	hash, err := hashPassword(password)
 	if err != nil {
-		s.serverError(w, r, err)
+		fail(passwordProblem(err))
 		return
 	}
 	role := "user"
@@ -255,13 +267,71 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 		s.flash(w, r, "New password must be at least 8 characters.")
 		return
 	}
+	if r.FormValue("new2") != r.FormValue("new") {
+		s.flash(w, r, "The two new passwords are not the same.")
+		return
+	}
 	nh, err := hashPassword(r.FormValue("new"))
+	if err != nil {
+		s.flash(w, r, passwordProblem(err))
+		return
+	}
+	if err := s.st.SetPassword(u.ID, nh); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	// Whoever else was signed in with the old password is signed out; this device stays.
+	if c, err := sessionFromRequest(r); err == nil {
+		if err := s.st.DeleteOtherSessions(u.ID, c.Value); err != nil {
+			s.log.Warn("could not sign out other devices after a password change", "user", u.ID, "err", err)
+		}
+	}
+	s.flash(w, r, "Password changed. Other devices were signed out.")
+}
+
+// usernameProblem turns a rename error into words for the person typing ("" = not one of ours).
+func usernameProblem(err error) string {
+	switch {
+	case errors.Is(err, store.ErrBadUsername):
+		return "A username is 3 to 32 characters: letters, digits, _ . -"
+	case errors.Is(err, store.ErrUsernameTaken):
+		return "That username is taken."
+	}
+	return ""
+}
+
+// changeUsername lets a signed-in person pick a new username. The current
+// password is asked for, so a device left unlocked cannot be used to do it.
+func (s *Server) changeUsername(w http.ResponseWriter, r *http.Request) {
+	u := currentUser(r)
+	hash, err := s.st.PasswordHash(u.ID)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	s.st.SetPassword(u.ID, nh)
-	s.flash(w, r, "Password changed.")
+	if bcrypt.CompareHashAndPassword([]byte(hash), []byte(r.FormValue("current"))) != nil {
+		s.flash(w, r, "Current password is wrong.")
+		return
+	}
+	name := strings.TrimSpace(r.FormValue("username"))
+	if name == u.Username {
+		s.flash(w, r, "That is already your username.")
+		return
+	}
+	if err := s.st.SetUsername(u.ID, name); err != nil {
+		if msg := usernameProblem(err); msg != "" {
+			s.flash(w, r, msg)
+			return
+		}
+		s.serverError(w, r, err)
+		return
+	}
+	s.st.Audit(u.ID, name, "user.rename_self", u.Username, "now "+name)
+	if isHX(r) {
+		w.Header().Set("HX-Refresh", "true") // the name is shown all over the page
+		return
+	}
+	back(w, r, "/settings")
 }
 
 // saveInstructions stores the user's personal custom instructions.

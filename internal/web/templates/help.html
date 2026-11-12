@@ -1,0 +1,109 @@
+{{define "title"}}{{if eq .Tab "issues"}}Issues{{else}}{{.DocTitle}}{{end}} · Help · Knitnox{{end}}
+
+{{define "content"}}
+<div class="shell">
+  {{template "sidebar" .}}
+  <main class="main" id="main" tabindex="-1">
+    {{template "page-top" "Help"}}
+    <div class="page-scroll" id="help-scroll">
+      <div class="page">
+        <nav class="tabs" aria-label="Help sections">
+          {{range .Docs}}<a href="/help/{{.Slug}}" class="{{if eq .Slug $.Tab}}is-active{{end}}">{{if eq .Slug "guide"}}{{template "i-bulb"}}{{else if eq .Slug "features"}}{{template "i-sparkles"}}{{else if eq .Slug "build"}}{{template "i-wrench"}}{{else}}{{template "i-code"}}{{end}}{{.Title}}</a>{{end}}
+          <a href="/issues" class="{{if eq .Tab "issues"}}is-active{{end}}">{{template "i-alert"}}Issues{{if .OpenIssues}} <span class="badge">{{.OpenIssues}}</span>{{end}}</a>
+        </nav>
+
+        {{if ne .Tab "issues"}}
+        <header class="help-hero">
+          <h2>{{.DocTitle}}</h2>
+          <nav class="help-toc" id="help-toc" aria-label="On this page" hidden></nav>
+        </header>
+        <article class="card help-doc"><div class="md" id="help-body">{{.Body}}</div></article>
+        <p class="hint help-foot">Something missing or wrong in this guide? <a href="/issues">Report it under Issues</a>.</p>
+
+        {{else}}
+        <section class="section">
+          <div class="section-head">
+            <div class="section-icon">{{template "i-alert"}}</div>
+            <div><h2>Issues</h2><p>Report a bug, suggest an idea or ask a question. Everyone on this server can read what is written here, so never paste passwords or keys.</p></div>
+          </div>
+
+          <details class="card add-card"{{if and (eq .Show "open") (not .Issues)}} open{{end}}>
+            <summary>{{template "i-plus"}}<span>Report an issue</span></summary>
+            <form class="form-grid" method="post" action="/issues">
+              <input type="hidden" name="_csrf" value="{{.CSRF}}">
+              <label>What kind?
+                <select name="kind">
+                  <option value="bug">Bug: something does not work</option>
+                  <option value="idea">Idea: something to add or improve</option>
+                  <option value="question">Question: something is unclear</option>
+                </select>
+              </label>
+              <label>Title <input name="title" maxlength="150" placeholder="Short summary, e.g. Agent does not start on schedule" required></label>
+              <label class="span-2">Details <small class="muted">what you did, what you expected, what happened instead</small>
+                <textarea name="body" rows="5" maxlength="4000" placeholder="1. I opened …&#10;2. I clicked …&#10;I expected … but saw …"></textarea></label>
+              <div class="span-2"><button type="submit" class="btn primary">Send</button></div>
+            </form>
+          </details>
+
+          <div class="seg-links">
+            <a href="/issues" class="{{if eq .Show "open"}}is-active{{end}}">Open ({{.OpenIssues}})</a>
+            <a href="/issues?show=done" class="{{if eq .Show "done"}}is-active{{end}}">Done ({{.DoneIssues}})</a>
+            <a href="/issues?show=mine" class="{{if eq .Show "mine"}}is-active{{end}}">Mine</a>
+          </div>
+
+          <div class="stack">
+            {{range .Issues}}
+            <article class="issue{{if eq .Status "done"}} is-done{{end}}" id="issue-{{.ID}}">
+              <header class="issue-head">
+                <span class="badge kind-{{.Kind}}">{{if eq .Kind "idea"}}Idea{{else if eq .Kind "question"}}Question{{else}}Bug{{end}}</span>
+                <h3>{{.Title}}</h3>
+                {{if eq .Status "done"}}<span class="badge">Done</span>{{end}}
+              </header>
+              {{if .Body}}<p class="issue-body">{{.Body}}</p>{{end}}
+              <div class="task-meta"><span>#{{.ID}} · by {{if .AuthorName}}{{.AuthorName}}{{else}}a former member{{end}} · {{short .CreatedAt}} UTC</span></div>
+              {{if .Reply}}<div class="issue-reply"><b>Reply from {{.ReplyBy}}</b><p>{{.Reply}}</p></div>{{end}}
+
+              {{if .CanChange}}
+              <div class="row wrap issue-actions">
+                <form method="post" action="/issues/{{.ID}}">
+                  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+                  {{if eq .Status "open"}}<button class="btn sm" name="action" value="done">{{template "i-check"}}Mark as done</button>
+                  {{else}}<button class="btn sm" name="action" value="reopen">{{template "i-refresh"}}Reopen</button>{{end}}
+                </form>
+                <form method="post" action="/issues/{{.ID}}" data-confirm="Delete this issue? This cannot be undone.">
+                  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+                  <button class="btn ghost sm" name="action" value="delete">{{template "i-trash"}}Delete</button>
+                </form>
+              </div>
+              {{end}}
+              {{if $.Me.IsAdmin}}
+              <details class="advanced">
+                <summary>{{if .Reply}}Edit reply{{else}}Reply as admin{{end}}</summary>
+                <form class="stack sm" method="post" action="/issues/{{.ID}}">
+                  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+                  <input type="hidden" name="action" value="reply">
+                  <textarea name="reply" rows="2" maxlength="2000" placeholder="What was done, or what the person should try" aria-label="Reply">{{.Reply}}</textarea>
+                  <div class="row wrap">
+                    {{if eq .Status "open"}}<label class="check grow"><input type="checkbox" name="close" value="1"><span>Also mark as done</span></label>{{else}}<span class="grow"></span>{{end}}
+                    <button type="submit" class="btn primary sm">Save reply</button>
+                  </div>
+                </form>
+              </details>
+              {{end}}
+            </article>
+            {{else}}
+            <div class="empty-card">
+              <div class="empty-icon">{{template "i-check"}}</div>
+              {{if eq .Show "mine"}}<p>You have not reported anything</p><span>Use “Report an issue” above.</span>
+              {{else if eq .Show "done"}}<p>Nothing finished yet</p><span>Closed issues are listed here.</span>
+              {{else}}<p>No open issues</p><span>Found a problem or have an idea? Use “Report an issue” above.</span>{{end}}
+            </div>
+            {{end}}
+          </div>
+        </section>
+        {{end}}
+      </div>
+    </div>
+  </main>
+</div>
+{{end}}

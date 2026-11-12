@@ -1,0 +1,213 @@
+{{define "title"}}Admin · Knitnox{{end}}
+
+{{define "content"}}
+<div class="shell">
+  {{template "sidebar" .}}
+  <main class="main" id="main" tabindex="-1">
+    {{template "page-top" "Admin panel"}}
+    <div class="page-scroll">
+      <div class="page">
+        <nav class="tabs" aria-label="Admin sections">
+          <a href="/admin/providers" class="{{if eq .Tab "providers"}}is-active{{end}}">{{template "i-server"}}Providers</a>
+          <a href="/admin/users" class="{{if eq .Tab "users"}}is-active{{end}}">{{template "i-users"}}Users</a>
+          <a href="/admin/usage" class="{{if eq .Tab "usage"}}is-active{{end}}">{{template "i-chart"}}Usage</a>
+          <a href="/admin/audit" class="{{if eq .Tab "audit"}}is-active{{end}}">{{template "i-list"}}Audit</a>
+          <a href="/admin/settings" class="{{if eq .Tab "settings"}}is-active{{end}}">{{template "i-settings"}}Settings</a>
+        </nav>
+
+        {{if eq .Tab "providers"}}
+        <p class="lead">Shared providers are available to everyone. Their usage counts toward each user's quota.</p>
+        {{template "provider_form" .}}
+        {{template "providers" .}}
+
+        {{else if eq .Tab "users"}}
+        <details class="card add-card">
+          <summary>{{template "i-user-plus"}}<span>Create a user</span></summary>
+          <form class="form-grid" method="post" action="/admin/users" data-reset
+                hx-post="/admin/users" hx-target="#users" hx-swap="outerHTML">
+            <input type="hidden" name="_csrf" value="{{.CSRF}}">
+            <label>Username <input name="username" required autocomplete="off"></label>
+            <label>Password <input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
+            <label>Role <select name="role"><option value="user">Member</option><option value="admin">Administrator</option></select></label>
+            <label>Token limit <input name="token_limit" type="number" min="0" placeholder="0 = unlimited"></label>
+            <label>Period <select name="period"><option value="monthly">Per month</option><option value="daily">Per day</option></select></label>
+            <div class="span-2"><button type="submit" class="btn primary">Create user</button></div>
+          </form>
+        </details>
+        {{template "users" .}}
+
+        {{else if eq .Tab "usage"}}
+        <div class="row wrap">
+          <div class="seg-links">
+            {{range .Ranges}}<a class="{{if eq . $.Range}}is-active{{end}}" href="/admin/usage?range={{.}}">{{if eq . "today"}}Today{{else if eq . "7d"}}7 days{{else if eq . "30d"}}30 days{{else}}All time{{end}}</a>{{end}}
+          </div>
+          <span class="grow"></span>
+          <span class="badge">{{.Running}} generating now</span>
+        </div>
+        <div class="stats">
+          <div class="stat"><span>Requests</span><b>{{fmtInt .Total.Requests}}</b></div>
+          <div class="stat"><span>Input tokens</span><b>{{fmtInt .Total.PromptTokens}}</b></div>
+          <div class="stat"><span>Output tokens</span><b>{{fmtInt .Total.CompletionTokens}}</b></div>
+          <div class="stat"><span>Estimated cost</span><b>{{fmtCost .Total.Cost}}</b></div>
+        </div>
+        <h2 class="sub">By model</h2>
+        <div class="table-card">
+          <table class="tbl">
+            <thead><tr><th>Model</th><th class="num">Requests</th><th class="num">Input</th><th class="num">Output</th><th class="num">Cost</th></tr></thead>
+            <tbody>
+            {{range .ByModel}}
+            <tr><td class="mono">{{.ModelName}}</td><td class="num">{{fmtInt .Requests}}</td><td class="num">{{fmtInt .PromptTokens}}</td><td class="num">{{fmtInt .CompletionTokens}}</td><td class="num">{{fmtCost .Cost}}</td></tr>
+            {{else}}<tr><td colspan="5" class="empty-row">No usage in this period.</td></tr>{{end}}
+            </tbody>
+          </table>
+        </div>
+        <h2 class="sub">By user</h2>
+        <div class="table-card">
+          <table class="tbl">
+            <thead><tr><th>User</th><th>Model</th><th>Key</th><th class="num">Requests</th><th class="num">Input</th><th class="num">Output</th><th class="num">Cost</th></tr></thead>
+            <tbody>
+            {{range .ByUser}}
+            <tr><td><span class="user-cell"><span class="avatar xs">{{initial .Username}}</span>{{.Username}}</span></td><td class="mono">{{.ModelName}}</td>
+              <td><span class="badge">{{if .Billable}}Shared{{else}}Own key{{end}}</span></td>
+              <td class="num">{{fmtInt .Requests}}</td><td class="num">{{fmtInt .PromptTokens}}</td><td class="num">{{fmtInt .CompletionTokens}}</td><td class="num">{{fmtCost .Cost}}</td></tr>
+            {{else}}<tr><td colspan="7" class="empty-row">No usage in this period.</td></tr>{{end}}
+            </tbody>
+          </table>
+        </div>
+
+        {{else if eq .Tab "audit"}}
+        <p class="lead">Who changed what in the admin panel. The newest 300 entries are shown.</p>
+        <div class="table-card">
+          <table class="tbl">
+            <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Target</th><th>Details</th></tr></thead>
+            <tbody>
+            {{range .Entries}}
+            <tr><td class="mono small">{{.CreatedAt}}</td><td>{{.ActorName}}</td><td><span class="badge">{{.Action}}</span></td><td>{{.Target}}</td><td class="muted small">{{.Details}}</td></tr>
+            {{else}}<tr><td colspan="5" class="empty-row">Nothing recorded yet.</td></tr>{{end}}
+            </tbody>
+          </table>
+        </div>
+
+        {{else if eq .Tab "settings"}}
+        {{if .Saved}}<div class="notice">{{template "i-check"}}Settings saved.</div>{{end}}
+        <form class="stack" method="post" action="/admin/settings">
+          <input type="hidden" name="_csrf" value="{{.CSRF}}">
+          <div class="card">
+            <h3 class="card-title">Access</h3>
+            <label class="check"><input type="checkbox" name="allow_signup" value="1" {{if .S.AllowSignup}}checked{{end}}>
+              <span>Allow anyone to sign up<small>When off, only admins can create accounts.</small></span></label>
+          </div>
+          <div class="card" id="feed">
+            <h3 class="card-title">Feed</h3>
+            <label class="check"><input type="checkbox" name="feed_public" value="1" {{if .S.FeedPublic}}checked{{end}}>
+              <span>Let people share posts with everyone on this server<small>Each user has a <a href="/feed">Feed</a> of short posts. Posts are private unless their owner shares them. When this is off, nobody sees anyone else's posts. As an admin you can always take a shared post out of the public feed; its owner keeps it.</small></span></label>
+            <label class="feed-media-limit">Pictures, recordings and videos per person per day <small class="muted">made with the models you share under <a href="/admin/providers">Providers</a> (mark a model as Pictures, Voice or Video there) · 0 = no limit · a person's own models are never limited</small>
+              <input name="feed_media_daily" type="number" min="0" max="10000" value="{{.S.FeedMediaDaily}}"></label>
+          </div>
+          <div class="card">
+            <h3 class="card-title">Queue, agent &amp; capacity</h3>
+            <div class="form-grid">
+              <label>Queued messages per chat <input name="queue_max" type="number" min="1" max="100" value="{{.S.QueueMax}}"></label>
+              <label>Max tool steps per reply <input name="agent_max_steps" type="number" min="1" max="50" value="{{.S.AgentMaxSteps}}"></label>
+              <label>Retries per tool call <input name="tool_max_retries" type="number" min="0" max="10" value="{{.S.ToolMaxRetries}}"></label>
+              <label>Retries per model call <input name="llm_max_retries" type="number" min="0" max="10" value="{{.S.LLMMaxRetries}}"></label>
+              <label>Max replies generating at once <small class="muted">across all chats · 0 = unlimited</small><input name="max_parallel_runs" type="number" min="0" max="1000" value="{{.S.MaxParallelRuns}}"></label>
+              <label>Tool approval timeout (minutes) <small class="muted">unanswered approvals are denied after this</small><input name="approval_timeout_min" type="number" min="1" max="1440" value="{{.S.ApprovalTimeoutMin}}"></label>
+            </div>
+          </div>
+          <div class="card" id="memory">
+            <div class="h-row"><h3 class="card-title">Long-term memory: smart search</h3>
+              {{template "tip-open" "What is this for?"}}Each user has a <a href="/memory">Memory</a> page with facts the AI saved for them. It always finds memories by matching words. An <b>embedding model</b> (a small, cheap model most providers offer) also lets it find memories that say the same thing in different words. Set one here and everyone gets it; users may still choose their own.{{template "tip-close"}}
+            </div>
+            <p class="hint">Optional. Pick one of the shared providers, or leave it empty to keep word search only. Changing the model makes every memory get prepared again, in the background.</p>
+            <div class="form-grid">
+              <label>Provider
+                <select name="embed_provider_id">
+                  <option value="0">None (word search only)</option>
+                  {{range .Providers}}<option value="{{.ID}}" {{if eq .ID $.S.EmbedProviderID}}selected{{end}}>{{.Name}}{{if not .Enabled}} (disabled){{end}}</option>{{end}}
+                </select>
+              </label>
+              <label>Embedding model <input name="embed_model" value="{{.S.EmbedModel}}" placeholder="e.g. text-embedding-3-small" maxlength="200" class="mono" autocomplete="off"></label>
+              <label>Vector size <small class="muted">0 = the model's own; 512–1024 is plenty if the model can shrink</small>
+                <input name="embed_dimensions" type="number" min="0" max="8192" value="{{.S.EmbedDimensions}}"></label>
+              <div class="row embed-test"><button type="button" class="btn ghost" hx-post="/admin/settings/embed-test" hx-include="closest form" hx-target="#embed-test" hx-indicator="this">Test it</button></div>
+              <div class="test-result span-2" id="embed-test" role="status"></div>
+            </div>
+          </div>
+          <div class="card">
+            <h3 class="card-title">Long chats (compaction)</h3>
+            <p class="hint">Long chats are summarised so they keep fitting in the model's context. Original messages are never deleted.</p>
+            <div class="form-grid">
+              <label>Summarise after N message pairs <input name="compaction_pairs" type="number" min="0" value="{{.S.CompactionPairs}}"></label>
+              <label>Always keep last N pairs <input name="compaction_keep" type="number" min="1" value="{{.S.CompactionKeep}}"></label>
+              <label>…or when context is this full (0–0.95) <input name="compaction_context_ratio" type="number" step="0.05" min="0" max="0.95" value="{{.S.CompactionContextRatio}}"></label>
+              <label>Model used for summaries
+                <select name="compaction_model_id">
+                  <option value="0">Same as the chat</option>
+                  {{range .Models}}<option value="{{.ModelID}}" {{if eq .ModelID $.S.CompactionModelID}}selected{{end}}>{{.ModelName}} — {{.ProviderName}}</option>{{end}}
+                </select>
+              </label>
+            </div>
+          </div>
+          <div class="card">
+            <h3 class="card-title">System prompt</h3>
+            <textarea name="system_prompt" rows="5" aria-label="System prompt">{{.S.SystemPrompt}}</textarea>
+          </div>
+          <div><button type="submit" class="btn primary">Save settings</button></div>
+        </form>
+        {{end}}
+      </div>
+    </div>
+  </main>
+</div>
+{{end}}
+
+{{define "users"}}
+<div id="users" class="table-card">
+  <table class="tbl users-tbl">
+    <thead><tr><th>User</th><th>Quota</th><th>Used this period</th><th class="num">Actions</th></tr></thead>
+    <tbody>
+    {{range .Users}}
+    <tr class="{{if .Disabled}}is-off{{end}}">
+      <td>
+        <span class="user-cell"><span class="avatar sm">{{initial .Username}}</span>
+          <span><b>{{.Username}}</b>{{if eq .Role "admin"}} <span class="badge">Admin</span>{{end}}{{if .Disabled}} <span class="badge">Disabled</span>{{end}}<br>
+          <small class="muted">joined {{short .CreatedAt}}</small></span></span>
+      </td>
+      <td>
+        <form class="quota-form" hx-post="/admin/users/{{.ID}}/quota" hx-target="#users" hx-swap="outerHTML">
+          <input name="token_limit" type="number" min="0" value="{{.TokenLimit}}" title="0 = unlimited" aria-label="Token limit">
+          <select name="period" aria-label="Period">
+            <option value="monthly" {{if eq .Period "monthly"}}selected{{end}}>/ month</option>
+            <option value="daily" {{if eq .Period "daily"}}selected{{end}}>/ day</option>
+          </select>
+          <button type="submit" class="btn sm">Save</button>
+        </form>
+      </td>
+      <td class="usage-cell">
+        <div>{{fmtInt .Used}}{{if gt .TokenLimit 0}} <span class="muted">/ {{fmtInt .TokenLimit}}</span>{{else}} <span class="muted">· no limit</span>{{end}}</div>
+        {{if gt .TokenLimit 0}}<div class="meter"><span data-pct="{{pct .Used .TokenLimit}}"></span></div>{{end}}
+      </td>
+      <td class="num">
+        {{if ne .ID $.Me.ID}}
+        <details class="row-menu">
+          <summary class="icon-btn" aria-label="Actions for {{.Username}}">{{template "i-more"}}</summary>
+          <div class="menu">
+            <button hx-post="/admin/users/{{.ID}}/toggle-admin" hx-target="#users" hx-swap="outerHTML">{{template "i-shield"}}{{if eq .Role "admin"}}Remove admin{{else}}Make admin{{end}}</button>
+            <button hx-post="/admin/users/{{.ID}}/toggle-disabled" hx-target="#users" hx-swap="outerHTML">{{template "i-power"}}{{if .Disabled}}Enable account{{else}}Disable account{{end}}</button>
+            <form class="menu-form" hx-post="/admin/users/{{.ID}}/password" data-reset>
+              <input name="password" type="password" placeholder="New password" minlength="8" required autocomplete="new-password" aria-label="New password">
+              <button type="submit" class="btn sm">Set</button>
+            </form>
+            <div class="menu-sep"></div>
+            <button class="danger-text" hx-post="/admin/users/{{.ID}}/delete" hx-target="#users" hx-swap="outerHTML" hx-confirm="Delete {{.Username}} and all their chats?">{{template "i-trash"}}Delete user</button>
+          </div>
+        </details>
+        {{else}}<span class="muted small">You</span>{{end}}
+      </td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}

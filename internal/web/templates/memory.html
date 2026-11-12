@@ -1,0 +1,389 @@
+{{define "title"}}{{if eq .Tab "thing"}}{{.Thing.Name}} · {{end}}Memory · Knitnox{{end}}
+
+{{define "head"}}<script src="{{asset "memory.js"}}" defer></script>{{end}}
+
+{{define "content"}}
+<div class="shell">
+  {{template "sidebar" .}}
+  <main class="main" id="main" tabindex="-1">
+    {{template "page-top" "Memory"}}
+    <div class="page-scroll">
+      <div class="page">
+        {{if eq .Notice "added"}}<div class="notice">{{template "i-check"}}Saved. The AI can use it from your next message on.</div>
+        {{else if eq .Notice "on"}}<div class="notice">{{template "i-check"}}Memory is on. In your own chats the AI can now save and look up facts.</div>
+        {{else if eq .Notice "off"}}<div class="notice">{{template "i-check"}}Memory is off. Nothing was deleted; the AI just no longer sees or adds to it.</div>
+        {{else if eq .Notice "search"}}<div class="notice">{{template "i-check"}}Search settings saved. Your memories are being prepared in the background.</div>
+        {{else if eq .Notice "wiped"}}<div class="notice">{{template "i-check"}}Everything was deleted. Your memory is empty.</div>
+        {{else if eq .Notice "renamed"}}<div class="notice">{{template "i-check"}}Renamed.</div>
+        {{else if eq .Notice "merged"}}<div class="notice">{{template "i-check"}}The two things had the same name, so they are now one.</div>
+        {{end}}
+
+        <nav class="tabs" aria-label="Memory sections">
+          <a href="/memory" class="{{if eq .Tab "list"}}is-active{{end}}"{{if eq .Tab "list"}} aria-current="page"{{end}}>{{template "i-brain"}}Memories{{if .Stats.Memories}} <span class="badge">{{.Stats.Memories}}</span>{{end}}</a>
+          <a href="/memory/things" class="{{if or (eq .Tab "things") (eq .Tab "thing")}}is-active{{end}}"{{if eq .Tab "things"}} aria-current="page"{{end}}>{{template "i-graph"}}Things &amp; connections{{if .Stats.Entities}} <span class="badge">{{.Stats.Entities}}</span>{{end}}</a>
+          <a href="/memory/settings" class="{{if eq .Tab "settings"}}is-active{{end}}"{{if eq .Tab "settings"}} aria-current="page"{{end}}>{{template "i-settings"}}Settings</a>
+        </nav>
+
+        {{if and (not .MS.Enabled) (ne .Tab "settings")}}
+        <div class="card mem-off">
+          <div class="empty-icon">{{template "i-brain"}}</div>
+          <div class="grow">
+            <b>Memory is turned off</b>
+            <p class="hint">Right now the AI starts every chat knowing nothing about you. Turn memory on and it can save short facts you share and look them up later. You can read, change and delete everything on this page, and turn it off again at any time.</p>
+          </div>
+          <form method="post" action="/memory/settings">
+            <input type="hidden" name="_csrf" value="{{.CSRF}}">
+            <input type="hidden" name="enabled" value="1">
+            <input type="hidden" name="from" value="list">
+            <button type="submit" class="btn primary">Turn on memory</button>
+          </form>
+        </div>
+        {{end}}
+
+        {{if eq .Tab "list"}}
+        <section class="section">
+          <div class="section-head">
+            <div class="section-icon">{{template "i-brain"}}</div>
+            <div>
+              <div class="h-row"><h2>What Knitnox remembers about you</h2>
+                {{template "tip-open" "How does memory work?"}}A <b>memory</b> is one short fact, like “I am vegetarian”. The AI saves them while you chat and looks them up in later chats, so you do not have to repeat yourself. Memory is private to you and is never used in group chats. <a href="/help/guide">Read the guide</a>{{template "tip-close"}}
+              </div>
+              <p>Short facts the AI saved in your chats, or that you added yourself. Nothing is hidden: you can read, change and delete every one.</p>
+            </div>
+          </div>
+
+          <details class="how-wrap"{{if not .Stats.Memories}} open{{end}}>
+            <summary>{{template "i-bulb"}}How does memory work?</summary>
+            <ol class="how">
+              <li><span class="how-num" aria-hidden="true">1</span><b>It notes things down</b><p>Tell the AI something lasting, like “I work at Acme Bakery”, or say “remember that…”. It saves a short note and tells you.</p></li>
+              <li><span class="how-num" aria-hidden="true">2</span><b>It looks things up</b><p>In later chats it searches these notes before it answers, and follows the connections between people, places and projects.</p></li>
+              <li><span class="how-num" aria-hidden="true">3</span><b>You stay in charge</b><p>Everything it knows is on this page. Fix what is wrong, delete what you do not want kept, or pin what it must never forget.</p></li>
+            </ol>
+          </details>
+
+          <form class="search-form" action="/memory" method="get" role="search">
+            <label class="search-box">
+              {{template "i-search"}}
+              <input type="search" name="q" value="{{.Query}}" placeholder="Search your memory…" aria-label="Search your memory" autocomplete="off" maxlength="200">
+            </label>
+            <button type="submit" class="btn primary">Search</button>
+          </form>
+
+          {{if not .Query}}
+          <details class="card add-card" id="add"{{if and (not .Stats.Memories) (not .Paged)}} open{{end}}>
+            <summary>{{template "i-plus"}}<span>Add a memory yourself</span></summary>
+            <form class="form-grid" method="post" action="/memory">
+              <input type="hidden" name="_csrf" value="{{.CSRF}}">
+              {{template "mem-fields" .Form}}
+              <label class="check"><input type="checkbox" name="pinned" value="1">
+                <span>Always keep this in mind<small>The AI is shown pinned memories at the start of every chat, without having to search. Best for a few important things.</small></span></label>
+              <div class="span-2"><button type="submit" class="btn primary">Save memory</button></div>
+            </form>
+          </details>
+
+          <div class="mem-bar">
+            <div class="seg-links" role="group" aria-label="Show">
+              <a href="/memory"{{if eq .Filter ""}} class="is-active"{{end}}>All</a>
+              <a href="/memory?filter=pinned"{{if eq .Filter "pinned"}} class="is-active"{{end}}>Pinned</a>
+              <a href="/memory?filter=ai"{{if eq .Filter "ai"}} class="is-active"{{end}}>Saved by the AI</a>
+              <a href="/memory?filter=user"{{if eq .Filter "user"}} class="is-active"{{end}}>Added by you</a>
+            </div>
+            {{if .Stats.Memories}}<p class="mem-summary"><b>{{.Stats.Memories}}</b> memor{{if eq .Stats.Memories 1}}y{{else}}ies{{end}}<span class="dot">·</span><b>{{.Stats.Entities}}</b> thing{{if ne .Stats.Entities 1}}s{{end}}<span class="dot">·</span><b>{{.Stats.Relations}}</b> connection{{if ne .Stats.Relations 1}}s{{end}}</p>{{end}}
+          </div>
+          {{else}}
+          <p class="lead">{{len .Memories}} closest memor{{if eq (len .Memories) 1}}y{{else}}ies{{end}} for “{{.Query}}”, best first.
+            {{if .Smart}}Found by meaning as well as by words.{{else}}Found by matching words{{if not .Embed.On}}; <a href="/memory/settings#search">smart search</a> would also find different wording{{end}}.{{end}}
+            <a href="/memory">Show everything</a></p>
+          {{end}}
+
+          <div class="mem-list" id="memories">
+            {{range .Memories}}{{template "mem-card" (wrap "M" .)}}{{end}}
+            <div class="empty-card">
+              <div class="empty-icon">{{template "i-brain"}}</div>
+              {{if .Query}}<p>Nothing found</p><span>Try other words, or look under <a href="/memory/things">Things &amp; connections</a>.</span>
+              {{else if .Filter}}<p>Nothing here</p><span>No memory fits this filter. <a href="/memory">Show all</a></span>
+              {{else}}<p>Nothing remembered yet</p><span>{{if .MS.Enabled}}Tell the AI something about yourself in a chat, or add a memory above.{{else}}Add a memory above, or turn memory on so the AI can save things for you.{{end}}</span>{{end}}
+            </div>
+          </div>
+          {{if .Older}}<p class="mem-more"><a class="btn" href="{{.Older}}">Show older memories</a></p>{{end}}
+        </section>
+
+        {{else if eq .Tab "things"}}
+        <section class="section">
+          <div class="section-head">
+            <div class="section-icon">{{template "i-graph"}}</div>
+            <div>
+              <div class="h-row"><h2>Things and how they connect</h2>
+                {{template "tip-open" "What is a thing?"}}A <b>thing</b> is a person, place, project or anything else with a name that your memories talk about. A <b>connection</b> says how two things belong together, like “Sam works at Acme Bakery”. Things appear by themselves when a memory names them.{{template "tip-close"}}
+              </div>
+              <p>The people, places and projects your memories mention. Open one to see everything that is known about it, or use the map to wander from one to the next.</p>
+            </div>
+          </div>
+
+          {{if or .Things .Query}}
+          {{if and .Stats.Relations (not .Query)}}{{template "mem-map" (wrap "Focus" 0)}}{{end}}
+          <form class="search-form" action="/memory/things" method="get" role="search">
+            <label class="search-box">
+              {{template "i-search"}}
+              <input type="search" name="q" value="{{.Query}}" placeholder="Find a person, place or project…" aria-label="Find a thing by name" autocomplete="off" maxlength="80">
+            </label>
+            <button type="submit" class="btn primary">Find</button>
+          </form>
+          <div class="thing-grid">
+            {{range .Things}}
+            <a class="thing" href="/memory/things/{{.ID}}">
+              <b>{{.Name}}</b>
+              <small>{{.Memories}} memor{{if eq .Memories 1}}y{{else}}ies{{end}}{{if .Links}} · {{.Links}} connection{{if ne .Links 1}}s{{end}}{{end}}</small>
+            </a>
+            {{end}}
+          </div>
+          {{if not .Things}}
+          <div class="empty-card">
+            <div class="empty-icon">{{template "i-search"}}</div>
+            <p>No thing is called “{{.Query}}”</p><span>Try part of the name, or <a href="/memory/things">show all things</a>.</span>
+          </div>
+          {{end}}
+          {{else}}
+          <div class="empty-card">
+            <div class="empty-icon">{{template "i-graph"}}</div>
+            <p>No things yet</p>
+            <span>When a memory names a person, place or project, it shows up here by itself. Try it: <a href="/memory#add">add a memory</a> and fill in “Who or what is this about?”.</span>
+          </div>
+          {{end}}
+        </section>
+
+        {{else if eq .Tab "thing"}}
+        <section class="section">
+          <p class="back"><a href="/memory/things">{{template "i-chevron-left"}}All things</a></p>
+          <div class="card thing-hero">
+            <div class="provider-icon">{{template "i-graph"}}</div>
+            <div class="grow">
+              <h2>{{.Thing.Name}}</h2>
+              <p class="hint">{{.MemTotal}} memor{{if eq .MemTotal 1}}y{{else}}ies{{end}} about it · {{.RelTotal}} connection{{if ne .RelTotal 1}}s{{end}} to other things</p>
+            </div>
+            <details class="advanced thing-rename">
+              <summary>Rename or merge</summary>
+              <form class="stack sm" method="post" action="/memory/things/{{.Thing.ID}}">
+                <input type="hidden" name="_csrf" value="{{.CSRF}}">
+                <label>Name <input name="name" value="{{.Thing.Name}}" maxlength="80" required></label>
+                <p class="hint">Is the same thing listed twice under two names? Give this one the other's exact name and the two become one.</p>
+                <div><button type="submit" class="btn primary sm">Save name</button></div>
+              </form>
+            </details>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2 class="sub first">How it is connected</h2>
+          {{if .Relations}}
+          {{template "mem-map" (wrap "Focus" .Thing.ID)}}
+          <ul class="rel-list">
+            {{range .Relations}}
+            <li class="rel">
+              {{if eq .SubjectID $.Thing.ID}}<b>{{.Subject}}</b>{{else}}<a href="/memory/things/{{.SubjectID}}">{{.Subject}}</a>{{end}}
+              <i>{{.Predicate}}</i>
+              {{if eq .ObjectID $.Thing.ID}}<b>{{.Object}}</b>{{else}}<a href="/memory/things/{{.ObjectID}}">{{.Object}}</a>{{end}}
+            </li>
+            {{end}}
+          </ul>
+          {{if gt .RelTotal (len .Relations)}}<p class="hint">Showing the newest {{len .Relations}} of {{.RelTotal}} connections.</p>{{end}}
+          {{else}}
+          <p class="hint">No connections yet. To add one, change a memory below and open “Connect things to each other”.</p>
+          {{end}}
+        </section>
+
+        <section class="section">
+          <h2 class="sub first">Memories about {{.Thing.Name}}</h2>
+          <div class="mem-list">
+            {{range .Memories}}{{template "mem-card" (wrap "M" .)}}{{end}}
+          </div>
+          {{if gt .MemTotal (len .Memories)}}<p class="hint">Showing the newest {{len .Memories}} of {{.MemTotal}}. <a href="/memory?q={{.Thing.Name}}">Search for more</a></p>{{end}}
+        </section>
+
+        {{else if eq .Tab "settings"}}
+        <section class="section" id="use">
+          <div class="section-head">
+            <div class="section-icon">{{template "i-power"}}</div>
+            <div><h2>Let the AI use my memory</h2><p>You decide whether the AI may read and add to what is on this page.</p></div>
+          </div>
+          <div class="card mem-switch">
+            <div class="grow">
+              <div class="card-title">{{if .MS.Enabled}}<span class="badge st-ok">On</span> The AI remembers things for you{{else}}<span class="badge">Off</span> The AI starts every chat from zero{{end}}</div>
+              <ul class="plain-list hint">
+                <li><b>In your own chats</b> the AI can save short facts and look them up later.</li>
+                <li><b>In group chats</b> memory is never used, so other people cannot learn what it holds.</li>
+                <li><b>Agents</b> cannot see it unless you allow one: open the agent, then Memory. They can only read.</li>
+                <li>Turning it off deletes nothing. You can still read and edit everything here.</li>
+              </ul>
+            </div>
+            <form method="post" action="/memory/settings">
+              <input type="hidden" name="_csrf" value="{{.CSRF}}">
+              <input type="hidden" name="enabled" value="{{if .MS.Enabled}}0{{else}}1{{end}}">
+              <button type="submit" class="btn{{if not .MS.Enabled}} primary{{end}}">{{if .MS.Enabled}}Turn off{{else}}Turn on memory{{end}}</button>
+            </form>
+          </div>
+        </section>
+
+        <section class="section" id="search">
+          <div class="section-head">
+            <div class="section-icon">{{template "i-search"}}</div>
+            <div>
+              <div class="h-row"><h2>How memories are found</h2>
+                {{template "tip-open" "What is an embedding model?"}}An <b>embedding model</b> is a small, cheap AI model that turns a sentence into numbers that stand for its meaning. With it, a search for “what do I eat?” also finds “I am vegetarian”, although no word is the same. Most providers offer one, for example <code>text-embedding-3-small</code>.{{template "tip-close"}}
+              </div>
+              <p>Memory always works. With an embedding model it also finds things when you use different words.</p>
+            </div>
+          </div>
+
+          <div class="card stack">
+            <div class="row wrap">
+              <div class="grow">
+                {{if .Embed.On}}
+                <div class="card-title"><span class="badge st-ok">Smart search</span> Finds by meaning and by words</div>
+                <p class="hint">Using <span class="mono">{{.Embed.Model}}</span> from {{.Embed.Provider}} ({{if .Embed.Personal}}your own provider{{else}}set up by this server's admin{{end}}).
+                  {{if .Embed.Pending}}<b>{{.Embed.Pending}}</b> of {{.Stats.Memories}} memories are still being prepared; until then they are found by words only.{{else if .Stats.Memories}}All {{.Stats.Memories}} memories are ready.{{end}}</p>
+                {{else}}
+                <div class="card-title"><span class="badge">Word search</span> Finds memories that share words with your question</div>
+                <p class="hint">This works without any setup. To also find memories that say the same thing in other words, choose an embedding model below{{if .Me.IsAdmin}}, or <a href="/admin/settings">set one for everyone</a> in the admin panel{{else}}, or ask your admin to set one for everyone{{end}}.</p>
+                {{end}}
+              </div>
+              {{if .Embed.On}}<button type="button" class="btn ghost sm" hx-post="/memory/reindex" hx-target="#mem-test" hx-indicator="this" title="Prepare all memories for smart search now">{{template "i-refresh"}}Prepare now</button>{{end}}
+            </div>
+            <hr>
+            <form class="form-grid" method="post" action="/memory/settings/search">
+              <input type="hidden" name="_csrf" value="{{.CSRF}}">
+              <div class="span-2"><div class="field-label">Use my own embedding model</div>
+                <p class="hint">Optional. Pick one of <a href="/settings#keys">your own providers</a> and type the name of its embedding model. Leave the provider empty to use the server's model{{if not .Embed.On}} (none is set at the moment){{end}}.</p></div>
+              <label>Provider
+                <select name="embed_provider_id">
+                  <option value="0">Use the server's model</option>
+                  {{range .Providers}}<option value="{{.ID}}" {{if eq .ID $.MS.EmbedProviderID}}selected{{end}}>{{.Name}}{{if not .Enabled}} (disabled){{end}}</option>{{end}}
+                </select>
+              </label>
+              <label>Embedding model <input name="embed_model" value="{{.MS.EmbedModel}}" placeholder="e.g. text-embedding-3-small" maxlength="200" class="mono" autocomplete="off"></label>
+              <details class="advanced span-2">
+                <summary>Advanced</summary>
+                <label>Vector size <small class="muted">leave at 0 unless your model can shrink its output; smaller is faster, 512–1024 is plenty</small>
+                  <input name="embed_dimensions" type="number" min="0" max="8192" value="{{.MS.EmbedDimensions}}"></label>
+              </details>
+              <div class="span-2 row wrap">
+                <button type="submit" class="btn primary">Save</button>
+                <button type="button" class="btn ghost" hx-post="/memory/settings/test" hx-include="closest form" hx-target="#mem-test" hx-indicator="this">Test it</button>
+                {{if not .Providers}}<span class="hint">You have no providers of your own yet. <a href="/settings#keys">Add one</a></span>{{end}}
+              </div>
+            </form>
+            <div class="test-result" id="mem-test" role="status"></div>
+          </div>
+
+          <details class="card add-card mem-own-model">
+            <summary>{{template "i-plus"}}<span>Add my own embedding model</span></summary>
+            <form class="form-grid" method="post" action="/memory/settings/model/add">
+              <input type="hidden" name="_csrf" value="{{.CSRF}}">
+              <p class="hint span-2">Use this when you have your own account with an AI provider. Your memory switches to this model right away, and it is kept with your other keys under <a href="/settings#keys">Settings → Your API keys</a>, so you type a key only once.</p>
+              <label class="span-2">Embedding model name <small class="muted">as the provider calls it</small><input name="model" required maxlength="200" class="mono" placeholder="e.g. text-embedding-3-small" autocomplete="off"></label>
+              {{template "model-quick-provider" .}}
+              <div class="span-2"><button type="submit" class="btn primary">Add and use it</button></div>
+            </form>
+          </details>
+        </section>
+
+        <section class="section" id="data">
+          <div class="section-head">
+            <div class="section-icon">{{template "i-download"}}</div>
+            <div><h2>Your data</h2><p>Take a copy, or wipe the slate clean.</p></div>
+          </div>
+          <div class="card stack">
+            <div class="row wrap">
+              <div class="grow"><div class="field-label">Download everything</div><p class="hint">One file with all {{.Stats.Memories}} memories, what they are about and their connections.</p></div>
+              <a class="btn" href="/memory/export">{{template "i-download"}}Download</a>
+            </div>
+            <hr>
+            <form class="row wrap" method="post" action="/memory/delete-all" data-confirm="Delete every memory, thing and connection? This cannot be undone.">
+              <input type="hidden" name="_csrf" value="{{.CSRF}}">
+              <div class="grow"><div class="field-label">Delete everything</div><p class="hint">Removes all memories, things and connections for good. Type <b>delete</b> to confirm.</p></div>
+              <input name="confirm" class="confirm-input" placeholder="delete" aria-label="Type delete to confirm" autocomplete="off" required pattern="delete">
+              <button type="submit" class="btn danger">{{template "i-trash"}}Delete all</button>
+            </form>
+          </div>
+        </section>
+        {{end}}
+      </div>
+    </div>
+  </main>
+</div>
+{{end}}
+
+{{/* The fields of one memory. Needs a memoryForm: .M (nil when new), .About, .Rows. */}}
+{{define "mem-fields"}}
+<label class="span-2">What should be remembered? <small class="muted">one short fact, written so it makes sense on its own</small>
+  <textarea name="content" rows="3" maxlength="2000" required placeholder="e.g. I am vegetarian and allergic to peanuts.">{{if .M}}{{.M.Content}}{{end}}</textarea></label>
+<label class="span-2">Who or what is this about? <small class="muted">optional · names of people, places or projects, separated by commas</small>
+  <input name="about" value="{{.About}}" maxlength="400" placeholder="e.g. Sam, Acme Bakery" autocomplete="off"></label>
+<details class="advanced span-2"{{if and .M .M.Relations}} open{{end}}>
+  <summary>Connect things to each other (optional)</summary>
+  <p class="hint">A connection is a tiny sentence in three parts. It lets you, and the AI, walk from one thing to the next. For example: <b>Sam</b> · <i>works at</i> · <b>Acme Bakery</b>.</p>
+  <div class="rel-rows" data-rel-rows>
+    {{range .Rows}}
+    <div class="rel-row">
+      <input name="rel_s" value="{{.Subject}}" placeholder="A thing" aria-label="First thing" maxlength="80" autocomplete="off">
+      <input name="rel_p" value="{{.Predicate}}" placeholder="how it relates" aria-label="How the two relate" maxlength="60" autocomplete="off">
+      <input name="rel_o" value="{{.Object}}" placeholder="Another thing" aria-label="Second thing" maxlength="80" autocomplete="off">
+    </div>
+    {{end}}
+  </div>
+  <button type="button" class="btn ghost sm" data-rel-add>{{template "i-plus"}}Add another connection</button>
+</details>
+{{end}}
+
+{{/* One memory. Needs .M (a store.Memory). Buttons swap the card in place. */}}
+{{define "mem-card"}}{{with .M}}
+<article class="mem{{if .Pinned}} is-pinned{{end}}" id="mem-{{.ID}}">
+  <div class="mem-body">
+    <p class="mem-text">{{.Content}}</p>
+    {{if or .Entities .Relations}}
+    <div class="mem-links">
+      {{range .Relations}}<span class="rel"><a href="/memory/things/{{.SubjectID}}">{{.Subject}}</a><i>{{.Predicate}}</i><a href="/memory/things/{{.ObjectID}}">{{.Object}}</a></span>{{end}}
+      {{range aboutOnly .}}<a class="chip thing-chip" href="/memory/things/{{.ID}}">{{.Name}}</a>{{end}}
+    </div>
+    {{end}}
+    <div class="mem-meta">
+      {{if eq .Source "ai"}}<span class="badge st-busy">Saved by the AI</span>{{else}}<span class="badge">Added by you</span>{{end}}
+      {{if .Pinned}}<span class="badge st-ok">Always kept in mind</span>{{end}}
+      {{if and .SourceThreadID .SourceTitle}}<span>in <a href="/t/{{.SourceThreadID}}">{{.SourceTitle}}</a></span>{{end}}
+      <span title="Last changed {{.UpdatedAt}} UTC">{{short .UpdatedAt}}</span>
+    </div>
+  </div>
+  <div class="mem-actions">
+    <button type="button" class="icon-btn sm{{if .Pinned}} is-on{{end}}" hx-post="/memory/m/{{.ID}}/pin" hx-target="#mem-{{.ID}}" hx-swap="outerHTML" aria-pressed="{{.Pinned}}"
+            title="{{if .Pinned}}Pinned: the AI always has this in mind. Click to unpin.{{else}}Pin: always keep this in mind, in every chat{{end}}" aria-label="{{if .Pinned}}Unpin{{else}}Pin{{end}} this memory">{{template "i-pin"}}</button>
+    <button type="button" class="icon-btn sm" hx-get="/memory/m/{{.ID}}/edit" hx-target="#mem-{{.ID}}" hx-swap="outerHTML" title="Change" aria-label="Change this memory">{{template "i-pencil"}}</button>
+    <button type="button" class="icon-btn sm danger-hover" hx-post="/memory/m/{{.ID}}/delete" hx-target="#mem-{{.ID}}" hx-swap="outerHTML"
+            hx-confirm="Forget this for good?" title="Forget" aria-label="Delete this memory">{{template "i-trash"}}</button>
+  </div>
+</article>
+{{end}}{{end}}
+
+{{/* A memory being edited, in place of its card. Needs .Form (memoryForm). */}}
+{{define "mem-edit"}}
+<form class="mem is-editing form-grid" id="mem-{{.Form.M.ID}}" hx-post="/memory/m/{{.Form.M.ID}}" hx-target="this" hx-swap="outerHTML">
+  {{template "mem-fields" .Form}}
+  <div class="span-2 row end">
+    <button type="button" class="btn ghost" hx-get="/memory/m/{{.Form.M.ID}}" hx-target="#mem-{{.Form.M.ID}}" hx-swap="outerHTML">Cancel</button>
+    <button type="submit" class="btn primary">Save changes</button>
+  </div>
+</form>
+{{end}}
+
+{{/* The map: memory.js draws it from /memory/graph. .Focus = thing to start from (0 = overview). */}}
+{{define "mem-map"}}
+<div class="card graph-card">
+  <div class="graph-head">
+    <p class="hint">{{if .Focus}}This thing and what it is linked to.{{else}}Your best-connected things.{{end}} Arrows show which way a connection reads. <b>Click a circle</b> to see what else it connects to. Drag circles to tidy up.</p>
+    <button type="button" class="btn ghost sm" data-graph-reset>{{template "i-refresh"}}Start over</button>
+  </div>
+  <div class="graph{{if .Focus}} is-focus{{end}}" id="mem-graph" data-src="/memory/graph" data-focus="{{.Focus}}" role="group" aria-label="Map of the things in your memory">
+    <p class="graph-empty hint">Drawing the map…</p>
+  </div>
+  <div class="graph-info" id="mem-graph-info" aria-live="polite"></div>
+</div>
+{{end}}

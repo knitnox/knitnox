@@ -1,0 +1,211 @@
+{{define "title"}}Settings · Knitnox{{end}}
+
+{{define "content"}}
+<div class="shell">
+  {{template "sidebar" .}}
+  <main class="main" id="main" tabindex="-1">
+    {{template "page-top" "Settings"}}
+    <div class="page-scroll">
+      <div class="page">
+        <nav class="jump" aria-label="On this page">
+          <a class="chip" href="#account">{{template "i-gauge"}}Account</a>
+          <a class="chip" href="#appearance">{{template "i-eye"}}Appearance</a>
+          <a class="chip" href="#instructions">{{template "i-sparkles"}}Instructions</a>
+          <a class="chip" href="#keys">{{template "i-key"}}API keys</a>
+          <a class="chip" href="#tools">{{template "i-plug"}}Tools</a>
+          <a class="chip" href="#notifications">{{template "i-bell"}}Notifications</a>
+          <a class="chip" href="#password">{{template "i-lock"}}Password</a>
+          <a class="chip" href="#shortcuts">{{template "i-keyboard"}}Shortcuts</a>
+        </nav>
+
+        <section class="section" id="account">
+          <div class="section-head">
+            <div class="section-icon">{{template "i-gauge"}}</div>
+            <div><h2>Account</h2><p>Your profile and how much of your allowance you've used.</p></div>
+          </div>
+          <div class="card account">
+            <span class="avatar lg">{{initial .Me.Username}}</span>
+            <div class="grow">
+              <div class="account-name">{{.Me.Username}}</div>
+              <div class="muted">{{if .Me.IsAdmin}}Administrator{{else}}Member{{end}}</div>
+            </div>
+            <div class="usage">
+              {{if gt .Quota.TokenLimit 0}}
+              <div class="usage-row"><span>{{fmtInt .Used}} / {{fmtInt .Quota.TokenLimit}} tokens</span><span class="muted">this {{if eq .Quota.Period "daily"}}day{{else}}month{{end}}</span></div>
+              <div class="meter"><span data-pct="{{pct .Used .Quota.TokenLimit}}"></span></div>
+              {{else}}
+              <div class="usage-row"><span>{{fmtInt .Used}} tokens</span><span class="muted">this month · no limit</span></div>
+              {{end}}
+              <small class="muted">Only shared models count. Your own keys are never limited.</small>
+            </div>
+          </div>
+          <form class="card form-grid tz-card" id="timezone" hx-post="/settings/timezone">
+            <label>Your time zone <small class="muted">so the AI knows your date and time when you say “tomorrow” or “this evening”</small>
+              <input name="tz" id="tz-input" value="{{.Me.Timezone}}" list="tz-list" placeholder="e.g. Europe/Lisbon" autocomplete="off" maxlength="64" spellcheck="false">
+              <datalist id="tz-list"></datalist></label>
+            <div class="tz-now"><div class="field-label">The AI is told</div>
+              <p id="tz-now">{{.LocalNow}}{{if not .Me.Timezone}} <span class="badge st-warn">UTC, zone not known yet</span>{{end}}</p></div>
+            <label class="check"><input type="checkbox" name="auto" value="1" {{if .Me.TimezoneAuto}}checked{{end}}>
+              <span>Set it from my device<small>Knitnox updates it by itself when you open the app in another time zone. Untick to keep the zone you typed.</small></span></label>
+            <div class="span-2"><button type="submit" class="btn primary">Save time zone</button></div>
+          </form>
+        </section>
+
+        <section class="section" id="appearance">
+          <div class="section-head">
+            <div class="section-icon">{{template "i-eye"}}</div>
+            <div><h2>Appearance</h2><p>How Knitnox looks in this browser. Changes apply straight away.</p></div>
+          </div>
+          <div class="card stack">
+            <div class="look-row">
+              <div class="grow"><div class="field-label">Theme</div><p class="hint">Auto follows your device's light or dark setting.</p></div>
+              {{template "theme-pick" .}}
+            </div>
+            <hr>
+            <div class="look-row">
+              <div class="grow"><div class="field-label">Accent colour</div><p class="hint">Used for buttons, links and highlights.</p></div>
+              <div class="swatches" role="group" aria-label="Accent colour">
+                {{range $a := (list "iris" "ocean" "forest" "sunset" "rose" "graphite")}}
+                <button type="button" class="swatch sw-{{$a}}" data-accent-set="{{$a}}" aria-pressed="{{if eq $a $.Accent}}true{{else}}false{{end}}" aria-label="{{$a}}" title="{{$a}}"></button>
+                {{end}}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="instructions">
+          <div class="section-head">
+            <div class="section-icon">{{template "i-sparkles"}}</div>
+            <div><h2>Custom instructions</h2><p>Tell the AI how to behave in all of your own chats. Group chats use only their own chat instructions.</p></div>
+          </div>
+          <form class="card stack sm" hx-post="/settings/instructions">
+            <textarea name="instructions" rows="4" maxlength="4000" aria-label="Custom instructions"
+              placeholder="For example: “Always answer in Bengali.” · “I am a Go developer; prefer short code examples.” · “Be brief.”">{{.Me.Instructions}}</textarea>
+            <div class="row end"><button type="submit" class="btn primary">Save instructions</button></div>
+          </form>
+        </section>
+
+        <section class="section" id="keys">
+          <div class="section-head">
+            <div class="section-icon">{{template "i-key"}}</div>
+            <div><h2>Your API keys</h2><p>Bring your own OpenAI-compatible provider. Keys are encrypted and never shown again.</p></div>
+          </div>
+          {{template "provider_form" .}}
+          {{template "providers" .}}
+        </section>
+
+        <section class="section" id="tools">
+          <div class="section-head">
+            <div class="section-icon">{{template "i-plug"}}</div>
+            <div>
+              <div class="h-row"><h2>Tools (MCP servers)</h2>
+                {{template "tip-open" "What is an MCP server?"}}<b>MCP</b> is a common plug for AI tools. A tool provider (mail, calendar, search, your own service) gives you a web address; you paste it here and the AI can use those tools in your chats. Nothing is installed on your computer. <a href="/help/guide">Read the guide</a>{{template "tip-close"}}
+              </div>
+              <p>Let the AI do things, not only talk: search, read mail, use your own services. Each server runs its tools <b>automatically</b> or <b>asks you first</b>.</p>
+            </div>
+          </div>
+          <details class="card add-card"{{if not .MCPServers}} open{{end}}>
+            <summary>{{template "i-plus"}}<span>Add an MCP server</span></summary>
+            <form class="form-grid" method="post" action="/settings/mcp" data-reset
+                  hx-post="/settings/mcp" hx-target="#mcp" hx-swap="outerHTML">
+              <input type="hidden" name="_csrf" value="{{.CSRF}}">
+              <label>Name <input name="name" placeholder="github" required></label>
+              <label>URL <input name="url" placeholder="https://example.com/mcp" required></label>
+              <label class="span-2">Headers <small class="muted">optional, one per line</small>
+                <textarea name="headers" rows="2" placeholder="Authorization: Bearer …" class="mono"></textarea></label>
+              <label class="span-2">When the AI wants to use a tool
+                <select name="approval">
+                  <option value="auto">Run it automatically</option>
+                  <option value="ask">Ask me before running (recommended for tools that change things)</option>
+                </select>
+              </label>
+              <div class="span-2"><button type="submit" class="btn primary">Add server</button></div>
+            </form>
+          </details>
+          {{template "mcp" .}}
+        </section>
+
+        <section class="section" id="notifications">
+          <div class="section-head">
+            <div class="section-icon">{{template "i-bell"}}</div>
+            <div><h2>Notifications</h2><p>Get a notification when a reply finishes while you're away, or when a tool needs your approval.</p></div>
+          </div>
+          <div class="card" id="push-card" data-devices="{{.PushDevices}}">
+            <div class="row wrap">
+              <div class="grow">
+                <div class="card-title" id="push-status">{{if gt .PushDevices 0}}Enabled on {{.PushDevices}} device(s){{else}}Not enabled on this device{{end}}</div>
+                <p class="hint">Works in Chrome, Edge, Firefox and Safari 16.4+. On iPhone, add Knitnox to your Home Screen first (Share → Add to Home Screen).</p>
+              </div>
+              <div class="row wrap">
+                <button type="button" class="btn primary" data-push-enable>{{template "i-bell"}}Enable on this device</button>
+                <button type="button" class="btn ghost" data-push-disable hidden>Disable here</button>
+                <button type="button" class="btn ghost" data-push-test {{if eq .PushDevices 0}}hidden{{end}}>Send a test</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="password">
+          <div class="section-head">
+            <div class="section-icon">{{template "i-lock"}}</div>
+            <div><h2>Password &amp; sessions</h2><p>Use at least 8 characters. You are signed in on {{.Sessions}} device(s).</p></div>
+          </div>
+          <form class="card form-grid" hx-post="/settings/password" data-reset>
+            <label>Current password <input name="current" type="password" required autocomplete="current-password"></label>
+            <label>New password <input name="new" type="password" required minlength="8" autocomplete="new-password"></label>
+            <div class="span-2 row wrap">
+              <button type="submit" class="btn primary">Update password</button>
+              <span class="grow"></span>
+              <button type="button" class="btn ghost" hx-post="/settings/logout-all" hx-confirm="Log out on every device, including this one?">{{template "i-logout"}}Log out everywhere</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="section" id="shortcuts">
+          <div class="section-head">
+            <div class="section-icon">{{template "i-keyboard"}}</div>
+            <div><h2>Keyboard shortcuts</h2></div>
+          </div>
+          <div class="card shortcuts">
+            <div><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>O</kbd><span>New chat</span></div>
+            <div><kbd>Ctrl</kbd>+<kbd>K</kbd><span>Search or jump to any page</span></div>
+            <div><kbd>Enter</kbd><span>Send · <kbd>Shift</kbd>+<kbd>Enter</kbd> new line</span></div>
+            <div><kbd>Esc</kbd><span>Close panels, stop editing</span></div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+{{end}}
+
+{{define "mcp"}}
+<div id="mcp" class="stack">
+  {{if not .MCPServers}}
+  <div class="empty-card">
+    <div class="empty-icon">{{template "i-plug"}}</div>
+    <p>No tools connected yet</p>
+    <span>Without tools the AI can only talk. Add a server above to let it act for you.</span>
+  </div>
+  {{end}}
+  {{range .MCPServers}}
+  <article class="provider{{if not .Enabled}} is-off{{end}}">
+    <header class="provider-head">
+      <div class="provider-icon">{{template "i-plug"}}</div>
+      <div class="grow">
+        <div class="provider-name">{{.Name}} {{if not .Enabled}}<span class="badge">Disabled</span>{{end}}</div>
+        <div class="provider-meta"><span class="mono">{{.URL}}</span>{{if .Headers}}<span class="dot">·</span><span>auth headers set</span>{{end}}</div>
+        <div class="test-result" id="mcp-test-{{.ID}}"></div>
+      </div>
+      <div class="row wrap end">
+        <button class="chip{{if .Asks}} is-on{{end}}" hx-post="/settings/mcp/{{.ID}}/approval" hx-target="#mcp" hx-swap="outerHTML"
+                title="Click to switch">{{if .Asks}}{{template "i-shield-check"}}Asks first{{else}}{{template "i-power"}}Automatic{{end}}</button>
+        <button class="btn ghost sm" hx-post="/settings/mcp/{{.ID}}/test" hx-target="#mcp-test-{{.ID}}" hx-indicator="this">Test</button>
+        <button class="btn ghost sm" hx-post="/settings/mcp/{{.ID}}/toggle" hx-target="#mcp" hx-swap="outerHTML">{{if .Enabled}}Disable{{else}}Enable{{end}}</button>
+        <button class="icon-btn danger-hover" hx-post="/settings/mcp/{{.ID}}/delete" hx-target="#mcp" hx-swap="outerHTML" hx-confirm="Delete {{.Name}}?" aria-label="Delete">{{template "i-trash"}}</button>
+      </div>
+    </header>
+  </article>
+  {{end}}
+</div>
+{{end}}

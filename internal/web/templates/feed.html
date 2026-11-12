@@ -1,0 +1,356 @@
+{{define "title"}}{{if eq .Tab "settings"}}Feed settings{{else}}Feed{{end}} · Knitnox{{end}}
+
+{{define "content"}}
+<div class="shell">
+  {{template "sidebar" .}}
+  <main class="main" id="main" tabindex="-1">
+    {{template "page-top" "Feed"}}
+    <div class="page-scroll">
+      <div class="page feed-page">
+        {{if eq .Tab "settings"}}{{template "feed-settings" .}}{{else}}{{template "feed-main" .}}{{end}}
+      </div>
+    </div>
+  </main>
+</div>
+{{end}}
+
+{{/* ---------- the feed itself: one row of controls, then only posts ---------- */}}
+{{define "feed-main"}}
+{{$st := .State}}
+<div class="feed-top">
+  <div class="seg-links" role="group" aria-label="Show">
+    {{if .PublicOn}}<a href="{{$st.ViewURL "all"}}"{{if eq $st.View "all"}} class="is-active"{{end}} title="Your own posts and what others shared">Latest</a>{{end}}
+    <a href="{{$st.ViewURL "mine"}}"{{if eq $st.View "mine"}} class="is-active"{{end}} title="Posts on your own feed, private and shared">Mine</a>
+    {{if .PublicOn}}<a href="{{$st.ViewURL "public"}}"{{if eq $st.View "public"}} class="is-active"{{end}} title="Posts that people on this server shared with everyone">Shared</a>{{end}}
+    {{if eq $st.View "bin"}}<a href="{{$st.ViewURL "bin"}}" class="is-active">Bin</a>{{end}}
+  </div>
+  <div class="feed-tools">
+    {{if and (ne $st.View "bin") (ne $st.View "public")}}
+    <details class="row-menu feed-filter">
+      <summary class="btn sm{{if $st.From}} is-set{{end}}" title="Show only posts written by…">{{template "i-users"}}{{if $st.Agent}}{{$st.Agent}}{{else if eq $st.From "user"}}People{{else if eq $st.From "ai"}}The AI{{else if eq $st.From "agent"}}Agents{{else}}Everyone{{end}}{{template "i-chevron-down"}}</summary>
+      <div class="menu" role="menu">
+        <div class="menu-label">Show posts written by</div>
+        <a role="menuitem" href="{{$st.FromURL "" ""}}"{{if not $st.From}} aria-current="true"{{end}}>Everyone</a>
+        <a role="menuitem" href="{{$st.FromURL "user" ""}}"{{if eq $st.From "user"}} aria-current="true"{{end}}>People</a>
+        <a role="menuitem" href="{{$st.FromURL "ai" ""}}"{{if eq $st.From "ai"}} aria-current="true"{{end}}>{{template "i-sparkles"}}The AI in chats</a>
+        <a role="menuitem" href="{{$st.FromURL "agent" ""}}"{{if and (eq $st.From "agent") (not $st.Agent)}} aria-current="true"{{end}}>{{template "i-bot"}}All agents</a>
+        {{if .Agents}}<div class="menu-sep"></div>{{end}}
+        {{range .Agents}}<a role="menuitem" href="{{$st.FromURL "agent" .}}"{{if eq . $st.Agent}} aria-current="true"{{end}}>{{template "i-bot"}}{{.}}</a>{{end}}
+      </div>
+    </details>
+    {{end}}
+    {{if ne $st.View "bin"}}
+    <form class="plan-find feed-find" action="/feed" method="get" role="search">
+      <input type="hidden" name="view" value="{{$st.View}}">
+      {{if $st.From}}<input type="hidden" name="from" value="{{$st.From}}">{{end}}
+      {{if $st.Agent}}<input type="hidden" name="agent" value="{{$st.Agent}}">{{end}}
+      <input type="search" name="q" value="{{$st.Query}}" placeholder="Find a post…" aria-label="Find a post" maxlength="100" autocomplete="off">
+    </form>
+    {{end}}
+    <details class="row-menu">
+      <summary class="icon-btn" title="Feed settings and bin" aria-label="Feed settings and bin">{{template "i-settings"}}</summary>
+      <div class="menu" role="menu">
+        <a role="menuitem" href="/feed/settings">{{template "i-power"}}Who may post</a>
+        <a role="menuitem" href="/feed/settings#models">{{template "i-image"}}Pictures, voice and video</a>
+        <a role="menuitem" href="/feed/settings#how">{{template "i-bulb"}}How the Feed works</a>
+        <div class="menu-sep"></div>
+        <a role="menuitem" href="{{$st.ViewURL "bin"}}">{{template "i-trash"}}Bin <small>{{.BinCount}}</small></a>
+      </div>
+    </details>
+    {{if ne $st.View "bin"}}<button type="button" class="btn primary" data-toggle="#add" aria-expanded="false" aria-controls="add">{{template "i-plus"}}New post</button>{{end}}
+  </div>
+</div>
+
+{{if ne $st.View "bin"}}
+<form class="card feed-add" id="add" method="post" action="/feed" data-reset hidden
+      hx-post="/feed" hx-target="#feed-list" hx-swap="afterbegin">
+  <input type="hidden" name="_csrf" value="{{.CSRF}}">
+  <div class="h-row feed-add-head">
+    <label for="feed-body">What do you want to note or share?</label>
+    {{template "tip-open" "What is the Feed?"}}The <b>Feed</b> is one page of short posts, newest first. You write posts here, and the AI in your chats and the agents you allow can add posts too, so you see at a glance what happened and what was found. A post is <b>private</b> (only you see it) until you choose to share it{{if .PublicOn}} with everyone on this server{{end}}. <a href="/feed/settings#how">More about the Feed</a>{{template "tip-close"}}
+  </div>
+  <textarea id="feed-body" name="body" rows="3" maxlength="{{.BodyMax}}" required placeholder="e.g. The bakery order is confirmed for Friday." data-refocus></textarea>
+  <details class="advanced">
+    <summary>Add a longer report</summary>
+    <textarea name="report" rows="5" maxlength="{{.ReportMax}}" placeholder="Details that open behind “Read the full report”. Lists, **bold** and tables work (Markdown)." aria-label="Longer report"></textarea>
+  </details>
+  {{if or .Kinds.image .Kinds.voice .Kinds.video}}
+  <fieldset class="plan-when feed-media-pick">
+    <legend>{{template "i-sparkles"}}Let AI add</legend>
+    <label class="pick-chip"><input type="radio" name="media" value="" checked><span>Nothing</span></label>
+    {{if .Kinds.image}}<label class="pick-chip"><input type="radio" name="media" value="image"><span>A picture</span></label>{{end}}
+    {{if .Kinds.voice}}<label class="pick-chip" title="The post is read aloud as a recording"><input type="radio" name="media" value="voice"><span>Read it aloud</span></label>{{end}}
+    {{if .Kinds.video}}<label class="pick-chip" title="A short video; this takes a few minutes"><input type="radio" name="media" value="video"><span>A video</span></label>{{end}}
+  </fieldset>
+  <label class="feed-media-prompt">What should it show? <small class="muted">describe it in plain words</small>
+    <textarea name="media_prompt" rows="2" maxlength="2000" placeholder="e.g. A fresh loaf of bread on a wooden table, morning light"></textarea></label>
+  {{end}}
+  <div class="feed-add-foot">
+    {{if .PublicOn}}
+    <fieldset class="plan-when">
+      <legend>{{template "i-eye"}}Who can see it?</legend>
+      <label class="pick-chip"><input type="radio" name="visibility" value="private" checked><span>Only me</span></label>
+      <label class="pick-chip"><input type="radio" name="visibility" value="public"><span>Everyone on this server</span></label>
+    </fieldset>
+    {{else}}<span class="hint">{{template "i-lock"}}Only you will see this post.</span>{{end}}
+    <div class="row">
+      <button type="button" class="btn ghost" data-toggle="#add">Close</button>
+      <button type="submit" class="btn primary">{{template "i-arrow-up"}}Post</button>
+    </div>
+  </div>
+</form>
+{{end}}
+
+{{if $st.Query}}<p class="lead feed-lead">Posts with “{{$st.Query}}”. <a href="{{$st.FromURL $st.From $st.Agent}}">Show all</a></p>{{end}}
+{{if eq $st.View "bin"}}
+<div class="plan-bin-note">
+  <p class="hint">Deleted posts stay here for {{.BinDays}} days, then they are removed for good. <a href="/feed">Back to the feed</a></p>
+  {{if .Posts}}
+  <form method="post" action="/feed/bin/empty" data-confirm="Remove everything in the bin for good?">
+    <input type="hidden" name="_csrf" value="{{.CSRF}}">
+    <button type="submit" class="btn ghost sm">Empty the bin</button>
+  </form>
+  {{end}}
+</div>
+{{end}}
+
+<div class="feed-new-dock"><button type="button" class="feed-new" id="feed-new" hidden>{{template "i-arrow-up"}}<span></span></button></div>
+
+<div class="feed-list" id="feed-list"{{if ne $st.View "bin"}} data-live="1"{{end}} data-q="{{$st.Params}}">
+  {{template "feed-items" .}}
+  <div class="empty-card feed-empty">
+    <div class="empty-icon">{{if eq $st.View "bin"}}{{template "i-trash"}}{{else}}{{template "i-feed"}}{{end}}</div>
+    {{if eq $st.View "bin"}}<p>The bin is empty</p><span>Posts you delete wait here for {{.BinDays}} days.</span>
+    {{else if $st.Query}}<p>No post matches</p><span>Try another word, or <a href="{{$st.FromURL $st.From $st.Agent}}">show all</a>.</span>
+    {{else if $st.Filtered}}<p>Nothing here</p><span>No post fits this choice. <a href="{{$st.FromURL "" ""}}">Show posts by everyone</a></span>
+    {{else if eq $st.View "public"}}<p>Nobody has shared a post yet</p><span>When someone on this server shares a post with everyone, it shows up here.</span>
+    {{else if .Empty}}<p>Your feed is empty</p>
+    <span>This page fills with short posts: yours, and what the AI and your agents find for you.</span>
+    <ol class="how feed-start">
+      <li><span class="how-num" aria-hidden="true">1</span><b>Write a post</b><p>A note, a result, a reminder to yourself.</p><button type="button" class="btn primary sm" data-toggle="#add">{{template "i-plus"}}New post</button></li>
+      <li><span class="how-num" aria-hidden="true">2</span><b>Let the AI post</b><p>{{if .On}}It is allowed. In a chat, say “post this to my feed”.{{else}}Then say “post this to my feed” in a chat.{{end}}</p>{{if not .On}}<a class="btn sm" href="/feed/settings">Allow it</a>{{end}}</li>
+      <li><span class="how-num" aria-hidden="true">3</span><b>Let agents report</b><p>Each agent can post what it found, up to a limit per day.</p><a class="btn sm" href="/agents">Open agents</a></li>
+    </ol>
+    {{else}}<p>Nothing new here</p><span>No posts in this view yet.</span>{{end}}
+  </div>
+</div>
+{{end}}
+
+{{/* ---------- feed settings: who may post, the models, how it works ---------- */}}
+{{define "feed-settings"}}
+<p class="back"><a href="/feed">{{template "i-chevron-left"}}Back to the feed</a></p>
+{{if eq .Notice "on"}}<div class="notice">{{template "i-check"}}The AI can now post to your feed from your own chats. Try “post a short summary of this to my feed”.</div>
+{{else if eq .Notice "off"}}<div class="notice">{{template "i-check"}}The AI in your chats no longer posts to your feed. Your posts are all still here.</div>
+{{else if eq .Notice "models"}}<div class="notice">{{template "i-check"}}Saved. New posts use these models.</div>
+{{else if eq .Notice "added"}}<div class="notice">{{template "i-check"}}Your model is added and chosen. It is also listed under <a href="/settings#keys">Settings → Your API keys</a>.</div>
+{{end}}
+
+<section class="section" id="ai">
+  <div class="section-head">
+    <div class="section-icon">{{template "i-power"}}</div>
+    <div><h2>Who may post to my feed</h2><p>You always can. You decide whether the AI and your agents may, too.</p></div>
+  </div>
+  <div class="card mem-switch">
+    <div class="grow">
+      <div class="card-title">{{if .On}}<span class="badge st-ok">On</span> The AI in your chats can post to your feed{{else}}<span class="badge">Off</span> The AI in your chats cannot post{{end}}</div>
+      <ul class="plain-list hint">
+        <li><b>In your own chats</b> the AI posts when you ask it to, and can list or delete posts for you.</li>
+        <li><b>In group chats</b> the feed is never used.</li>
+        <li><b>What the AI and agents post is always private.</b> Only you can share a post{{if .PublicOn}} with everyone{{end}}, and they never read what other people shared.</li>
+      </ul>
+    </div>
+    <form method="post" action="/feed/settings">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <input type="hidden" name="enabled" value="{{if .On}}0{{else}}1{{end}}">
+      <button type="submit" class="btn{{if not .On}} primary{{end}}">{{if .On}}Turn off{{else}}Let the AI post{{end}}</button>
+    </form>
+  </div>
+
+  <h3 class="sub">Your agents</h3>
+  {{if .AgentList}}
+  <div class="card feed-agents">
+    {{range .AgentList}}
+    <div class="feed-agent">
+      <span class="avatar feed-av sm">{{template "i-bot"}}</span>
+      <b class="grow">{{.Name}}</b>
+      {{if eq .FeedAccess "post"}}<span class="badge st-ok">May post · up to {{.FeedDaily}} a day</span>{{else}}<span class="badge">Does not post</span>{{end}}
+      <a class="btn sm" href="/t/{{.ThreadID}}" title="Open the agent, then its settings → Memory &amp; plans → Your Feed">Open</a>
+    </div>
+    {{end}}
+  </div>
+  <p class="hint">To change this, open the agent, then its settings, then <b>Memory &amp; plans</b> → <b>Your Feed</b>. The daily limit keeps one busy agent from burying your feed.</p>
+  {{else}}
+  <p class="hint">You have no agents yet. An agent is a helper that works in the background and can post what it finds. <a href="/agents">Create one</a></p>
+  {{end}}
+</section>
+
+<section class="section" id="models">
+  <div class="section-head">
+    <div class="section-icon">{{template "i-image"}}</div>
+    <div>
+      <div class="h-row"><h2>Pictures, voice and video</h2>
+        {{template "tip-open" "What is this for?"}}A post can carry a <b>picture</b>, a <b>voice recording</b> or a <b>video</b> made by an AI model. Each needs its own kind of model. Your admin can share models with everyone; you can also use your own. Leave a kind off and posts simply come without it. Charts and drawn diagrams need none of this: they always work.{{template "tip-close"}}
+      </div>
+      <p>Choose which model makes each of them for your feed, or turn a kind off.</p>
+    </div>
+  </div>
+  <form class="card stack" method="post" action="/feed/settings/models">
+    <input type="hidden" name="_csrf" value="{{.CSRF}}">
+    {{range .Picks}}
+    <label><span class="h-row"><b>{{.Label}}</b>{{if .Working}}<span class="badge st-ok">Ready</span>{{else}}<span class="badge">Not set up</span>{{end}}</span><small class="muted">{{.Hint}}</small>
+      <select name="{{.Field}}">
+        <option value="0" {{if eq .Chosen 0}}selected{{end}}>{{if .Server}}The server's model: {{.Server}}{{else}}The server's model (none is set up yet){{end}}</option>
+        {{$chosen := .Chosen}}
+        {{range .Options}}<option value="{{.ModelID}}" {{if eq .ModelID $chosen}}selected{{end}}>{{.ModelName}} — {{.ProviderName}}{{if .Personal}} (your own){{end}}</option>{{end}}
+        <option value="-1" {{if eq .Chosen -1}}selected{{end}}>Off: never make {{if eq .Kind "image"}}pictures{{else if eq .Kind "voice"}}recordings{{else}}videos{{end}}</option>
+      </select>
+    </label>
+    {{end}}
+    <details class="advanced">
+      <summary>Advanced</summary>
+      <label>Voice name <small class="muted">which voice the voice model speaks with; leave empty for its usual one (for OpenAI: alloy, nova, onyx…)</small>
+        <input name="voice_name" value="{{.VoiceName}}" maxlength="60" placeholder="alloy" autocomplete="off"></label>
+    </details>
+    <div class="row wrap">
+      <button type="submit" class="btn primary">Save</button>
+      {{if .MediaDaily}}<span class="hint">With the server's models you can make up to {{.MediaDaily}} pictures, recordings and videos a day. Your own models have no limit here.</span>{{end}}
+    </div>
+  </form>
+
+  <details class="card add-card feed-own-model">
+    <summary>{{template "i-plus"}}<span>Add my own model</span></summary>
+    <form class="form-grid" method="post" action="/feed/settings/models/add">
+      <input type="hidden" name="_csrf" value="{{.CSRF}}">
+      <p class="hint span-2">Use this when you have your own account with an AI provider. The model is chosen for your feed right away, and it is kept with your other keys under <a href="/settings#keys">Settings → Your API keys</a>, so you type a key only once.</p>
+      <label>It makes
+        <select name="kind">
+          <option value="image">Pictures</option>
+          <option value="voice">Voice</option>
+          <option value="video">Video</option>
+        </select>
+      </label>
+      <label>Model name <small class="muted">as the provider calls it</small><input name="model" required maxlength="200" class="mono" placeholder="e.g. gpt-image-1" autocomplete="off"></label>
+      {{template "model-quick-provider" .}}
+      <div class="span-2"><button type="submit" class="btn primary">Add and use it</button></div>
+    </form>
+  </details>
+</section>
+
+<section class="section" id="how">
+  <div class="section-head">
+    <div class="section-icon">{{template "i-bulb"}}</div>
+    <div><h2>How the Feed works</h2><p>One page of short posts, newest first, so you see at a glance what happened.</p></div>
+  </div>
+  <ol class="how">
+    <li><span class="how-num" aria-hidden="true">1</span><b>Short posts</b><p>A post is a few lines. A longer report, a chart, a drawn diagram, a picture, a recording or a video can sit with it.</p></li>
+    <li><span class="how-num" aria-hidden="true">2</span><b>Your helpers post too</b><p>The AI in your chats and your agents post what they found, so you do not have to open each one.</p></li>
+    <li><span class="how-num" aria-hidden="true">3</span><b>You stay in charge</b><p>Posts are private until you share them. Change or delete any post; deleted ones wait in the <a href="/feed?view=bin">bin</a> ({{.BinCount}}) for {{.BinDays}} days.</p></li>
+  </ol>
+</section>
+{{end}}
+
+{{/* A run of posts, and the marker that loads the older ones when it comes into view. Needs .Posts, .State; .More and .Last for the marker. */}}
+{{define "feed-items"}}
+{{range .Posts}}{{template "feed-card" (wrap "P" .)}}{{end}}
+{{if .More}}<div class="feed-more" hx-get="/feed/more?before={{.Last}}&{{.State.Params}}" hx-trigger="intersect once, click" hx-swap="outerHTML">
+  <button type="button" class="btn">{{template "i-arrow-down"}}Show older posts</button>
+</div>{{end}}
+{{end}}
+
+{{/* One post. Needs .P (a feedPostView). Buttons swap the card in place. */}}
+{{define "feed-card"}}{{with .P}}
+<article class="feed-post{{if .IsNew}} is-new{{end}}{{if .InBin}} is-bin{{end}}" id="fp-{{.ID}}" data-post="{{.ID}}">
+  <header class="feed-head">
+    {{if eq .CreatedBy "agent"}}<span class="avatar feed-av">{{template "i-bot"}}</span>
+    {{else if eq .CreatedBy "ai"}}<span class="avatar feed-av">{{template "i-sparkles"}}</span>
+    {{else}}<span class="avatar">{{initial .Username}}</span>{{end}}
+    <div class="feed-who">
+      <b>{{if eq .CreatedBy "agent"}}{{if .ActorName}}{{.ActorName}}{{else}}An agent{{end}}{{else if eq .CreatedBy "ai"}}The AI{{else if .Mine}}You{{else}}{{.Username}}{{end}}</b>
+      <span class="feed-when">
+        {{if eq .CreatedBy "agent"}}{{if .Mine}}your agent{{else}}{{.Username}}’s agent{{end}} · {{else if eq .CreatedBy "ai"}}{{if .Mine}}from your chat{{else}}for {{.Username}}{{end}} · {{end}}<span title="{{.WhenFull}}">{{.When}}</span>{{if .Edited}} · changed{{end}}
+      </span>
+    </div>
+    {{if .IsNew}}<span class="badge st-busy">New</span>{{end}}
+    {{if .Mine}}
+      {{if .Public}}<span class="badge st-ok" title="Everyone on this server can see this post">{{template "i-users"}}Shared</span>
+      {{else}}<span class="badge" title="Only you can see this post">{{template "i-lock"}}Only you</span>{{end}}
+    {{end}}
+    {{if .InBin}}
+    <div class="feed-actions">
+      <button type="button" class="btn sm" hx-post="/feed/p/{{.ID}}/restore" hx-vals='{"view":"bin"}' hx-target="#fp-{{.ID}}" hx-swap="outerHTML">{{template "i-refresh"}}Restore</button>
+      <button type="button" class="icon-btn sm danger-hover" hx-post="/feed/p/{{.ID}}/purge" hx-target="#fp-{{.ID}}" hx-swap="outerHTML" hx-confirm="Remove this post for good?" title="Delete for good" aria-label="Delete this post for good">{{template "i-trash"}}</button>
+    </div>
+    {{else if .Mine}}
+    <details class="row-menu">
+      <summary class="icon-btn sm" title="More: change, share, delete" aria-label="More for this post">{{template "i-more"}}</summary>
+      <div class="menu" role="menu">
+        <button type="button" role="menuitem" hx-get="/feed/p/{{.ID}}/edit" hx-target="#fp-{{.ID}}" hx-swap="outerHTML">{{template "i-pencil"}}Change the text</button>
+        {{if .Public}}<button type="button" role="menuitem" hx-post="/feed/p/{{.ID}}/share" hx-vals='{"public":"0"}' hx-target="#fp-{{.ID}}" hx-swap="outerHTML">{{template "i-lock"}}Make it private again</button>
+        {{else if .PublicOn}}<button type="button" role="menuitem" hx-post="/feed/p/{{.ID}}/share" hx-vals='{"public":"1"}' hx-target="#fp-{{.ID}}" hx-swap="outerHTML" hx-confirm="Share this post with everyone on this server?">{{template "i-users"}}Share with everyone</button>{{end}}
+        <div class="menu-sep"></div>
+        <button type="button" role="menuitem" class="danger-text" hx-post="/feed/p/{{.ID}}/delete" hx-target="#fp-{{.ID}}" hx-swap="outerHTML">{{template "i-trash"}}Delete <small>goes to the bin</small></button>
+      </div>
+    </details>
+    {{else if .CanPull}}
+    <details class="row-menu">
+      <summary class="icon-btn sm" title="Admin: take this post out of the public feed" aria-label="Admin actions for this post">{{template "i-more"}}</summary>
+      <div class="menu" role="menu">
+        <div class="menu-label">Admin</div>
+        <button type="button" role="menuitem" class="danger-text" hx-post="/feed/p/{{.ID}}/unshare" hx-target="#fp-{{.ID}}" hx-swap="outerHTML" hx-confirm="Take this post out of the public feed? Its owner keeps it as a private post.">{{template "i-shield"}}Take out of the public feed</button>
+      </div>
+    </details>
+    {{end}}
+  </header>
+  <p class="feed-text">{{.Body}}</p>
+  {{if .Chart}}
+  <figure class="feed-chart">
+    {{if .FeedPost.Chart.Title}}<figcaption>{{.FeedPost.Chart.Title}}</figcaption>{{end}}
+    {{.Chart}}
+  </figure>
+  {{end}}
+  {{if .HasSVG}}<figure class="feed-picture"><img src="/feed/p/{{.ID}}/picture.svg" alt="Picture drawn for this post"{{if .PicW}} width="{{.PicW}}" height="{{.PicH}}"{{end}} loading="lazy"></figure>{{end}}
+  {{if .MediaKind}}
+  <figure class="feed-media is-{{.MediaKind}}">
+    {{if .MediaIsPending}}<div class="feed-media-wait" role="status"><span class="feed-spin" aria-hidden="true"></span><span>Making the {{.MediaWord}}…{{if eq .MediaKind "video"}} This can take a few minutes.{{end}} It appears here by itself.</span></div>
+    {{else if .MediaIsFailed}}<p class="feed-media-failed">{{template "i-alert"}}<span>The {{.MediaWord}} could not be made{{if .MediaNote}}: {{.MediaNote}}{{end}}</span></p>
+    {{else if eq .MediaKind "image"}}<a href="/feed/p/{{.ID}}/media" target="_blank" rel="noopener" title="Open the picture in a new tab"><img src="/feed/p/{{.ID}}/media" alt="{{.MediaPrompt}}"{{if .ShotW}} width="{{.ShotW}}" height="{{.ShotH}}"{{end}} loading="lazy"></a>
+    {{else if eq .MediaKind "voice"}}<audio controls preload="none" src="/feed/p/{{.ID}}/media" aria-label="This post read aloud"></audio>
+    {{else if eq .MediaKind "video"}}<video controls preload="metadata" playsinline src="/feed/p/{{.ID}}/media" aria-label="{{.MediaPrompt}}"></video>{{end}}
+    {{if .MediaIsReady}}<figcaption>{{template "i-sparkles"}}{{if eq .MediaKind "voice"}}Read aloud by AI{{else}}Made by AI{{end}}{{if .MediaNote}} · {{.MediaNote}}{{end}}</figcaption>{{end}}
+  </figure>
+  {{end}}
+  {{if .Report}}
+  <details class="feed-report">
+    <summary>{{template "i-list"}}Read the full report</summary>
+    <div class="md">{{.Report}}</div>
+  </details>
+  {{end}}
+  {{if or .Public (and .SourceThreadID .SourceTitle)}}
+  <footer class="feed-foot">
+    {{if and .SourceThreadID .SourceTitle}}<span>from <a href="/t/{{.SourceThreadID}}">{{.SourceTitle}}</a></span>{{end}}
+    {{if .Public}}<span class="feed-reads" title="How many other people on this server have been shown this post">{{template "i-eye"}}Seen by {{.Reads}} {{if eq .Reads 1}}person{{else}}people{{end}}</span>{{end}}
+  </footer>
+  {{end}}
+</article>
+{{end}}{{end}}
+
+{{/* The line left where a post was: what happened, and Undo when there is a way back. Needs .ID, .Text; .Undo. */}}
+{{define "feed-gone"}}
+<div class="feed-gone" id="fp-{{.ID}}" data-post="{{.ID}}" role="status">
+  {{template "i-check"}}<span>{{.Text}}</span>
+  {{if .Undo}}<button type="button" class="btn sm" hx-post="/feed/p/{{.ID}}/restore" hx-target="#fp-{{.ID}}" hx-swap="outerHTML">{{template "i-refresh"}}Undo</button>{{end}}
+</div>
+{{end}}
+
+{{/* A post being edited, in place of its card. Needs .P (a store.FeedPost). */}}
+{{define "feed-edit"}}
+<form class="feed-post is-editing stack sm" id="fp-{{.P.ID}}" data-post="{{.P.ID}}" hx-post="/feed/p/{{.P.ID}}" hx-target="this" hx-swap="outerHTML">
+  <label>Post <textarea name="body" rows="3" maxlength="{{.BodyMax}}" required autofocus>{{.P.Body}}</textarea></label>
+  <label>Longer report <small class="muted">optional; opens behind “Read the full report”</small><textarea name="report" rows="6" maxlength="{{.ReportMax}}">{{.P.Report}}</textarea></label>
+  {{if or .P.Chart .P.HasSVG .P.MediaKind}}<p class="hint">The chart, picture, recording or video of this post stays as it is.</p>{{end}}
+  <div class="row end">
+    <button type="button" class="btn ghost" hx-get="/feed/p/{{.P.ID}}" hx-target="#fp-{{.P.ID}}" hx-swap="outerHTML">Cancel</button>
+    <button type="submit" class="btn primary">Save changes</button>
+  </div>
+</form>
+{{end}}

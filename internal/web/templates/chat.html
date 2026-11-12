@@ -1,0 +1,447 @@
+{{define "title"}}{{if .Thread}}{{.Thread.Title}} · {{end}}Knitnox{{end}}
+
+{{define "content"}}
+<div class="shell">
+  {{template "sidebar" .}}
+
+  <main class="main" id="main" tabindex="-1">
+  {{if .Thread}}
+    <div class="chat" id="chat" data-thread="{{.Thread.ID}}" data-max-files="{{.MaxFiles}}" data-owner="{{if eq .Role "owner"}}1{{else}}0{{end}}">
+      <header class="topbar">
+        <button class="icon-btn only-mobile" type="button" data-toggle-sidebar aria-label="Open menu">{{template "i-panel"}}</button>
+        <div class="topbar-title">
+          <h1 id="thread-title">{{.Thread.Title}}</h1>
+          <div class="topbar-meta">
+            <span class="meta-item">{{template "i-cpu"}}<span class="mono">{{.ModelName}}</span></span>
+            {{if .Agent}}
+            <span class="meta-item">{{template "i-clock"}}{{schedule .Agent.ScheduleMinutes}}{{if and .Agent.Enabled .Agent.NextRunAt}}<span class="hide-sm"> · next {{short .Agent.NextRunAt}} UTC</span>{{end}}</span>
+            <span class="meta-item">{{template "i-list"}}{{.OpenTasks}} open task{{if ne .OpenTasks 1}}s{{end}}</span>
+            {{if not .Agent.Enabled}}<span class="meta-item is-warn" title="No scheduled runs. Switch it on under Tasks &amp; settings → Setup.">{{template "i-power"}}Paused</span>{{end}}
+            {{end}}
+            {{if .ConnectedCount}}<span class="meta-item">{{template "i-bot"}}{{.ConnectedCount}} agent{{if ne .ConnectedCount 1}}s{{end}} connected</span>{{end}}
+            {{if gt (len .Members) 1}}<span class="meta-item">{{template "i-users"}}{{len .Members}} people</span>{{end}}
+            {{if eq .Role "viewer"}}<span class="meta-item">{{template "i-eye"}}Read only</span>{{end}}
+            <span class="meta-item ctx" id="ctx-meter" title="How full the AI's reading space is. When it fills up, older messages are summarised automatically."
+                  data-pct="{{.ContextPct}}">{{template "i-gauge"}}<span class="ctx-bar"><i></i></span><span class="ctx-text">{{.ContextPct}}%</span></span>
+          </div>
+        </div>
+        {{if .Agent}}
+        <button class="btn ghost" hx-post="/agents/{{.Agent.ID}}/run" hx-swap="none" title="Start a run now">{{template "i-arrow-up"}}<span class="hide-sm">Run now</span></button>
+        <button id="panel-toggle" class="btn ghost" hx-get="/agents/{{.Agent.ID}}/panel" hx-target="#panel" hx-swap="innerHTML">
+          {{template "i-list"}}<span class="hide-sm">Tasks &amp; settings</span>
+        </button>
+        {{else}}
+        {{if eq .Role "owner"}}
+        <details class="row-menu top-menu agent-menu">
+          <summary class="btn ghost" title="Connect your background agents to this chat">{{template "i-bot"}}<span class="hide-sm">Agents</span>{{if .ConnectedCount}}<span class="badge">{{.ConnectedCount}}</span>{{end}}</summary>
+          <div class="menu" role="menu">
+            <p class="menu-note">Tick an agent to connect it. The AI in this chat can then give it tasks, start it and read its results. Just ask, e.g. “ask Inbox helper to reply to Sam”.</p>
+            {{range .Agents}}
+            <button type="button" role="menuitemcheckbox" aria-checked="{{.Connected}}" hx-post="/t/{{$.Thread.ID}}/agents/{{.ID}}" hx-swap="none">
+              <span class="menu-tick">{{if .Connected}}{{template "i-check"}}{{end}}</span><span class="grow">{{.Name}}</span>{{if not .Enabled}}<small class="muted">paused</small>{{end}}
+            </button>
+            {{else}}
+            <p class="menu-note"><b>You have no agents yet.</b></p>
+            {{end}}
+            <div class="menu-sep"></div>
+            <a href="/agents" role="menuitem">{{template "i-plus"}}Create or manage agents</a>
+          </div>
+        </details>
+        {{end}}
+        <button id="panel-toggle" class="btn ghost" hx-get="/t/{{.Thread.ID}}/panel" hx-target="#panel" hx-swap="innerHTML">
+          {{if eq .Role "owner"}}{{template "i-user-plus"}}<span class="hide-sm">Share</span>{{else}}{{template "i-users"}}<span class="hide-sm">Members</span>{{end}}
+        </button>
+        {{end}}
+        <details class="row-menu top-menu">
+          <summary class="icon-btn" aria-label="Chat options">{{template "i-more"}}</summary>
+          <div class="menu" role="menu">
+            {{if .Agent}}<a href="/agents" role="menuitem">{{template "i-bot"}}All agents</a>{{else}}
+            {{if eq .Role "owner"}}<button type="button" data-rename="{{.Thread.ID}}">{{template "i-pencil"}}Rename</button>{{end}}
+            <button type="button" data-flag="/t/{{.Thread.ID}}/flag" data-flag-name="pinned" data-on="{{if .Pinned}}0{{else}}1{{end}}">{{template "i-pin"}}{{if .Pinned}}Unpin{{else}}Pin{{end}}</button>
+            <button type="button" data-flag="/t/{{.Thread.ID}}/flag" data-flag-name="archived" data-on="{{if .Archived}}0{{else}}1{{end}}">{{template "i-archive"}}{{if .Archived}}Unarchive{{else}}Archive{{end}}</button>
+            {{end}}
+            <a href="/t/{{.Thread.ID}}/export" role="menuitem">{{template "i-download"}}Export as Markdown</a>
+            <a href="/t/{{.Thread.ID}}/export?format=json" role="menuitem">{{template "i-code"}}Export as JSON</a>
+            <div class="menu-sep"></div>
+            {{if eq .Role "owner"}}
+            <button type="button" class="danger-text" data-delete="/t/{{.Thread.ID}}/delete" data-name="{{.Thread.Title}}">{{template "i-trash"}}{{if .Agent}}Delete agent{{else}}Delete chat{{end}}</button>
+            {{else}}
+            <button type="button" class="danger-text" data-leave="/t/{{.Thread.ID}}/leave" data-name="{{.Thread.Title}}">{{template "i-logout"}}Leave chat</button>
+            {{end}}
+          </div>
+        </details>
+      </header>
+
+      <div class="scroller" id="scroller">
+        <div class="thread">{{template "messages" .}}</div>
+      </div>
+
+      <div class="composer-wrap">
+        <button type="button" class="to-bottom" id="to-bottom" hidden aria-label="Jump to latest">{{template "i-arrow-down"}}</button>
+        {{if .CanWrite}}
+        <form class="composer" id="composer" autocomplete="off" data-vision="{{.Vision}}">
+          <div class="composer-card" data-dropzone>
+            <div class="att-tray" hidden></div>
+            <textarea name="content" id="input" rows="2" placeholder="{{if .Agent}}Give {{.Agent.Name}} an instruction: it starts a new run…{{else if gt (len .Members) 1}}Message the group…{{else}}Message Knitnox…{{end}}" aria-label="Message"></textarea>
+            <div class="composer-bar">
+              <button type="button" class="tool-pill" data-attach aria-label="Attach images or files" title="Attach images, PDFs or text files">{{template "i-paperclip"}}<span class="hide-sm">Attach</span></button>
+              <input type="file" class="file-input" accept="image/png,image/jpeg,image/webp,image/gif,.pdf,.txt,.md,.markdown,.csv,.json,.xml,.html,.yaml,.yml,.toml,.log,.go,.py,.js,.ts,.tsx,.jsx,.java,.c,.h,.cpp,.cs,.rs,.rb,.php,.sh,.sql,.css,.swift,.kt" multiple hidden>
+              <span class="queue-info" id="queue-info" aria-live="polite"></span>
+              <span class="grow"></span>
+              <button type="button" id="stop" class="send-btn stop" hidden aria-label="Stop generating" title="Stop">{{template "i-stop"}}</button>
+              <button type="submit" class="send-btn" aria-label="Send" title="Send" disabled>{{template "i-arrow-up"}}</button>
+            </div>
+          </div>
+          <p class="composer-foot"><span class="hide-touch">Enter to send · Shift+Enter for a new line · </span>{{if .Agent}}Each instruction starts a fresh run.{{else}}AI can make mistakes.{{end}}</p>
+        </form>
+        {{else}}
+        <p class="read-only-note">{{template "i-eye"}} You can read this chat but not post.</p>
+        {{end}}
+      </div>
+    </div>
+  {{else}}
+    <div class="home">
+      <header class="topbar home-top">
+        <button class="icon-btn only-mobile" type="button" data-toggle-sidebar aria-label="Open menu">{{template "i-panel"}}</button>
+        <span class="grow"></span>
+        <button class="icon-btn" type="button" data-open-palette aria-label="Search or jump to (Ctrl+K)" title="Search or jump to (Ctrl+K)">{{template "i-search"}}</button>
+      </header>
+      <div class="home-inner">
+        <div class="hero">
+          <span class="logo xl" aria-hidden="true"></span>
+          <h1 id="greeting" data-name="{{.Me.Username}}">Hello, {{.Me.Username}}</h1>
+          <p>What would you like to do today?</p>
+        </div>
+
+        {{if .ModelOptions}}
+        <form class="composer" id="home-form" method="post" action="/t" enctype="multipart/form-data" autocomplete="off" data-max-files="{{.MaxFiles}}">
+          <input type="hidden" name="_csrf" value="{{.CSRF}}">
+          <div class="composer-card tall" data-dropzone>
+            <div class="att-tray" hidden></div>
+            <textarea name="content" id="home-input" rows="3" placeholder="Ask anything, or drop a file here…" aria-label="Message"></textarea>
+            <div class="composer-bar">
+              <button type="button" class="tool-pill" data-attach aria-label="Attach images or files" title="Attach images, PDFs or text files">{{template "i-paperclip"}}<span class="hide-sm">Attach</span></button>
+              <input type="file" class="file-input" accept="image/png,image/jpeg,image/webp,image/gif,.pdf,.txt,.md,.markdown,.csv,.json,.xml,.html,.yaml,.yml,.toml,.log,.go,.py,.js,.ts,.tsx,.jsx,.java,.c,.h,.cpp,.cs,.rs,.rb,.php,.sh,.sql,.css,.swift,.kt" multiple hidden>
+              <label class="model-select tool-pill" title="Model">
+                {{template "i-cpu"}}
+                <select name="model_id" id="model-select" aria-label="Model">
+                  {{range .ModelOptions}}
+                  <option value="{{.ModelID}}" data-vision="{{.Vision}}" {{if eq .ModelID $.DefaultModel}}selected{{end}}>{{.ModelName}}{{if .Personal}} · your key{{end}}</option>
+                  {{end}}
+                </select>
+                {{template "i-chevron-down"}}
+              </label>
+              {{if .Agents}}
+              <details class="row-menu agent-pick">
+                <summary class="tool-pill" title="Connect your background agents to this chat">{{template "i-bot"}}<span class="hide-sm">Agents</span><span class="badge" data-agent-count hidden></span></summary>
+                <div class="menu" role="group" aria-label="Agents to connect">
+                  <p class="menu-note">Tick the agents this chat should work with. The AI can then give them tasks, start them and read their results.</p>
+                  {{range .Agents}}
+                  <label class="check"><input type="checkbox" name="agent" value="{{.ID}}"><span>{{.Name}}{{if not .Enabled}} <small>paused</small>{{end}}{{if .Description}}<small>{{.Description}}</small>{{end}}</span></label>
+                  {{end}}
+                </div>
+              </details>
+              {{end}}
+              <span class="grow"></span>
+              <button type="submit" class="send-btn" aria-label="Start chat" title="Send" disabled>{{template "i-arrow-up"}}</button>
+            </div>
+          </div>
+          <p class="composer-foot"><span class="hide-touch">Enter to send · Shift+Enter for a new line · </span>Images, PDFs and text files welcome</p>
+        </form>
+
+        <div class="suggestions" aria-label="Suggestions">
+          <button type="button" class="suggestion" data-prompt="Explain how large language models work, in simple terms.">
+            <span class="s-icon">{{template "i-bulb"}}</span><span><b>Explain a concept</b><small>How do language models work?</small></span></button>
+          <button type="button" class="suggestion" data-prompt="Write a Go function that checks whether a string is a palindrome, with tests.">
+            <span class="s-icon">{{template "i-code"}}</span><span><b>Write some code</b><small>A palindrome checker in Go</small></span></button>
+          <button type="button" class="suggestion" data-prompt="Help me write a short, friendly follow-up email after a job interview.">
+            <span class="s-icon">{{template "i-mail"}}</span><span><b>Draft an email</b><small>A friendly interview follow-up</small></span></button>
+          <button type="button" class="suggestion" data-prompt="Plan a relaxed 3-day trip to Lisbon with food recommendations.">
+            <span class="s-icon">{{template "i-map"}}</span><span><b>Plan a trip</b><small>Three easy days in Lisbon</small></span></button>
+        </div>
+        {{else}}
+        <div class="empty-card">
+          <div class="empty-icon">{{template "i-server"}}</div>
+          <p>No models are available yet</p>
+          {{if .Me.IsAdmin}}<span>Knitnox needs an AI model before you can chat. It takes about a minute.</span>
+          <a class="btn primary" href="/admin/providers">{{template "i-plus"}}Add an AI provider</a>
+          {{else}}<span>Ask an admin to add one, or use your own key.</span>
+          <a class="btn primary" href="/settings#keys">{{template "i-key"}}Add my own API key</a>{{end}}
+        </div>
+        {{end}}
+
+        {{if and (not .StartHidden) (not (and .ModelOptions .HasChats .HasTools .Agents))}}
+        <section class="start" id="start" aria-labelledby="start-title">
+          <header class="start-head">
+            <div class="grow"><h2 id="start-title">Getting started</h2><p>Four small steps, in any order. Ticked ones are done.</p></div>
+            <button type="button" class="btn ghost sm" data-hide-start title="You can always find this in Help">Hide</button>
+          </header>
+          <ol class="start-steps">
+            <li{{if .ModelOptions}} class="is-done"{{end}}>
+              <span class="start-check" aria-hidden="true">{{if .ModelOptions}}{{template "i-check"}}{{else}}1{{end}}</span>
+              <span class="grow"><b>Connect an AI model</b><small>Paste the address and key of any OpenAI-compatible provider, once.</small></span>
+              {{if .ModelOptions}}<span class="start-done">Done</span>{{else}}<a class="btn sm" href="{{if .Me.IsAdmin}}/admin/providers{{else}}/settings#keys{{end}}">Add a model</a>{{end}}
+            </li>
+            <li{{if .HasChats}} class="is-done"{{end}}>
+              <span class="start-check" aria-hidden="true">{{if .HasChats}}{{template "i-check"}}{{else}}2{{end}}</span>
+              <span class="grow"><b>Send your first message</b><small>Type in the box above and press Enter. The answer keeps coming even if you close the tab.</small></span>
+              {{if .HasChats}}<span class="start-done">Done</span>{{end}}
+            </li>
+            <li{{if .HasTools}} class="is-done"{{end}}>
+              <span class="start-check" aria-hidden="true">{{if .HasTools}}{{template "i-check"}}{{else}}3{{end}}</span>
+              <span class="grow"><b>Give the AI tools</b><small>Connect a tool server (MCP) so it can search, read mail or use your own services.</small></span>
+              {{if .HasTools}}<span class="start-done">Done</span>{{else}}<a class="btn sm" href="/settings#tools">Add tools</a>{{end}}
+            </li>
+            <li{{if .Agents}} class="is-done"{{end}}>
+              <span class="start-check" aria-hidden="true">{{if .Agents}}{{template "i-check"}}{{else}}4{{end}}</span>
+              <span class="grow"><b>Create a background agent</b><small>A helper with its own job and to-do list that works while you are away.</small></span>
+              {{if .Agents}}<span class="start-done">Done</span>{{else}}<a class="btn sm" href="/agents">Create an agent</a>{{end}}
+            </li>
+          </ol>
+        </section>
+        {{end}}
+      </div>
+    </div>
+  {{end}}
+  </main>
+
+  <aside class="panel" id="panel" hidden aria-label="Chat details"></aside>
+  <div class="panel-scrim" data-close-panel hidden></div>
+</div>
+
+<div class="lightbox" id="lightbox" hidden>
+  <button class="icon-btn lightbox-close" type="button" aria-label="Close">{{template "i-x"}}</button>
+  <img alt="">
+</div>
+<div class="drop-overlay" id="drop-overlay" hidden>
+  <div>{{template "i-paperclip"}}<p>Drop images or files to attach</p></div>
+</div>
+{{end}}
+
+{{define "messages"}}
+<div id="messages" data-pending="{{.Pending}}" data-running="{{.Running}}" data-waiting="{{.Waiting}}"
+     data-oldest="{{.OldestRun}}" data-has-older="{{.HasOlder}}"
+     data-context-pct="{{.ContextPct}}" data-context-used="{{.ContextUsed}}" data-context-window="{{.ContextWindow}}">
+  {{if .HasOlder}}<button type="button" class="load-earlier" data-load-earlier>{{template "i-chevron-up"}}Load earlier messages</button>{{end}}
+  {{if .Thread.Summary}}
+  <details class="memory">
+    <summary>{{template "i-sparkles"}}<span>Earlier messages were summarised to save space</span>{{template "i-chevron-down"}}</summary>
+    <div class="md">{{.Thread.Summary}}</div>
+  </details>
+  {{end}}
+  {{range .Messages}}{{template "message" .}}{{end}}
+  {{if not .Messages}}
+  <div class="thread-empty">
+    {{if .Agent}}
+    <span class="empty-icon">{{template "i-bot"}}</span>
+    <p><b>{{.Agent.Name}} has not run yet</b></p>
+    <p>Every run shows up here like a chat, so you can see exactly what it did.<br>
+      Press <b>Run now</b> at the top, add a task under <b>Tasks &amp; settings</b>, or type an instruction below.</p>
+    {{else}}
+    <span class="logo xl" aria-hidden="true"></span>
+    <p>Send a message to start the conversation.</p>
+    {{end}}
+  </div>
+  {{end}}
+  {{if .Waiting}}<div class="run-note is-wait" id="wait-note">{{template "i-clock"}}<span>Waiting for a free slot — other chats are being answered first.</span></div>{{end}}
+</div>
+{{end}}
+
+{{/* an older page of messages, prepended by app.js */}}
+{{define "older"}}
+<div class="older" data-oldest="{{.OldestRun}}" data-has-older="{{.HasOlder}}">
+  {{range .Messages}}{{template "message" .}}{{end}}
+</div>
+{{end}}
+
+{{define "message"}}
+{{if eq .Role "user"}}
+<div class="msg msg-user{{if .Mine}} is-mine{{end}}{{if .Queued}} is-queued{{end}}{{if .Summarised}} is-summarised{{end}}" id="m{{.ID}}" data-run="{{.RunID}}">
+  {{if not .Mine}}<div class="avatar">{{initial .AuthorName}}</div>{{end}}
+  <div class="msg-main">
+    {{if not .Mine}}<div class="msg-author">{{.AuthorName}}</div>{{end}}
+    {{if .Images}}
+    <div class="msg-images">
+      {{range .Images}}<button type="button" class="img-thumb" data-lightbox="/files/{{.ID}}" aria-label="Open image"><img src="/files/{{.ID}}" alt="{{.OrigName}}" loading="lazy" decoding="async"></button>{{end}}
+    </div>
+    {{end}}
+    {{if .Files}}
+    <div class="msg-files">
+      {{range .Files}}<a class="file-chip" href="/files/{{.ID}}" title="Download {{.OrigName}}">{{template "i-file"}}<span class="file-name">{{.OrigName}}</span><small>{{fmtBytes .Size}}</small></a>{{end}}
+    </div>
+    {{end}}
+    {{if .Content}}<div class="bubble">{{.Content}}</div>{{end}}
+    {{if .CanEdit}}
+    <form class="edit-box" hidden data-edit="/t/{{.ThreadID}}/runs/{{.RunID}}/edit">
+      <textarea name="content" rows="1" aria-label="Edit message">{{.Content}}</textarea>
+      <div class="edit-bar">
+        <span class="hint">{{if .Queued}}Updates your queued message{{else}}Sends again and replaces the reply{{end}}</span>
+        <button type="button" class="btn ghost sm" data-edit-cancel>Cancel</button>
+        <button type="submit" class="btn primary sm">Send</button>
+      </div>
+    </form>
+    {{end}}
+    <div class="msg-actions">
+      {{if .Queued}}<span class="status-pill">{{template "i-clock"}}Queued</span>{{end}}
+      {{if .Edited}}<span class="edited">Edited</span>{{end}}
+      {{if .Content}}<button type="button" class="act" data-copy-msg aria-label="Copy" title="Copy"><span class="ic">{{template "i-copy"}}</span><span class="ic-done">{{template "i-check"}}</span></button>{{end}}
+      {{if .CanEdit}}<button type="button" class="act" data-edit-open aria-label="Edit" title="Edit">{{template "i-pencil"}}</button>{{end}}
+      {{if .CanCancel}}<button type="button" class="act" data-cancel="/t/{{.ThreadID}}/runs/{{.RunID}}/cancel" aria-label="Remove from queue" title="Remove from queue">{{template "i-trash"}}</button>{{end}}
+    </div>
+  </div>
+</div>
+{{else if eq .Role "assistant"}}
+<div class="msg msg-ai{{if .Summarised}} is-summarised{{end}}" id="m{{.ID}}" data-status="{{.Status}}" data-run="{{.RunID}}">
+  <div class="avatar ai"><span class="logo"></span></div>
+  <div class="msg-main">
+    {{if or .Reasoning (eq .Status "streaming")}}
+    <details class="thinking"{{if eq .Status "streaming"}} open{{end}}>
+      <summary>{{template "i-brain"}}<span>{{if eq .Status "streaming"}}Thinking…{{else}}Thinking{{end}}</span>{{template "i-chevron-down"}}</summary>
+      <div class="md thinking-md">{{.Reasoning}}</div>
+    </details>
+    {{end}}
+    <div class="md">{{.Content}}</div>
+    {{if eq .Status "streaming"}}<div class="typing" aria-label="Thinking"><i></i><i></i><i></i></div>{{end}}
+    {{range .Calls}}
+    <details class="tool">
+      <summary>{{template "i-wrench"}}<span>Used <b class="mono">{{toolName .Name}}</b></span>{{template "i-chevron-down"}}</summary>
+      <pre><code class="language-json">{{.Args}}</code></pre>
+    </details>
+    {{end}}
+    {{range .Approvals}}
+    <div class="approval" id="approval-{{.ID}}">
+      <div class="approval-head">{{template "i-shield"}}<span><span>The AI wants to run <b class="mono">{{.ToolName}}</b></span><small>from your <b>{{.ServerName}}</b> server · this may do things outside the chat</small></span></div>
+      {{if and .Args (ne .Args "{}")}}<pre><code class="language-json">{{.Args}}</code></pre>{{end}}
+      {{if .CanDecide}}
+      <div class="approval-actions">
+        <button type="button" class="btn sm" data-approve="/t/{{.ThreadID}}/approvals/{{.ID}}" data-decision="deny">Deny</button>
+        <button type="button" class="btn primary sm" data-approve="/t/{{.ThreadID}}/approvals/{{.ID}}" data-decision="allow">{{template "i-check"}}Allow once</button>
+        {{if .CanAlways}}<button type="button" class="btn ghost sm" data-approve="/t/{{.ThreadID}}/approvals/{{.ID}}" data-decision="always" title="Switch this server to automatic">Always allow</button>{{end}}
+      </div>
+      {{else}}<p class="hint">{{.Waiting}}</p>{{end}}
+    </div>
+    {{end}}
+    {{if and .Content (ne .Status "streaming")}}
+    <div class="msg-actions">
+      <button type="button" class="act" data-copy-msg aria-label="Copy" title="Copy"><span class="ic">{{template "i-copy"}}</span><span class="ic-done">{{template "i-check"}}</span></button>
+      {{if .CanRegen}}<button type="button" class="act" data-regen="/t/{{.ThreadID}}/runs/{{.RunID}}/edit" aria-label="Regenerate" title="Regenerate">{{template "i-refresh"}}</button>{{end}}
+    </div>
+    {{end}}
+  </div>
+</div>
+{{else}}
+<details class="tool tool-result{{if .Summarised}} is-summarised{{end}}" data-run="{{.RunID}}">
+  <summary>{{template "i-corner"}}<span>Result from <b class="mono">{{toolName .ToolName}}</b></span>{{template "i-chevron-down"}}</summary>
+  <pre>{{.Content}}</pre>
+</details>
+{{end}}
+{{if .Footer}}
+<div class="run-note{{if .Failed}} is-error{{end}}">
+  {{if .Failed}}{{template "i-alert"}}{{else}}{{template "i-stop"}}{{end}}
+  <span>{{.Footer}}</span>
+  {{if .CanRetry}}<button type="button" class="btn ghost sm" data-regen="/t/{{.ThreadID}}/runs/{{.RunID}}/edit">{{template "i-refresh"}}Retry</button>{{end}}
+</div>
+{{end}}
+{{end}}
+
+{{define "panel"}}
+<div class="panel-inner">
+  <header class="panel-head">
+    <h2>{{if eq .Role "owner"}}Share &amp; settings{{else}}Members{{end}}</h2>
+    <button class="icon-btn" type="button" data-close-panel aria-label="Close">{{template "i-x"}}</button>
+  </header>
+
+  <section class="panel-section">
+    <h3>People in this chat</h3>
+    <ul class="members">
+      {{range .Members}}
+      <li>
+        <span class="avatar sm">{{initial .Username}}</span>
+        <span class="grow">{{.Username}}</span>
+        <span class="role-tag">{{.Role}}</span>
+        {{if and (eq $.Role "owner") (ne .Role "owner")}}
+        <button class="icon-btn sm danger-hover" hx-post="/t/{{$.Thread.ID}}/members/{{.UserID}}/remove" hx-target="#panel" hx-confirm="Remove {{.Username}} from this chat?" aria-label="Remove {{.Username}}">{{template "i-x"}}</button>
+        {{end}}
+      </li>
+      {{end}}
+    </ul>
+  </section>
+
+  {{if eq .Role "owner"}}
+  <section class="panel-section">
+    <h3>Invite people</h3>
+    <p class="hint">Anyone with the link can join after signing in. Everyone's messages are answered one at a time, in order.</p>
+    <form class="stack sm" hx-post="/t/{{.Thread.ID}}/invites" hx-target="#panel">
+      <div class="seg">
+        <label><input type="radio" name="role" value="member" checked><span>Can chat</span></label>
+        <label><input type="radio" name="role" value="viewer"><span>Read only</span></label>
+      </div>
+      <div class="row">
+        <label class="inline-field">Expires in <input name="days" type="number" value="7" min="1" max="90"> days</label>
+        <label class="inline-field">Max <input name="uses" type="number" value="5" min="1" max="100"> uses</label>
+      </div>
+      <button type="submit" class="btn primary">{{template "i-link"}}Create invite link</button>
+    </form>
+    {{range .Invites}}
+    <div class="invite">
+      <div class="invite-link">
+        <input readonly value="{{$.BaseURL}}/invite/{{.Token}}" class="mono" aria-label="Invite link">
+        <button class="btn sm" type="button" data-copy="{{$.BaseURL}}/invite/{{.Token}}">{{template "i-copy"}}Copy</button>
+      </div>
+      <div class="invite-meta">
+        <span>{{if eq .Role "viewer"}}Read only{{else}}Can chat{{end}} · {{.Uses}}/{{.MaxUses}} used · until {{short .ExpiresAt}}</span>
+        <button class="link" hx-post="/t/{{$.Thread.ID}}/invites/{{.Token}}/revoke" hx-target="#panel">Revoke</button>
+      </div>
+    </div>
+    {{end}}
+  </section>
+
+  <section class="panel-section">
+    <h3>Chat settings</h3>
+    <form class="stack sm" hx-post="/t/{{.Thread.ID}}/settings">
+      <label>Title <input name="title" value="{{.Thread.Title}}" maxlength="80"></label>
+      <label>Model
+        <select name="model_id">
+          {{range .ModelOptions}}
+          <option value="{{.ModelID}}" {{if and $.Thread.ModelID.Valid (eq .ModelID $.Thread.ModelID.Int64)}}selected{{end}}>{{.ModelName}} — {{.ProviderName}}{{if .Personal}} (your key){{end}}{{if not .Vision}} · text only{{end}}</option>
+          {{end}}
+        </select>
+      </label>
+      <label>Instructions for this chat <small class="muted">optional — e.g. “Answer in Bengali”, “We are planning a wedding”</small>
+        <textarea name="instructions" rows="3" maxlength="4000" placeholder="Anything the AI should keep in mind in this chat">{{.Thread.Instructions}}</textarea></label>
+      {{if .PersonalModel}}
+      <label class="check"><input type="checkbox" name="allow_owner_key" value="1" {{if .Thread.AllowOwnerKey}}checked{{end}}>
+        <span>Let members use my personal API key<small>Otherwise members' messages fail while this model is selected.</small></span></label>
+      {{end}}
+      <div class="field-group">
+        <div class="field-label">Tools for group members</div>
+        <p class="hint">Solo chats use all your enabled MCP servers. Once others join, only the servers ticked here are used — members would act with your credentials.</p>
+        {{range .MCP}}
+        <label class="check"><input type="checkbox" name="mcp" value="{{.ID}}" {{if .Approved}}checked{{end}}><span>{{.Name}}{{if .Asks}} <small>asks before running</small>{{end}}{{if not .Enabled}} <small>disabled</small>{{end}}</span></label>
+        {{else}}
+        <p class="hint">No MCP servers yet. Add them in <a href="/settings">Settings</a>.</p>
+        {{end}}
+      </div>
+      <div class="field-group">
+        <div class="field-label">Connected agents</div>
+        <p class="hint">The AI in this chat can give a connected agent tasks, start it, and read its latest results. Disconnecting does not stop the agent.</p>
+        {{range .Agents}}
+        <label class="check"><input type="checkbox" name="agent" value="{{.ID}}" {{if .Connected}}checked{{end}}><span>{{.Name}}{{if not .Enabled}} <small>paused</small>{{end}}{{if .Description}}<small>{{.Description}}</small>{{end}}</span></label>
+        {{else}}
+        <p class="hint">No agents yet. Create one under <a href="/agents">Agents</a>.</p>
+        {{end}}
+      </div>
+      <button type="submit" class="btn primary">Save changes</button>
+    </form>
+  </section>
+
+  <section class="panel-section">
+    <button class="btn danger block" hx-post="/t/{{.Thread.ID}}/delete" hx-confirm="Delete this chat for everyone? This cannot be undone.">{{template "i-trash"}}Delete chat</button>
+  </section>
+  {{else}}
+  <section class="panel-section">
+    <button class="btn danger block" hx-post="/t/{{.Thread.ID}}/leave" hx-confirm="Leave this chat?">{{template "i-logout"}}Leave chat</button>
+  </section>
+  {{end}}
+</div>
+{{end}}

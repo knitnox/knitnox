@@ -1,0 +1,32 @@
+{{define "title"}}{{if eq .Mode "register"}}Sign up{{else}}Log in{{end}} · Knitnox{{end}}
+
+{{define "content"}}
+<main class="auth" id="main" tabindex="-1">
+  <div class="auth-card">
+    <div class="auth-brand"><span class="logo xl" aria-hidden="true"></span></div>
+    {{if eq .Mode "register"}}
+    <h1>{{if .First}}Set up Knitnox{{else}}Create your account{{end}}</h1>
+    <p class="auth-sub">{{if .First}}This first account becomes the administrator.{{else}}It only takes a few seconds.{{end}}</p>
+    <form method="post" action="/register" class="stack">
+      {{if .Error}}<div class="form-error">{{template "i-alert"}}{{.Error}}</div>{{end}}
+      <input type="hidden" name="next" value="{{.Next}}">
+      <label>Username <input name="username" value="{{.Username}}" required autofocus autocomplete="username" autocapitalize="none" spellcheck="false"></label>
+      <label>Password <input name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="At least 8 characters"></label>
+      <button type="submit" class="btn primary block lg">Create account</button>
+    </form>
+    {{if not .First}}<p class="auth-alt">Already have an account? <a href="/login{{if .Next}}?next={{.Next}}{{end}}">Log in</a></p>{{end}}
+    {{else}}
+    <h1>Welcome back</h1>
+    <p class="auth-sub">Log in to continue to Knitnox.</p>
+    <form method="post" action="/login" class="stack">
+      {{if .Error}}<div class="form-error">{{template "i-alert"}}{{.Error}}</div>{{end}}
+      <input type="hidden" name="next" value="{{.Next}}">
+      <label>Username <input name="username" value="{{.Username}}" required autofocus autocomplete="username" autocapitalize="none" spellcheck="false"></label>
+      <label>Password <input name="password" type="password" required autocomplete="current-password"></label>
+      <button type="submit" class="btn primary block lg">Log in</button>
+    </form>
+    {{if .AllowSignup}}<p class="auth-alt">New here? <a href="/register{{if .Next}}?next={{.Next}}{{end}}">Create an account</a></p>{{end}}
+    {{end}}
+  </div>
+</main>
+{{end}}

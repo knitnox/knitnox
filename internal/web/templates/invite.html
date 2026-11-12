@@ -1,0 +1,23 @@
+{{define "title"}}Invitation · Knitnox{{end}}
+
+{{define "content"}}
+<div class="shell">
+  {{template "sidebar" .}}
+  <main class="main" id="main" tabindex="-1">
+    {{template "page-top" "Invitation"}}
+    <div class="center-stage">
+      <form method="post" action="/invite/{{.Invite.Token}}" class="auth-card">
+        <input type="hidden" name="_csrf" value="{{.CSRF}}">
+        <div class="auth-brand"><div class="empty-icon">{{template "i-users"}}</div></div>
+        <h1>Join “{{.Invite.ThreadTitle}}”</h1>
+        <p class="auth-sub">You're invited as {{if eq .Invite.Role "viewer"}}a read-only viewer{{else}}a member who can chat{{end}}.
+          Everyone's messages are answered by the AI one at a time, in order.</p>
+        <div class="stack sm">
+          <button type="submit" class="btn primary block lg">Join chat</button>
+          <a href="/" class="btn ghost block">Not now</a>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>
+{{end}}

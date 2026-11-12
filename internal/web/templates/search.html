@@ -1,0 +1,48 @@
+{{define "title"}}Search · Knitnox{{end}}
+
+{{define "content"}}
+<div class="shell">
+  {{template "sidebar" .}}
+  <main class="main" id="main" tabindex="-1">
+    {{template "page-top" "Search"}}
+    <div class="page-scroll">
+      <div class="page narrow">
+        <form class="search-form" action="/search" method="get" role="search">
+          <label class="search-box">
+            {{template "i-search"}}
+            <input type="search" name="q" value="{{.Query}}" placeholder="Search inside all your chats…" aria-label="Search" autofocus autocomplete="off" maxlength="200">
+          </label>
+          <button type="submit" class="btn primary">Search</button>
+        </form>
+
+        {{if .Query}}
+        <p class="lead">{{len .Hits}} result{{if ne (len .Hits) 1}}s{{end}} for “{{.Query}}”</p>
+        <div class="results">
+          {{range .Hits}}
+          <a class="result" href="/t/{{.ThreadID}}#m{{.MessageID}}">
+            <div class="result-head">
+              <span class="result-title">{{.ThreadTitle}}</span>
+              <span class="muted small">{{if eq .Role "assistant"}}Knitnox{{else}}{{.AuthorName}}{{end}} · {{short .CreatedAt}}</span>
+            </div>
+            <p class="result-snippet">{{.Snippet}}</p>
+          </a>
+          {{else}}
+          <div class="empty-card">
+            <div class="empty-icon">{{template "i-search"}}</div>
+            <p>Nothing found</p>
+            <span>Try fewer or different words. Search matches the beginning of words.</span>
+          </div>
+          {{end}}
+        </div>
+        {{else}}
+        <div class="empty-card">
+          <div class="empty-icon">{{template "i-search"}}</div>
+          <p>Search your conversations</p>
+          <span>Finds messages in every chat you belong to, including group chats.</span>
+        </div>
+        {{end}}
+      </div>
+    </div>
+  </main>
+</div>
+{{end}}

@@ -1,0 +1,10 @@
+/data/
+*.db
+*.db-wal
+*.db-shm
+secret.key
+/knitnox
+/knitnox.exe
+/mockllm
+/mockllm.exe
+/dist/

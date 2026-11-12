@@ -1,0 +1,323 @@
+{{/* Shared fragments, included in every page's template set. */}}
+
+{{/* ---------- app sidebar (every signed-in page) ---------- */}}
+{{define "sidebar"}}
+{{$cur := 0}}{{if .Thread}}{{$cur = .Thread.ID}}{{end}}
+<aside class="sidebar" id="sidebar" aria-label="Sidebar">
+  <div class="sb-head">
+    <a href="/" class="brand"><span class="logo" aria-hidden="true"></span><span>Knitnox</span></a>
+    <button class="icon-btn only-mobile" type="button" data-close-sidebar aria-label="Close menu">{{template "i-x"}}</button>
+  </div>
+
+  <div class="sb-actions">
+    <a href="/" class="sb-new">{{template "i-new"}}<span>New chat</span><kbd class="hide-touch">Ctrl+Shift+O</kbd></a>
+    <button type="button" class="sb-search" data-open-palette aria-haspopup="dialog">
+      {{template "i-search"}}<span>Search or jump to…</span><kbd class="hide-touch">Ctrl+K</kbd>
+    </button>
+  </div>
+
+  <nav class="sb-nav" aria-label="Main">
+    <a href="/agents" class="sb-link{{if eq .Nav "agents"}} is-active{{end}}"{{if eq .Nav "agents"}} aria-current="page"{{end}}>{{template "i-bot"}}<span>Agents</span></a>
+    <a href="/feed" class="sb-link{{if eq .Nav "feed"}} is-active{{end}}"{{if eq .Nav "feed"}} aria-current="page"{{end}}>{{template "i-feed"}}<span>Feed</span>{{if .FeedNew}}<span class="sb-count" title="{{.FeedNew}} new post{{if ne .FeedNew 1}}s{{end}}">{{.FeedNew}}</span>{{end}}</a>
+    <a href="/plan" class="sb-link{{if eq .Nav "planbook"}} is-active{{end}}"{{if eq .Nav "planbook"}} aria-current="page"{{end}}>{{template "i-plan"}}<span>Plan Book</span>{{if .PlanDue}}<span class="sb-count" title="{{.PlanDue}} task{{if ne .PlanDue 1}}s{{end}} due today or late">{{.PlanDue}}</span>{{end}}</a>
+    <a href="/memory" class="sb-link{{if eq .Nav "memory"}} is-active{{end}}"{{if eq .Nav "memory"}} aria-current="page"{{end}}>{{template "i-brain"}}<span>Memory</span></a>
+    <a href="/settings" class="sb-link{{if eq .Nav "settings"}} is-active{{end}}"{{if eq .Nav "settings"}} aria-current="page"{{end}}>{{template "i-settings"}}<span>Settings</span></a>
+    <a href="/help" class="sb-link{{if eq .Nav "help"}} is-active{{end}}"{{if eq .Nav "help"}} aria-current="page"{{end}}>{{template "i-bulb"}}<span>Help &amp; guides</span></a>
+    {{if .Me.IsAdmin}}<a href="/admin" class="sb-link{{if eq .Nav "admin"}} is-active{{end}}"{{if eq .Nav "admin"}} aria-current="page"{{end}}>{{template "i-shield"}}<span>Admin panel</span></a>{{end}}
+  </nav>
+
+  <nav class="sb-threads" id="thread-list" aria-label="Agents and chats">
+    {{if .MyAgents}}
+    <div class="sb-group">
+      <div class="sb-group-label">{{template "i-bot"}}Your agents</div>
+      {{range .MyAgents}}
+      <div class="sb-row{{if eq .ThreadID $cur}} is-active{{end}}">
+        <a href="/t/{{.ThreadID}}" class="sb-item"{{if eq .ThreadID $cur}} aria-current="page"{{end}}>
+          <span class="status-dot{{if not .Enabled}} is-off{{else if eq .LastStatus "running"}} is-busy{{end}}" title="{{if not .Enabled}}Paused{{else if eq .LastStatus "running"}}Working now{{else}}Active{{end}}"></span>
+          <span class="sb-title">{{.Name}}</span>
+          {{if .OpenTasks}}<span class="sb-count" title="{{.OpenTasks}} open task{{if ne .OpenTasks 1}}s{{end}}">{{.OpenTasks}}</span>{{end}}
+        </a>
+      </div>
+      {{end}}
+    </div>
+    {{end}}
+    {{range .ThreadGroups}}
+    <div class="sb-group">
+      <div class="sb-group-label">{{if eq .Label "Pinned"}}{{template "i-pin"}}{{end}}{{.Label}}</div>
+      {{range .Items}}{{template "sb-item" (dict_item . $cur)}}{{end}}
+    </div>
+    {{else}}
+    <div class="sb-empty">
+      <p>No chats yet</p>
+      <span>Your conversations will be listed here, newest first.</span>
+    </div>
+    {{end}}
+    {{if .Archived}}
+    <details class="sb-group sb-archived">
+      <summary class="sb-group-label">{{template "i-archive"}}Archived ({{len .Archived}}){{template "i-chevron-down"}}</summary>
+      {{range .Archived}}{{template "sb-item" (dict_item . $cur)}}{{end}}
+    </details>
+    {{end}}
+  </nav>
+
+  <div class="sb-foot">
+    <details class="user-menu">
+      <summary>
+        <span class="avatar">{{initial .Me.Username}}</span>
+        <span class="um-name"><b>{{.Me.Username}}</b><small>{{if .Me.IsAdmin}}Administrator{{else}}Member{{end}}</small></span>
+        {{template "i-chevrons"}}
+      </summary>
+      <div class="menu" role="menu">
+        <div class="menu-label">Theme</div>
+        {{template "theme-pick" .}}
+        <div class="menu-sep"></div>
+        <a href="/settings" role="menuitem">{{template "i-settings"}}Settings</a>
+        <a href="/issues" role="menuitem">{{template "i-alert"}}Report an issue</a>
+        <div class="menu-sep"></div>
+        <form method="post" action="/logout">
+          <input type="hidden" name="_csrf" value="{{.CSRF}}">
+          <button type="submit" role="menuitem">{{template "i-logout"}}Log out</button>
+        </form>
+      </div>
+    </details>
+  </div>
+</aside>
+<div class="scrim" data-close-sidebar></div>
+{{end}}
+
+{{/* ---------- theme switch (user menu and Settings → Appearance); app.js saves the choice ---------- */}}
+{{define "theme-pick"}}
+<div class="pick" role="group" aria-label="Theme">
+  <button type="button" data-theme-set="auto" aria-pressed="{{if eq .Theme "auto"}}true{{else}}false{{end}}" title="Follow this device">Auto</button>
+  <button type="button" data-theme-set="light" aria-pressed="{{if eq .Theme "light"}}true{{else}}false{{end}}">Light</button>
+  <button type="button" data-theme-set="dark" aria-pressed="{{if eq .Theme "dark"}}true{{else}}false{{end}}">Dark</button>
+</div>
+{{end}}
+
+{{/* ---------- small "?" that opens a plain-words explanation ---------- */}}
+{{/* use: {{template "tip-open" "What is …?"}} text {{template "tip-close"}} */}}
+{{define "tip-open"}}<details class="tip"><summary aria-label="{{.}}" title="{{.}}">?</summary><div class="tip-body">{{end}}
+{{define "tip-close"}}</div></details>{{end}}
+
+{{/* ---------- search and jump anywhere (Ctrl+K); filtered by app.js ---------- */}}
+{{define "palette"}}
+<div class="palette" id="palette" hidden>
+  <div class="palette-box" role="dialog" aria-modal="true" aria-label="Search and jump">
+    <div class="palette-input">
+      {{template "i-search"}}
+      <input type="text" id="palette-q" placeholder="Search chats, agents and pages…" aria-label="Search chats, agents and pages" aria-controls="palette-list" autocomplete="off" spellcheck="false" maxlength="200">
+      <kbd>Esc</kbd>
+    </div>
+    <div class="palette-list" id="palette-list" role="listbox" aria-label="Results">
+      <div class="pal-label">Go to</div>
+      <a class="pal-item" role="option" href="/" data-k="home start">{{template "i-new"}}<span><b>New chat</b><small>Start a fresh conversation</small></span></a>
+      <a class="pal-item" role="option" href="/agents" data-k="bots workers automation schedule create background">{{template "i-bot"}}<span><b>Agents</b><small>Background helpers with their own job, tasks and tools</small></span></a>
+      <a class="pal-item" role="option" href="/store" data-k="install ready-made templates share">{{template "i-sparkles"}}<span><b>Agent store</b><small>Ready-made agents shared on this server</small></span></a>
+      <a class="pal-item" role="option" href="/feed" data-k="posts news updates timeline reports summary agents share public private what happened">{{template "i-feed"}}<span><b>Feed</b><small>Short posts from you, the AI and your agents, newest first</small></span></a>
+      <a class="pal-item" role="option" href="/plan" data-k="tasks todo to-do projects planner due deadline reminders checklist my tasks">{{template "i-plan"}}<span><b>Plan Book</b><small>Your tasks and projects; the AI and your agents can help with them</small></span></a>
+      <a class="pal-item" role="option" href="/plan?view=today" data-k="plan book tasks due late overdue now">{{template "i-clock"}}<span><b>Due today</b><small>Tasks in your Plan Book that are due today or late</small></span></a>
+      <a class="pal-item" role="option" href="/memory" data-k="remember facts notes knowledge forget recall about me">{{template "i-brain"}}<span><b>Memory</b><small>What the AI remembers about you, to read, change or delete</small></span></a>
+      <a class="pal-item" role="option" href="/memory/things" data-k="memory graph map people places projects entities connections relations">{{template "i-graph"}}<span><b>Things &amp; connections</b><small>The people, places and projects in your memory</small></span></a>
+      <a class="pal-item" role="option" href="/memory/settings" data-k="memory on off embedding smart search export delete">{{template "i-power"}}<span><b>Memory settings</b><small>Turn memory on or off, choose how it searches</small></span></a>
+      <a class="pal-item" role="option" href="/settings" data-k="account profile usage quota">{{template "i-settings"}}<span><b>Settings</b><small>Your account and how Knitnox behaves for you</small></span></a>
+      <a class="pal-item" role="option" href="/settings#appearance" data-k="theme dark light colour color accent look">{{template "i-eye"}}<span><b>Appearance</b><small>Light or dark theme, accent colour</small></span></a>
+      <a class="pal-item" role="option" href="/settings#tools" data-k="mcp servers connect plugins integrations">{{template "i-plug"}}<span><b>Tools (MCP servers)</b><small>Connect tools the AI can use</small></span></a>
+      <a class="pal-item" role="option" href="/settings#keys" data-k="api key provider openai model own">{{template "i-key"}}<span><b>Your API keys</b><small>Use your own AI provider</small></span></a>
+      <a class="pal-item" role="option" href="/settings#notifications" data-k="push alerts bell">{{template "i-bell"}}<span><b>Notifications</b><small>Get told when a reply is ready</small></span></a>
+      <a class="pal-item" role="option" href="/help/guide" data-k="help manual how to docs learn">{{template "i-bulb"}}<span><b>User guide</b><small>How everything works, step by step</small></span></a>
+      <a class="pal-item" role="option" href="/help/features" data-k="help what can it do limits">{{template "i-list"}}<span><b>Features</b><small>Everything Knitnox can do today</small></span></a>
+      <a class="pal-item" role="option" href="/issues" data-k="bug idea question feedback problem report">{{template "i-alert"}}<span><b>Report an issue</b><small>Bugs, ideas and questions</small></span></a>
+      {{if .Me.IsAdmin}}
+      <a class="pal-item" role="option" href="/admin/providers" data-k="admin models shared openai">{{template "i-server"}}<span><b>Admin: providers and models</b><small>The AI models everyone can use</small></span></a>
+      <a class="pal-item" role="option" href="/admin/users" data-k="admin people accounts quota members">{{template "i-users"}}<span><b>Admin: users</b><small>Accounts, roles and limits</small></span></a>
+      <a class="pal-item" role="option" href="/admin/usage" data-k="admin tokens cost statistics">{{template "i-chart"}}<span><b>Admin: usage</b><small>Tokens and estimated cost</small></span></a>
+      <a class="pal-item" role="option" href="/admin/settings" data-k="admin signup server limits">{{template "i-shield"}}<span><b>Admin: server settings</b><small>Sign-up, limits and defaults</small></span></a>
+      {{end}}
+      {{if .MyAgents}}
+      <div class="pal-label">Your agents</div>
+      {{range .MyAgents}}<a class="pal-item" role="option" href="/t/{{.ThreadID}}" data-k="agent">{{template "i-bot"}}<span><b>{{.Name}}</b><small>{{if .Description}}{{.Description}}{{else}}Agent{{end}}</small></span></a>{{end}}
+      {{end}}
+      {{if .HasChats}}
+      <div class="pal-label">Chats</div>
+      {{range .ThreadGroups}}{{range .Items}}<a class="pal-item pal-chat" role="option" href="/t/{{.ID}}"><span><b>{{.Title}}</b></span></a>{{end}}{{end}}
+      {{range .Archived}}<a class="pal-item pal-chat" role="option" href="/t/{{.ID}}" data-k="archived"><span><b>{{.Title}}</b><small>Archived</small></span></a>{{end}}
+      {{end}}
+      <div class="pal-label" data-always>Messages</div>
+      <a class="pal-item" role="option" id="palette-deep" href="/search" data-always>{{template "i-search"}}<span><b>Search inside messages</b><small>Looks through the text of every chat you belong to</small></span></a>
+    </div>
+    <p class="palette-foot hide-touch"><kbd>↑</kbd><kbd>↓</kbd> to move<span class="dot">·</span><kbd>Enter</kbd> to open<span class="dot">·</span><kbd>Esc</kbd> to close</p>
+  </div>
+</div>
+{{end}}
+
+{{/* one sidebar row with its "⋯" menu; receives {T: item, Cur: current id} */}}
+{{define "sb-item"}}
+{{$t := .T}}
+<div class="sb-row{{if eq $t.ID .Cur}} is-active{{end}}" data-thread-row="{{$t.ID}}" data-title="{{$t.Title}}">
+  <a href="/t/{{$t.ID}}" class="sb-item"{{if eq $t.ID .Cur}} aria-current="page"{{end}}>
+    <span class="sb-title">{{$t.Title}}</span>
+    {{if gt $t.Members 1}}<span class="sb-people" title="{{$t.Members}} people">{{template "i-users"}}{{$t.Members}}</span>{{end}}
+  </a>
+  <details class="sb-menu">
+    <summary class="icon-btn sm" aria-label="Chat options">{{template "i-more"}}</summary>
+    <div class="menu" role="menu">
+      {{if eq $t.Role "owner"}}<button type="button" data-rename="{{$t.ID}}">{{template "i-pencil"}}Rename</button>{{end}}
+      <button type="button" data-flag="/t/{{$t.ID}}/flag" data-flag-name="pinned" data-on="{{if $t.Pinned}}0{{else}}1{{end}}">{{template "i-pin"}}{{if $t.Pinned}}Unpin{{else}}Pin{{end}}</button>
+      <button type="button" data-flag="/t/{{$t.ID}}/flag" data-flag-name="archived" data-on="{{if $t.Archived}}0{{else}}1{{end}}">{{template "i-archive"}}{{if $t.Archived}}Unarchive{{else}}Archive{{end}}</button>
+      <a href="/t/{{$t.ID}}/export" role="menuitem">{{template "i-download"}}Export as Markdown</a>
+      <div class="menu-sep"></div>
+      {{if eq $t.Role "owner"}}
+      <button type="button" class="danger-text" data-delete="/t/{{$t.ID}}/delete" data-name="{{$t.Title}}">{{template "i-trash"}}Delete chat</button>
+      {{else}}
+      <button type="button" class="danger-text" data-leave="/t/{{$t.ID}}/leave" data-name="{{$t.Title}}">{{template "i-logout"}}Leave chat</button>
+      {{end}}
+    </div>
+  </details>
+</div>
+{{end}}
+
+{{/* ---------- page header for settings/admin pages ---------- */}}
+{{define "page-top"}}
+<header class="topbar">
+  <button class="icon-btn only-mobile" type="button" data-toggle-sidebar aria-label="Open menu">{{template "i-panel"}}</button>
+  <div class="topbar-title"><h1>{{.}}</h1></div>
+  <button class="icon-btn" type="button" data-open-palette aria-label="Search or jump to (Ctrl+K)" title="Search or jump to (Ctrl+K)">{{template "i-search"}}</button>
+</header>
+{{end}}
+
+{{/* ---------- provider + model management (/settings personal, /admin global) ---------- */}}
+{{define "providers"}}
+<div id="providers" class="stack">
+  {{range .Providers}}
+  <article class="provider{{if not .Enabled}} is-off{{end}}" id="provider-{{.ID}}">
+    <header class="provider-head">
+      <div class="provider-icon">{{template "i-server"}}</div>
+      <div class="grow">
+        <div class="provider-name">{{.Name}} {{if not .Enabled}}<span class="badge">Disabled</span>{{end}}</div>
+        <div class="provider-meta"><span class="mono">{{.BaseURL}}</span><span class="dot">·</span><span class="mono">{{mask .APIKey}}</span></div>
+      </div>
+      <div class="row">
+        <button class="btn ghost sm" hx-post="{{$.Base}}/providers/{{.ID}}/toggle" hx-target="#providers" hx-swap="outerHTML">{{if .Enabled}}Disable{{else}}Enable{{end}}</button>
+        <button class="icon-btn danger-hover" hx-post="{{$.Base}}/providers/{{.ID}}/delete" hx-target="#providers" hx-swap="outerHTML"
+                hx-confirm="Delete provider “{{.Name}}” and all its models?" aria-label="Delete provider">{{template "i-trash"}}</button>
+      </div>
+    </header>
+
+    <div class="models">
+      {{range .Models}}
+      <div class="model-row{{if not .Enabled}} is-off{{end}}">
+        <div class="grow">
+          <div class="mono model-name">{{.Name}}</div>
+          <div class="model-meta">
+            {{if eq .Kind "chat"}}<span>{{fmtInt (int64 .ContextWindow)}} ctx</span>{{else}}<span>{{kindLabel .Kind}} model</span>{{end}}
+            {{if or .InputPrice .OutputPrice}}<span>${{.InputPrice}} / ${{.OutputPrice}} per 1M</span>{{end}}
+          </div>
+        </div>
+        {{$kind := .Kind}}
+        <select class="model-kind" name="kind" aria-label="What {{.Name}} is for" title="What this model is for"
+                hx-post="{{$.Base}}/models/{{.ID}}/kind" hx-trigger="change" hx-target="#providers" hx-swap="outerHTML">
+          {{range modelKinds}}<option value="{{.}}" {{if eq . $kind}}selected{{end}}>{{kindLabel .}}</option>{{end}}
+        </select>
+        {{if eq .Kind "chat"}}<button class="chip{{if .Vision}} is-on{{end}}" hx-post="{{$.Base}}/models/{{.ID}}/vision" hx-target="#providers" hx-swap="outerHTML"
+                title="Click to toggle image support">{{template "i-eye"}}{{if .Vision}}Images{{else}}Text only{{end}}</button>{{end}}
+        <button class="chip{{if .Enabled}} is-on{{end}}" hx-post="{{$.Base}}/models/{{.ID}}/toggle" hx-target="#providers" hx-swap="outerHTML">{{if .Enabled}}Enabled{{else}}Disabled{{end}}</button>
+        <button class="icon-btn sm danger-hover" hx-post="{{$.Base}}/models/{{.ID}}/delete" hx-target="#providers" hx-swap="outerHTML"
+                hx-confirm="Delete model {{.Name}}?" aria-label="Delete model">{{template "i-x"}}</button>
+      </div>
+      {{else}}
+      <p class="models-empty">No models yet — fetch the list from the provider or add model IDs by hand.</p>
+      {{end}}
+    </div>
+
+    <div class="model-tools">
+      <button class="btn ghost sm" hx-post="{{$.Base}}/providers/{{.ID}}/discover" hx-target="#discover-{{.ID}}" hx-swap="innerHTML" hx-indicator="this">
+        {{template "i-refresh"}}Fetch models from provider</button>
+      <details class="add-model">
+        <summary>{{template "i-plus"}} Add by name</summary>
+        <form class="form-grid" method="post" action="{{$.Base}}/providers/{{.ID}}/models"
+              hx-post="{{$.Base}}/providers/{{.ID}}/models" hx-target="#providers" hx-swap="outerHTML">
+          <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+          <label>Model ID <input name="name" placeholder="e.g. gpt-4o-mini" required></label>
+          <label>What it is for <small class="muted">chat models answer in chats; the others are used by Memory and the Feed</small>
+            <select name="kind">{{range modelKinds}}<option value="{{.}}">{{kindLabel .}}</option>{{end}}</select></label>
+          <label>Context window <input name="context_window" type="number" placeholder="128000" min="1000"></label>
+          <label>$ / 1M input <input name="input_price" type="number" step="any" placeholder="0"></label>
+          <label>$ / 1M output <input name="output_price" type="number" step="any" placeholder="0"></label>
+          <label class="check"><input type="checkbox" name="vision" value="1" checked> Accepts images</label>
+          <div class="span-2"><button type="submit" class="btn primary">Add model</button></div>
+        </form>
+      </details>
+    </div>
+    <div id="discover-{{.ID}}"></div>
+  </article>
+  {{else}}
+  <div class="empty-card">
+    <div class="empty-icon">{{template "i-server"}}</div>
+    <p>No providers yet</p>
+    <span>Add an OpenAI-compatible endpoint above to get started.</span>
+  </div>
+  {{end}}
+</div>
+{{end}}
+
+{{/* model picker rendered after "Fetch models from provider" */}}
+{{define "discover"}}
+<div class="discover">
+  {{if .Error}}
+  <p class="form-error">{{template "i-alert"}}{{.Error}}</p>
+  {{else}}
+  <form hx-post="{{.Base}}/providers/{{.Provider.ID}}/models/bulk" hx-target="#providers" hx-swap="outerHTML">
+    <div class="discover-head">
+      <b>{{len .Models}} models found</b>
+      <span class="hint">Tick the ones you want. “Images” and what each model is for (chat, pictures, voice…) are guessed from the name; you can change both afterwards.</span>
+      <button type="button" class="link" data-check-all>Select all</button>
+    </div>
+    <div class="discover-list">
+      {{range .Models}}
+      <label class="discover-row{{if .Known}} is-known{{end}}">
+        <input type="checkbox" name="names" value="{{.Name}}" {{if .Known}}disabled{{end}}>
+        <span class="mono grow">{{.Name}}</span>
+        {{if .Known}}<span class="badge">added</span>{{else}}
+        <label class="check-mini" title="Accepts images"><input type="checkbox" name="vision" value="{{.Name}}" {{if .Vision}}checked{{end}}>{{template "i-eye"}}</label>
+        {{end}}
+      </label>
+      {{end}}
+    </div>
+    <div class="row end"><button type="submit" class="btn primary sm">Add selected</button></div>
+  </form>
+  {{end}}
+</div>
+{{end}}
+
+{{/* ---------- where a model of your own lives: a provider you already have, or a new address and key ---------- */}}
+{{/* used by the small "add my own model" forms in Feed settings and Memory settings; needs .Providers (the user's own) */}}
+{{define "model-quick-provider"}}
+{{if .Providers}}
+<label class="span-2">Provider
+  <select name="provider_id" data-quick-provider>
+    {{range .Providers}}<option value="{{.ID}}">{{.Name}} — {{.BaseURL}}</option>{{end}}
+    <option value="0">A new provider…</option>
+  </select>
+</label>
+{{end}}
+<div class="span-2 form-grid quick-new-provider">
+  <label>Provider address <small class="muted">the “base URL” from the provider's documentation</small><input name="base_url" placeholder="https://api.openai.com/v1" autocomplete="off"{{if not .Providers}} required{{end}}></label>
+  <label>API key <small class="muted">kept encrypted; optional for a local server</small><input name="api_key" type="password" placeholder="sk-…" autocomplete="off"></label>
+</div>
+{{end}}
+
+{{define "provider_form"}}
+<details class="card add-card"{{if not .Providers}} open{{end}}>
+  <summary>{{template "i-plus"}}<span>Add a provider</span></summary>
+  <form class="form-grid" method="post" action="{{.Base}}/providers" data-reset
+        hx-post="{{.Base}}/providers" hx-target="#providers" hx-swap="outerHTML">
+    <input type="hidden" name="_csrf" value="{{.CSRF}}">
+    <label>Name <input name="name" placeholder="OpenAI" required></label>
+    <label>Base URL <input name="base_url" placeholder="https://api.openai.com/v1" required></label>
+    <label>API key <input name="api_key" type="password" placeholder="sk-… (optional for local servers)" autocomplete="off"></label>
+    <label>Models <small class="muted">optional — or fetch them after adding</small><input name="models" placeholder="gpt-4o-mini, gpt-4o"></label>
+    <p class="hint span-2">Works with OpenAI, OpenRouter, Groq, Together, Ollama (<code>http://localhost:11434/v1</code>), LM Studio, vLLM and more.</p>
+    <div class="span-2"><button type="submit" class="btn primary">Add provider</button></div>
+  </form>
+</details>
+{{end}}

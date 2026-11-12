@@ -17,7 +17,7 @@
   </div>
 
   <nav class="sb-nav" aria-label="Main">
-    <a href="/agents" class="sb-link{{if eq .Nav "agents"}} is-active{{end}}"{{if eq .Nav "agents"}} aria-current="page"{{end}}>{{template "i-bot"}}<span>Agents</span></a>
+    <a href="/agents" class="sb-link{{if eq .Nav "agents"}} is-active{{end}}"{{if eq .Nav "agents"}} aria-current="page"{{end}}>{{template "i-bot"}}<span>Agents</span><span class="sb-agents" id="sb-agents"{{if .MyAgents}} data-pulse{{end}}>{{if .AgentsTrouble}}<span class="sb-count is-warn" title="{{.AgentsTrouble}} agent{{if ne .AgentsTrouble 1}}s need{{else}} needs{{end}} a look">{{.AgentsTrouble}}</span>{{end}}{{if .AgentsWorking}}<span class="sb-count is-busy" title="{{.AgentsWorking}} agent{{if ne .AgentsWorking 1}}s{{end}} working now"><i class="status-dot is-busy"></i>{{.AgentsWorking}}</span>{{end}}</span></a>
     <a href="/feed" class="sb-link{{if eq .Nav "feed"}} is-active{{end}}"{{if eq .Nav "feed"}} aria-current="page"{{end}}>{{template "i-feed"}}<span>Feed</span>{{if .FeedNew}}<span class="sb-count" title="{{.FeedNew}} new post{{if ne .FeedNew 1}}s{{end}}">{{.FeedNew}}</span>{{end}}</a>
     <a href="/plan" class="sb-link{{if eq .Nav "planbook"}} is-active{{end}}"{{if eq .Nav "planbook"}} aria-current="page"{{end}}>{{template "i-plan"}}<span>Plan Book</span>{{if .PlanDue}}<span class="sb-count" title="{{.PlanDue}} task{{if ne .PlanDue 1}}s{{end}} due today or late">{{.PlanDue}}</span>{{end}}</a>
     <a href="/memory" class="sb-link{{if eq .Nav "memory"}} is-active{{end}}"{{if eq .Nav "memory"}} aria-current="page"{{end}}>{{template "i-brain"}}<span>Memory</span></a>
@@ -33,7 +33,7 @@
       {{range .MyAgents}}
       <div class="sb-row{{if eq .ThreadID $cur}} is-active{{end}}">
         <a href="/t/{{.ThreadID}}" class="sb-item"{{if eq .ThreadID $cur}} aria-current="page"{{end}}>
-          <span class="status-dot{{if not .Enabled}} is-off{{else if eq .LastStatus "running"}} is-busy{{end}}" title="{{if not .Enabled}}Paused{{else if eq .LastStatus "running"}}Working now{{else}}Active{{end}}"></span>
+          <span class="status-dot is-{{.State}}" data-agent-dot="{{.ID}}" title="{{.StateLabel}}"></span>
           <span class="sb-title">{{.Name}}</span>
           {{if .OpenTasks}}<span class="sb-count" title="{{.OpenTasks}} open task{{if ne .OpenTasks 1}}s{{end}}">{{.OpenTasks}}</span>{{end}}
         </a>

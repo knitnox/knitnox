@@ -165,6 +165,60 @@ type AgentRow struct {
 	LastStatus string // status of its newest run ("" if it never ran)
 	LastRunAt  string
 	Published  bool
+	RunsToday  int    // runs started since midnight UTC, the same count the daily limit uses
+	LastDown   string // tool servers its newest run could not reach
+}
+
+// ToolsDown reports whether the agent's newest run had to work without a tool server.
+func (r AgentRow) ToolsDown() bool { return r.Enabled && r.LastStatus == RunDone && r.LastDown != "" }
+
+// Working reports whether the agent is running or queued right now.
+func (r AgentRow) Working() bool { return r.LastStatus == RunRunning || r.LastStatus == RunPending }
+
+// LimitReached reports whether a scheduled agent used up today's automatic runs.
+func (r AgentRow) LimitReached() bool {
+	return r.Enabled && r.ScheduleMinutes > 0 && r.RunsToday >= r.DailyRuns
+}
+
+// Failed reports whether the agent's newest run broke.
+func (r AgentRow) Failed() bool { return r.Enabled && r.LastStatus == RunFailed }
+
+// The four things an agent's dot can say.
+const (
+	AgentOff  = "off"  // paused
+	AgentBusy = "busy" // working now
+	AgentWarn = "warn" // needs a look: last run failed, or today's limit is used up
+	AgentOK   = "ok"
+)
+
+// State is the one word the sidebar and the agents page show for the agent.
+func (r AgentRow) State() string {
+	switch {
+	case !r.Enabled:
+		return AgentOff
+	case r.Working():
+		return AgentBusy
+	case r.LimitReached(), r.Failed(), r.ToolsDown():
+		return AgentWarn
+	}
+	return AgentOK
+}
+
+// StateLabel says the state in words.
+func (r AgentRow) StateLabel() string {
+	switch {
+	case !r.Enabled:
+		return "Paused"
+	case r.Working():
+		return "Working now"
+	case r.LimitReached():
+		return "Reached today's limit of runs"
+	case r.Failed():
+		return "Last run failed"
+	case r.ToolsDown():
+		return "Could not reach a tool server"
+	}
+	return "Active"
 }
 
 // ListAgents returns a user's agents, newest first.
@@ -173,8 +227,10 @@ func (s *Store) ListAgents(userID int64) ([]AgentRow, error) {
 		(SELECT COUNT(*) FROM agent_tasks t WHERE t.agent_id = a.id AND t.status IN ('pending', 'in_progress')),
 		COALESCE((SELECT r.status FROM runs r WHERE r.thread_id = a.thread_id ORDER BY r.id DESC LIMIT 1), ''),
 		COALESCE((SELECT r.created_at FROM runs r WHERE r.thread_id = a.thread_id ORDER BY r.id DESC LIMIT 1), ''),
-		EXISTS (SELECT 1 FROM store_agents sa WHERE sa.source_agent_id = a.id)
-		FROM agents a WHERE a.user_id = ? ORDER BY a.id DESC`, userID)
+		EXISTS (SELECT 1 FROM store_agents sa WHERE sa.source_agent_id = a.id),
+		(SELECT COUNT(*) FROM runs r WHERE r.thread_id = a.thread_id AND r.created_at >= ?),
+		COALESCE((SELECT r.tools_down FROM runs r WHERE r.thread_id = a.thread_id ORDER BY r.id DESC LIMIT 1), '')
+		FROM agents a WHERE a.user_id = ? ORDER BY a.id DESC`, time.Now().UTC().Format("2006-01-02")+" 00:00:00", userID)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +238,7 @@ func (s *Store) ListAgents(userID int64) ([]AgentRow, error) {
 	var out []AgentRow
 	for rows.Next() {
 		var r AgentRow
-		a, err := scanAgent(rows, &r.OpenTasks, &r.LastStatus, &r.LastRunAt, &r.Published)
+		a, err := scanAgent(rows, &r.OpenTasks, &r.LastStatus, &r.LastRunAt, &r.Published, &r.RunsToday, &r.LastDown)
 		if err != nil {
 			return nil, err
 		}

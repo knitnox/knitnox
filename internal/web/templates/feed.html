@@ -270,6 +270,8 @@
         {{if eq .CreatedBy "agent"}}{{if .Mine}}your agent{{else}}{{.Username}}’s agent{{end}} · {{else if eq .CreatedBy "ai"}}{{if .Mine}}from your chat{{else}}for {{.Username}}{{end}} · {{end}}<span title="{{.WhenFull}}">{{.When}}</span>{{if .Edited}} · changed{{end}}
       </span>
     </div>
+    {{if eq .Notice "problem"}}<span class="badge st-warn" title="Knitnox wrote this because the agent ran into trouble. It is posted once, not after every run.">{{template "i-alert"}}Problem</span>
+    {{else if eq .Notice "recovered"}}<span class="badge st-ok" title="Knitnox wrote this because the agent works again">{{template "i-check"}}Working again</span>{{end}}
     {{if .IsNew}}<span class="badge st-busy">New</span>{{end}}
     {{if .Mine}}
       {{if .Public}}<span class="badge st-ok" title="Everyone on this server can see this post">{{template "i-users"}}Shared</span>

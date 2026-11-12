@@ -156,7 +156,10 @@ A dedicated server is used by one agent only. Your chats and other agents never 
 ### Pause, limits and memory
 
 - **Pause:** untick **Active** in the agent's settings, or click **Pause** on the Agents page.
-- **Limits:** set the steps per run and the automatic runs per day under **Limits**.
+- **Limits:** set the steps per run and the automatic runs per day under **Limits**. If the schedule asks for more runs than the daily limit allows (every 15 minutes is 96 a day), a note under the schedule offers to raise it. An agent that used up its runs for the day shows **Daily limit reached** and starts again at midnight UTC; **Run now** still works.
+- **At a glance:** next to **Agents** in the sidebar, a number with a blinking dot is how many agents are working right now, and an amber number is how many need a look (the last run failed, or the daily limit is reached). They update by themselves. The Agents page shows the totals.
+- **When something goes wrong:** if a run fails, or a tool server cannot be reached (the run then works without its tools), a note stays at the top of the agent's page with a **Run again** button, and the run itself is marked. Knitnox also writes one post in your Feed, marked **Problem**, and one more, **Working again**, when a run succeeds. It does not post after every failed run, and these posts do not count toward the agent's posts per day.
+- **After the server was off:** a scheduled agent that missed its time runs once, shortly after the server starts, then continues on its schedule from there. Missed runs are not made up.
 - **Adjustments:** short extra guidance on top of the instructions. A connected chat's AI may edit this part, never the instructions or tools. Every change is listed.
 - **Its own notes:** notes the agent writes for its later runs. You can clear them.
 

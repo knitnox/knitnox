@@ -23,6 +23,7 @@ type toolset struct {
 	routes  map[string]toolRoute // exposed name -> server + real name
 	local   map[string]localTool // built-in tools (see agents.go)
 	clients []*mcp.Client
+	down    []string // names of the tool servers that could not be reached
 }
 
 // localTool is a built-in tool. It always returns text for the model.
@@ -152,7 +153,8 @@ func (e *Engine) connectServers(ctx context.Context, ts *toolset, servers []stor
 	wg.Wait()
 
 	for i, r := range results {
-		if r.client == nil {
+		if r.client == nil { // the run goes on without it; it is noted on the run so the owner sees it
+			ts.down = append(ts.down, servers[i].Name)
 			continue
 		}
 		ts.clients = append(ts.clients, r.client)

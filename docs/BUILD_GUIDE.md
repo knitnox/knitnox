@@ -203,6 +203,15 @@ Downloads for users are made by GitHub, not on your computer. Pushing a version 
 4. Watch the **release** run under the repository's **Actions** tab. It takes a few minutes.
 5. Open **Releases**, read the notes GitHub wrote from the commits, and edit them into a few plain sentences: what is new, and anything an admin must know before upgrading.
 
+**Shipping the same version again.** Right after a release you may want a fix in it without a new number. Move the tag to the newer commit and push it over the old one:
+
+```bash
+git tag -f v1.0.0
+git push -f origin v1.0.0
+```
+
+The release run then keeps the existing release and replaces its seven files. Its notes stay as they were, so edit them by hand. Do this only shortly after releasing: anyone who already downloaded that version has a different program with the same number.
+
 That is all. The website and the [Install guide](/help/install) link to `https://github.com/knitnox/knitnox/releases/latest/download/<file>`, which always serves the newest release, so they need no change.
 
 Good to know:

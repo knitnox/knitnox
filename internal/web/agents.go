@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -137,6 +138,54 @@ func newAgentDefaults(userID int64) *store.Agent {
 		PlanAccess: store.PlanAccessNone, FeedAccess: store.FeedAccessNone, FeedDaily: store.FeedDailyDef}
 }
 
+// agentSum counts a person's agents by what they are doing.
+type agentSum struct {
+	Active  int // switched on
+	Paused  int
+	Working int // running or queued right now
+	Trouble int // last run failed, or today's limit of runs is used up
+}
+
+func countAgents(agents []store.AgentRow) agentSum {
+	var n agentSum
+	for _, a := range agents {
+		switch a.State() {
+		case store.AgentOff:
+			n.Paused++
+			continue
+		case store.AgentBusy:
+			n.Working++
+		case store.AgentWarn:
+			n.Trouble++
+		}
+		n.Active++
+	}
+	return n
+}
+
+// agentsPulse is what the sidebar asks for every few seconds while the page is
+// open: how many agents are working or need a look, and the state of each one,
+// so the numbers and dots follow along without a reload.
+func (s *Server) agentsPulse(w http.ResponseWriter, r *http.Request) {
+	agents, err := s.st.ListAgents(currentUser(r).ID)
+	if err != nil {
+		http.Error(w, "could not list agents", http.StatusInternalServerError)
+		return
+	}
+	type one struct {
+		State string `json:"state"`
+		Label string `json:"label"`
+	}
+	sum := countAgents(agents)
+	states := map[int64]one{}
+	for _, a := range agents {
+		states[a.ID] = one{a.State(), a.StateLabel()}
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	json.NewEncoder(w).Encode(map[string]any{"working": sum.Working, "trouble": sum.Trouble, "agents": states})
+}
+
 // ---- my agents ----
 
 func (s *Server) agentsPage(w http.ResponseWriter, r *http.Request) {
@@ -150,6 +199,7 @@ func (s *Server) agentsPage(w http.ResponseWriter, r *http.Request) {
 	data["View"] = "list"
 	data["PageTitle"] = "Agents"
 	data["Agents"] = agents
+	data["Sum"] = countAgents(agents)
 	s.render(w, r, "agents", data)
 }
 

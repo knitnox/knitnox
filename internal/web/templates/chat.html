@@ -17,6 +17,7 @@
             <span class="meta-item">{{template "i-clock"}}{{schedule .Agent.ScheduleMinutes}}{{if and .Agent.Enabled .Agent.NextRunAt}}<span class="hide-sm"> · next {{short .Agent.NextRunAt}} UTC</span>{{end}}</span>
             <span class="meta-item">{{template "i-list"}}{{.OpenTasks}} open task{{if ne .OpenTasks 1}}s{{end}}</span>
             {{if not .Agent.Enabled}}<span class="meta-item is-warn" title="No scheduled runs. Switch it on under Tasks &amp; settings → Setup.">{{template "i-power"}}Paused</span>{{end}}
+            {{if .AgentLimit}}<span class="meta-item is-warn" title="It made all {{.Agent.DailyRuns}} automatic runs allowed today, so scheduled runs wait until midnight UTC. Raise the limit under Tasks &amp; settings → Setup → Limits, or press Run now.">{{template "i-alert"}}Daily limit reached</span>{{end}}
             {{end}}
             {{if .ConnectedCount}}<span class="meta-item">{{template "i-bot"}}{{.ConnectedCount}} agent{{if ne .ConnectedCount 1}}s{{end}} connected</span>{{end}}
             {{if gt (len .Members) 1}}<span class="meta-item">{{template "i-users"}}{{len .Members}} people</span>{{end}}
@@ -250,6 +251,13 @@
 <div id="messages" data-pending="{{.Pending}}" data-running="{{.Running}}" data-waiting="{{.Waiting}}"
      data-oldest="{{.OldestRun}}" data-has-older="{{.HasOlder}}"
      data-context-pct="{{.ContextPct}}" data-context-used="{{.ContextUsed}}" data-context-window="{{.ContextWindow}}">
+  {{with .AgentAlert}}
+  <div class="agent-alert{{if .Failed}} is-error{{end}}" role="status">
+    {{template "i-alert"}}
+    <span><b>{{if .Failed}}The last run failed{{else}}The last run was missing tools{{end}}</b> · {{short .When}} UTC<br>{{.Text}} This note goes away when a run works again.</span>
+    <button type="button" class="btn sm" hx-post="/agents/{{.AgentID}}/run" hx-swap="none">{{template "i-refresh"}}Run again</button>
+  </div>
+  {{end}}
   {{if .HasOlder}}<button type="button" class="load-earlier" data-load-earlier>{{template "i-chevron-up"}}Load earlier messages</button>{{end}}
   {{if .Thread.Summary}}
   <details class="memory">
@@ -391,6 +399,9 @@
   <summary>{{template "i-corner"}}<span>Result from <b class="mono">{{toolName .ToolName}}</b></span>{{template "i-chevron-down"}}</summary>
   <pre>{{.Content}}</pre>
 </details>
+{{end}}
+{{if .Down}}
+<div class="run-note is-warn">{{template "i-plug"}}<span>{{.Down}}</span></div>
 {{end}}
 {{if .Footer}}
 <div class="run-note{{if .Failed}} is-error{{end}}">

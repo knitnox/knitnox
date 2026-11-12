@@ -53,6 +53,7 @@
               {{end}}
             </fieldset>
             <p class="hint">Whatever you pick, you can always start it yourself with “Run now”.</p>
+            <div class="limit-note" data-limit-note hidden><span data-limit-text></span><button type="button" class="btn sm" data-limit-fix></button></div>
           </section>
 
           <h3 class="new-optional">Optional</h3>
@@ -128,6 +129,14 @@
             </ol>
           </details>
 
+          {{if .Agents}}
+          <p class="agents-sum" aria-label="Your agents at a glance">
+            <span><b>{{.Sum.Active}}</b> active</span>
+            <span{{if .Sum.Working}} class="is-busy"{{end}}>{{if .Sum.Working}}<i class="status-dot is-busy"></i>{{end}}<b>{{.Sum.Working}}</b> working now</span>
+            {{if .Sum.Paused}}<span><b>{{.Sum.Paused}}</b> paused</span>{{end}}
+            {{if .Sum.Trouble}}<span class="is-warn"><b>{{.Sum.Trouble}}</b> need{{if eq .Sum.Trouble 1}}s{{end}} a look</span>{{end}}
+          </p>
+          {{end}}
           <div class="stack">
             {{range .Agents}}
             <article class="provider{{if not .Enabled}} is-off{{end}}">
@@ -135,13 +144,14 @@
                 <div class="provider-icon">{{template "i-bot"}}</div>
                 <div class="grow">
                   <div class="provider-name"><a class="plain-link" href="/t/{{.ThreadID}}">{{.Name}}</a>
-                    {{if not .Enabled}}<span class="badge st-warn">Paused</span>{{else if eq .LastStatus "running"}}<span class="badge st-busy">Working now</span>{{else}}<span class="badge st-ok">Active</span>{{end}}
+                    {{if not .Enabled}}<span class="badge st-warn">Paused</span>{{else if .Working}}<span class="badge st-busy">Working now</span>{{else if .LimitReached}}<span class="badge st-warn" title="It made all {{.DailyRuns}} automatic runs allowed today, so it waits until midnight UTC. Open it and raise the limit under Setup → Limits, or press Run now.">Daily limit reached</span>{{else if .Failed}}<span class="badge st-bad" title="Open it to see what went wrong">Last run failed</span>{{else if .ToolsDown}}<span class="badge st-warn" title="Its last run could not reach: {{.LastDown}}. It worked without those tools.">Tool server unreachable</span>{{else}}<span class="badge st-ok">Active</span>{{end}}
                     {{if .Published}}<span class="badge">In the store</span>{{end}}</div>
                   {{if .Description}}<div class="agent-desc">{{.Description}}</div>{{end}}
                   <div class="provider-meta">
                     <span>{{schedule .ScheduleMinutes}}</span><span class="dot">·</span>
                     <span>{{.OpenTasks}} open task{{if ne .OpenTasks 1}}s{{end}}</span>
                     {{if .LastStatus}}<span class="dot">·</span><span>last run {{.LastStatus}}, {{short .LastRunAt}} UTC</span>{{else}}<span class="dot">·</span><span>never ran</span>{{end}}
+                    {{if gt .ScheduleMinutes 0}}<span class="dot">·</span><span title="Automatic runs are counted from midnight UTC">{{.RunsToday}} of {{.DailyRuns}} runs today</span>{{end}}
                   </div>
                 </div>
                 <div class="row wrap end">
@@ -267,6 +277,7 @@
     {{range .Schedules}}<option value="{{.Minutes}}" {{if eq .Minutes $.A.ScheduleMinutes}}selected{{end}}>{{.Label}}</option>{{end}}
   </select>
 </label>
+<div class="limit-note" data-limit-note hidden><span data-limit-text></span><button type="button" class="btn sm" data-limit-fix></button></div>
 
 <h4 class="step span-2"><span aria-hidden="true">4</span>Which tools may it use?</h4>
 {{template "agent-tools" .}}

@@ -80,8 +80,15 @@ type FeedActor struct {
 	Kind     string // FeedByUser | FeedByAI | FeedByAgent
 	Name     string // the agent's name
 	AgentID  int64
-	ThreadID int64 // chat the post came from
+	ThreadID int64  // chat the post came from
+	Notice   string // FeedNoticeProblem | FeedNoticeRecovered: written by Knitnox about the agent, "" otherwise
 }
+
+// Posts Knitnox writes about an agent (feed_posts.notice).
+const (
+	FeedNoticeProblem   = "problem"   // the agent started having trouble
+	FeedNoticeRecovered = "recovered" // it works again
+)
 
 // FeedChart is a small chart the server draws: bars or a line, one number per label.
 type FeedChart struct {
@@ -151,6 +158,7 @@ type FeedPost struct {
 	AgentID        int64
 	SourceThreadID int64
 	SourceTitle    string
+	Notice         string // "" | problem | recovered: Knitnox reporting on the agent, not the agent itself
 	Reads          int    // other people who were shown this post (public posts)
 	SVGW, SVGH     int    // the picture's own size, 0 when it does not say
 	MediaKind      string // "" | image | voice | video: made by an AI model
@@ -217,6 +225,10 @@ func (s *Store) CreateFeedPost(userID int64, in FeedPostInput, by FeedActor) (in
 	if by.ThreadID > 0 {
 		thread = by.ThreadID
 	}
+	notice := ""
+	if kind == FeedByAgent && (by.Notice == FeedNoticeProblem || by.Notice == FeedNoticeRecovered) {
+		notice = by.Notice
+	}
 	mediaStatus := ""
 	switch in.MediaKind {
 	case MediaImage, MediaVoice, MediaVideo:
@@ -225,8 +237,8 @@ func (s *Store) CreateFeedPost(userID int64, in FeedPostInput, by FeedActor) (in
 		in.MediaKind, in.MediaPrompt = "", ""
 	}
 	res, err := s.DB.Exec(`INSERT INTO feed_posts(user_id, body, report, chart, svg, visibility, created_by, actor_name, agent_id, source_thread_id,
-		media_kind, media_status, media_prompt, media_shared) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, userID, body, clip(strings.TrimSpace(in.Report), FeedReportMax), chart, svg,
-		visibility, kind, clip(by.Name, 60), agent, thread, in.MediaKind, mediaStatus, clip(strings.TrimSpace(in.MediaPrompt), FeedMediaPromptMax), b2i(in.MediaShared))
+		media_kind, media_status, media_prompt, media_shared, notice) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, userID, body, clip(strings.TrimSpace(in.Report), FeedReportMax), chart, svg,
+		visibility, kind, clip(by.Name, 60), agent, thread, in.MediaKind, mediaStatus, clip(strings.TrimSpace(in.MediaPrompt), FeedMediaPromptMax), b2i(in.MediaShared), notice)
 	if err != nil {
 		return 0, err
 	}
@@ -297,7 +309,7 @@ func (s *Store) PurgeOldFeedBin() (int64, error) {
 const feedCols = `p.id, p.user_id, u.username, p.body, p.report, p.chart, substr(p.svg, 1, 700), p.visibility = 'public', p.created_by, p.actor_name,
 	COALESCE(p.agent_id, 0), COALESCE(p.source_thread_id, 0), COALESCE(th.title, ''),
 	(SELECT COUNT(*) FROM feed_reads r WHERE r.post_id = p.id), COALESCE(p.edited_at, ''), COALESCE(p.deleted_at, ''), p.created_at,
-	p.media_kind, p.media_status, p.media_file, p.media_mime, p.media_prompt, p.media_note, p.media_w, p.media_h`
+	p.media_kind, p.media_status, p.media_file, p.media_mime, p.media_prompt, p.media_note, p.media_w, p.media_h, p.notice`
 const feedFrom = ` FROM feed_posts p JOIN users u ON u.id = p.user_id LEFT JOIN threads th ON th.id = p.source_thread_id `
 
 func scanFeed(rows *sql.Rows) ([]FeedPost, error) {
@@ -308,7 +320,7 @@ func scanFeed(rows *sql.Rows) ([]FeedPost, error) {
 		var chart, svgHead string
 		if err := rows.Scan(&p.ID, &p.UserID, &p.Username, &p.Body, &p.Report, &chart, &svgHead, &p.Public, &p.CreatedBy, &p.ActorName,
 			&p.AgentID, &p.SourceThreadID, &p.SourceTitle, &p.Reads, &p.EditedAt, &p.DeletedAt, &p.CreatedAt,
-			&p.MediaKind, &p.MediaStatus, &p.MediaFile, &p.MediaMime, &p.MediaPrompt, &p.MediaNote, &p.MediaW, &p.MediaH); err != nil {
+			&p.MediaKind, &p.MediaStatus, &p.MediaFile, &p.MediaMime, &p.MediaPrompt, &p.MediaNote, &p.MediaW, &p.MediaH, &p.Notice); err != nil {
 			return nil, err
 		}
 		if svgHead != "" {
@@ -493,7 +505,7 @@ func (s *Store) FeedAgentNames(userID int64) []string {
 // much it writes.
 func (s *Store) FeedAgentPostsSince(agentID int64, since string) int {
 	var n int
-	s.DB.QueryRow(`SELECT COUNT(*) FROM feed_posts WHERE agent_id = ? AND created_at >= ?`, agentID, since).Scan(&n)
+	s.DB.QueryRow(`SELECT COUNT(*) FROM feed_posts WHERE agent_id = ? AND created_at >= ? AND notice = ''`, agentID, since).Scan(&n)
 	return n
 }
 

@@ -116,6 +116,63 @@ func (e *Engine) RunDueAgents() int {
 	return started
 }
 
+// ---- telling the owner when an agent has trouble ----
+
+// agentHealth writes to the owner's feed when an agent's run goes wrong, and
+// again when it works. It speaks once per stretch of trouble, not once per
+// run: an agent that runs every 15 minutes while its tool server is down all
+// day leaves one post, and one more when the server is back. A run that was
+// stopped or cut off says nothing about health and changes nothing.
+func (e *Engine) agentHealth(run *store.Run, status string) {
+	if status != store.RunDone && status != store.RunFailed {
+		return
+	}
+	defer e.recoverPanic("agent health note")
+	a, err := e.st.AgentByThread(run.ThreadID)
+	if err != nil || a == nil {
+		return
+	}
+	now, err := e.st.LastRunOutcome(run.ThreadID, 0)
+	if err != nil || now == nil || now.ID != run.ID {
+		return
+	}
+	before, err := e.st.LastRunOutcome(run.ThreadID, run.ID)
+	if err != nil || now.Bad() == before.Bad() {
+		return // still fine, or still in trouble: nothing new to say
+	}
+	notice, body := store.FeedNoticeRecovered, "Working again: the last run finished without problems."
+	if now.Bad() {
+		notice, body = store.FeedNoticeProblem, AgentProblemText(now)+" Nothing more is posted about this until a run works again."
+	}
+	by := store.FeedActor{Kind: store.FeedByAgent, Name: a.Name, AgentID: a.ID, ThreadID: a.ThreadID, Notice: notice}
+	if _, err := e.st.CreateFeedPost(a.UserID, store.FeedPostInput{Body: body}, by); err != nil {
+		e.log.Warn("could not post the agent health note", "agent", a.ID, "err", err)
+	}
+}
+
+// AgentProblemText says in one or two plain sentences what went wrong in a run.
+func AgentProblemText(o *store.RunOutcome) string {
+	if o.Status == store.RunFailed {
+		why := []rune(strings.TrimSpace(o.Error))
+		if len(why) > 300 {
+			why = append(why[:300], '…')
+		}
+		if len(why) == 0 {
+			return "The last run could not finish."
+		}
+		return "The last run could not finish: " + strings.TrimRight(string(why), ".") + "."
+	}
+	return ToolsDownText(o.ToolsDown)
+}
+
+// ToolsDownText says which tool servers a run had to do without.
+func ToolsDownText(names string) string {
+	if strings.Contains(names, ",") {
+		return "Could not reach the tool servers " + names + ", so this run worked without their tools."
+	}
+	return "Could not reach the tool server " + names + ", so this run worked without its tools."
+}
+
 // ---- the agent's own context ----
 
 // AgentSystemPrompt is the whole standing context of one agent run.

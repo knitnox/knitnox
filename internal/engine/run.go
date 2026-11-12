@@ -64,6 +64,11 @@ func (e *Engine) execute(ctx context.Context, run *store.Run) (int, error) {
 		return 0, err
 	}
 	defer tools.close()
+	if len(tools.down) > 0 {
+		if err := e.st.SetRunToolsDown(run.ID, tools.down); err != nil {
+			e.log.Warn("could not note the unreachable tool servers", "run", run.ID, "err", err)
+		}
+	}
 
 	var msgs []llm.Message
 	maxSteps := max(tc.settings.AgentMaxSteps, 1)

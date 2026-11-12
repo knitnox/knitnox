@@ -268,6 +268,8 @@ func (s *Server) threadPage(w http.ResponseWriter, r *http.Request) {
 	if a, _ := s.st.AgentByThread(t.ID); a != nil { // an agent's page: same chat view, agent panel
 		data["Agent"] = a
 		data["OpenTasks"] = s.st.OpenTaskCount(a.ID)
+		// A scheduled agent that used up today's runs stays quiet until midnight UTC: say so.
+		data["AgentLimit"] = a.Enabled && a.Scheduled() && s.st.RunsToday(a.ThreadID) >= a.DailyRuns
 	} else if role == "owner" { // the Agents menu: connect or disconnect with one click
 		data["Agents"], data["ConnectedCount"] = s.agentOptions(t)
 	} else if list, _ := s.st.ConnectedAgents(t.ID, t.OwnerUserID); len(list) > 0 {
@@ -322,6 +324,7 @@ type msgView struct {
 	CanSpeak   bool              // the viewer has a voice model: offer "Read aloud"
 	Approvals  []approvalView
 	Footer     string // run outcome shown under the run's last message
+	Down       string // tool servers the run could not reach, said in a sentence
 }
 
 type callView struct{ Name, Args string }
@@ -410,6 +413,9 @@ func (s *Server) viewMessages(t *store.Thread, u *store.User, role string, msgs 
 			if m.Role == "assistant" && m.RunStatus == store.RunDone && isLatest && myRun {
 				v.CanRegen = true
 			}
+			if m.RunDown != "" {
+				v.Down = engine.ToolsDownText(m.RunDown)
+			}
 			switch m.RunStatus {
 			case store.RunFailed:
 				v.Footer, v.Failed = m.RunError, true
@@ -453,6 +459,13 @@ func (s *Server) messagesData(t *store.Thread, u *store.User, role string, from 
 	pct := 0
 	if window > 0 {
 		pct = min(100, used*100/window)
+	}
+	// An agent whose last run went wrong says so at the top of its page until a run works again.
+	if a, _ := s.st.AgentByThread(t.ID); a != nil && role == "owner" && !s.st.ThreadBusy(t.ID) {
+		if last, _ := s.st.LastRunOutcome(t.ID, 0); last.Bad() {
+			data["AgentAlert"] = map[string]any{"AgentID": a.ID, "Failed": last.Status == store.RunFailed,
+				"Text": strings.TrimPrefix(engine.AgentProblemText(last), "The last run could not finish: "), "When": last.FinishedAt}
+		}
 	}
 	data["Pending"] = s.st.PendingCount(t.ID)
 	data["Running"] = s.eng.ActiveRunID(t.ID) != 0

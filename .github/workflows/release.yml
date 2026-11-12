@@ -4,7 +4,8 @@
 # One Linux runner builds all six targets (there is no C code, so Go
 # cross-compiles them) and attaches the archives and SHA256SUMS.txt.
 # A tag with a hyphen (v1.1.0-rc1) becomes a pre-release, which the website's
-# "latest" download links skip. See docs/BUILD_GUIDE.md, "Release a new version".
+# "latest" download links skip. Pushing a tag that already has a release
+# replaces its downloads. See docs/BUILD_GUIDE.md, "Release a new version".
 name: release
 
 on:
@@ -25,7 +26,14 @@ jobs:
       - run: go vet ./...
       - run: go test -timeout 10m ./...
       - run: bash scripts/build-all.sh "$GITHUB_REF_NAME"
+      # A tag that already has a release (the same version, pushed again from a
+      # newer commit) keeps its release and gets the downloads replaced.
       - name: Publish the release
-        run: gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --title "Knitnox $GITHUB_REF_NAME" --generate-notes ${{ contains(github.ref_name, '-') && '--prerelease' || '' }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --title "Knitnox $GITHUB_REF_NAME" --generate-notes ${{ contains(github.ref_name, '-') && '--prerelease' || '' }}
+          fi
         env:
           GH_TOKEN: ${{ github.token }}

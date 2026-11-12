@@ -600,6 +600,73 @@
     badField.focus();
   }
 
+  // ---------- agent forms: the schedule and the daily limit must fit each other ----------
+  // "Every 15 minutes" is 96 runs a day; with a limit of 48 the agent would stop at midday without a word.
+  function paintLimitNotes(root) {
+    for (const note of $$("[data-limit-note]", root || document)) {
+      const form = note.closest("form");
+      const cap = form?.elements.daily_runs, when = form?.elements.schedule_minutes;
+      if (!cap || !when) continue;
+      const minutes = parseInt(when.value, 10) || 0, limit = parseInt(cap.value, 10) || 0;
+      const need = minutes > 0 ? Math.ceil(1440 / minutes) : 0;
+      note.hidden = need <= limit;
+      if (note.hidden) continue;
+      $("[data-limit-text]", note).textContent = `That is ${need} runs a day, but this agent may make at most ${limit} automatic runs a day. It would stop early every day and wait for midnight (UTC).`;
+      const fix = $("[data-limit-fix]", note);
+      fix.textContent = `Allow ${need} a day`;
+      fix.dataset.limitFix = need;
+    }
+  }
+  paintLimitNotes();
+  for (const kind of ["input", "change"]) document.addEventListener(kind, (e) => {
+    if (e.target.name === "schedule_minutes" || e.target.name === "daily_runs") paintLimitNotes(e.target.form);
+  });
+  document.addEventListener("click", (e) => {
+    const fix = e.target.closest("[data-limit-fix]");
+    if (!fix) return;
+    const form = fix.closest("form");
+    form.elements.daily_runs.value = fix.dataset.limitFix;
+    paintLimitNotes(form);
+    flash(`Daily limit set to ${fix.dataset.limitFix} runs. ${form.classList.contains("agent-new") ? "" : "Save to keep it."}`);
+  });
+  document.addEventListener("htmx:afterSwap", (e) => paintLimitNotes(e.target));
+
+  // ---------- sidebar: how many agents work right now, and which need a look ----------
+  // Asked every 15 seconds while the page is in front, and right after an agent is started or paused.
+  const sbAgents = $("#sb-agents[data-pulse]");
+  function countPill(n, kind, title) {
+    const pill = document.createElement("span");
+    pill.className = "sb-count is-" + kind;
+    pill.title = title;
+    if (kind === "busy") { const dot = document.createElement("i"); dot.className = "status-dot is-busy"; pill.append(dot); }
+    pill.append(String(n));
+    return pill;
+  }
+  async function agentsPulse() {
+    if (!sbAgents || document.hidden) return;
+    let p;
+    try {
+      const r = await fetch("/agents/pulse", { headers: { "X-Requested-With": "fetch" } });
+      if (!r.ok || !(r.headers.get("Content-Type") || "").includes("json")) return;
+      p = await r.json();
+    } catch { return; }
+    const pills = [];
+    if (p.trouble) pills.push(countPill(p.trouble, "warn", `${p.trouble} agent${p.trouble === 1 ? " needs" : "s need"} a look`));
+    if (p.working) pills.push(countPill(p.working, "busy", `${p.working} agent${p.working === 1 ? "" : "s"} working now`));
+    sbAgents.replaceChildren(...pills);
+    for (const dot of $$("[data-agent-dot]")) {
+      const a = p.agents[dot.dataset.agentDot];
+      if (a) { dot.className = "status-dot is-" + a.state; dot.title = a.label; }
+    }
+  }
+  if (sbAgents) {
+    setInterval(agentsPulse, 15000);
+    document.addEventListener("visibilitychange", agentsPulse);
+    document.addEventListener("htmx:afterRequest", (e) => {
+      if ((e.detail.pathInfo?.requestPath || "").startsWith("/agents/")) setTimeout(agentsPulse, 1200);
+    });
+  }
+
   // ---------- agent panel tabs (the open tab survives the panel being re-rendered) ----------
   function showTab(name) {
     if (!panel) return;

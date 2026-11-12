@@ -121,6 +121,9 @@ func (s *Server) onRunFinished(ev engine.RunEvent) {
 		}
 	case store.RunFailed:
 		p.Body = "The reply failed: " + preview(ev.Error, 100)
+		if a, _ := s.st.AgentByThread(ev.ThreadID); a != nil { // the title already is the agent's name
+			p.Body = "Could not finish its run: " + preview(ev.Error, 100)
+		}
 	default:
 		return
 	}

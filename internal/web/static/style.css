@@ -1719,8 +1719,36 @@ select.model-kind { width: auto; min-height: 28px; padding: 2px 30px 2px 10px; f
 .agent-tool:has(> .check input:not(:checked)) > .only-chosen, .agent-tool:has(select[name="plan_access"] option[value="none"]:checked) > .only-chosen { display: none; }
 .agent-tool .check a, .agent-tool label small a { color: inherit; }
 .empty-next { justify-content: center; }
+/* an agent whose last run went wrong: a note that stays at the top of its page while you scroll */
+.agent-alert { position: sticky; top: 8px; z-index: 6; display: flex; align-items: flex-start; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 24px; padding: 12px 14px;
+  border-radius: var(--r); background: var(--warn-soft); color: var(--warn); font-size: 13.5px; line-height: 1.5; box-shadow: var(--shadow); }
+.agent-alert.is-error { background: var(--danger-soft); color: var(--danger); }
+.agent-alert > .i { width: 17px; height: 17px; margin-top: 2px; }
+.agent-alert span { flex: 1; min-width: 200px; overflow-wrap: anywhere; }
+.agent-alert .btn { color: var(--fg); }
+.run-note.is-warn { border-color: transparent; background: var(--warn-soft); color: var(--warn); }
+.feed-head .badge .i { width: 12px; height: 12px; }
+/* the schedule asks for more runs than the daily limit allows */
+.limit-note { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 10px 12px; border-radius: var(--r-sm); background: var(--warn-soft); color: var(--warn); font-size: 13px; line-height: 1.45; }
+.limit-note span { flex: 1; min-width: 200px; }
+.limit-note .btn { color: var(--fg); }
+/* agents at a glance: on the list page, and two small numbers next to "Agents" in the sidebar */
+.agents-sum { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; font-size: 13px; color: var(--muted); }
+.agents-sum > span { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 99px; background: var(--bg-subtle); }
+.agents-sum b { color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; }
+.agents-sum .is-busy { background: var(--accent-soft-2); color: var(--accent-text); }
+.agents-sum .is-warn { background: var(--warn-soft); color: var(--warn); }
+.agents-sum .is-busy b, .agents-sum .is-warn b { color: inherit; }
+.sb-agents { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
+.sb-agents:empty { display: none; }
+.sb-link .sb-agents .sb-count { margin-left: 0; }
+.sb-count.is-busy { display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-variant-numeric: tabular-nums; }
+.sb-count.is-busy .status-dot { width: 6px; height: 6px; }
+.sb-count.is-warn { background: var(--warn-soft); color: var(--warn); }
+.status-dot.is-warn { background: var(--warn); }
 @media (max-width: 640px) {
   .agents-head .btn { width: 100%; }
+  .agent-alert { position: static; } /* on a phone a note that stays put would cover half the screen */
   .fold > summary { padding: 12px 14px; }
   .fold-body, .new-step { padding: 14px; }
   .create-bar { margin: 4px -8px 0; }

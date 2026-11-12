@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"errors"
+	"strings"
 )
 
 // Run statuses.
@@ -48,6 +49,7 @@ type Message struct {
 	Status       string
 	RunStatus    string
 	RunError     string
+	RunDown      string // tool servers the run could not reach ("name, name")
 	CreatedAt    string
 	Edited       bool
 	Reasoning    string // model "thinking" text, if the provider streams it
@@ -162,6 +164,46 @@ func (s *Store) FinishRun(id int64, status, errMsg string, steps int) error {
 	return err
 }
 
+// SetRunToolsDown records the tool servers a run could not reach.
+func (s *Store) SetRunToolsDown(runID int64, names []string) error {
+	_, err := s.DB.Exec(`UPDATE runs SET tools_down = ? WHERE id = ?`, clip(strings.Join(names, ", "), 500), runID)
+	return err
+}
+
+// RunOutcome is how a run ended, as far as the health of an agent goes.
+type RunOutcome struct {
+	ID         int64
+	Status     string // done | failed
+	Error      string
+	ToolsDown  string // tool servers it could not reach
+	FinishedAt string
+}
+
+// Bad reports whether the run broke or had to work without some of its tools.
+func (o *RunOutcome) Bad() bool { return o != nil && (o.Status == RunFailed || o.ToolsDown != "") }
+
+// LastRunOutcome returns the newest run of a thread that ended by itself (done
+// or failed), or nil when there is none. A run that was stopped or cut off by
+// a restart says nothing about health and is skipped. before > 0 looks only
+// at runs older than that one.
+func (s *Store) LastRunOutcome(threadID, before int64) (*RunOutcome, error) {
+	q := `SELECT id, status, error, tools_down, COALESCE(finished_at, created_at) FROM runs WHERE thread_id = ? AND status IN ('done', 'failed')`
+	args := []any{threadID}
+	if before > 0 {
+		q += ` AND id < ?`
+		args = append(args, before)
+	}
+	o := &RunOutcome{}
+	err := s.DB.QueryRow(q+` ORDER BY id DESC LIMIT 1`, args...).Scan(&o.ID, &o.Status, &o.Error, &o.ToolsDown, &o.FinishedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return o, nil
+}
+
 // DeletePendingRun removes a queued run and its user message.
 func (s *Store) DeletePendingRun(threadID, runID int64) (bool, error) {
 	res, err := s.DB.Exec(`DELETE FROM runs WHERE id = ? AND thread_id = ? AND status = 'pending'`, runID, threadID)
@@ -245,7 +287,7 @@ func (s *Store) DeleteMessage(id int64) error {
 }
 
 const msgSelect = `SELECT m.id, m.thread_id, m.run_id, m.author_user_id, COALESCE(u.username, ''), m.role, m.content,
-	m.tool_calls, m.tool_call_id, m.tool_name, m.status, r.status, r.error, m.created_at, m.edited, m.reasoning
+	m.tool_calls, m.tool_call_id, m.tool_name, m.status, r.status, r.error, m.created_at, m.edited, m.reasoning, r.tools_down
 	FROM messages m JOIN runs r ON r.id = m.run_id LEFT JOIN users u ON u.id = m.author_user_id `
 
 func scanMessages(rows *sql.Rows) ([]Message, error) {
@@ -254,7 +296,7 @@ func scanMessages(rows *sql.Rows) ([]Message, error) {
 	for rows.Next() {
 		var m Message
 		if err := rows.Scan(&m.ID, &m.ThreadID, &m.RunID, &m.AuthorUserID, &m.AuthorName, &m.Role, &m.Content,
-			&m.ToolCalls, &m.ToolCallID, &m.ToolName, &m.Status, &m.RunStatus, &m.RunError, &m.CreatedAt, &m.Edited, &m.Reasoning); err != nil {
+			&m.ToolCalls, &m.ToolCallID, &m.ToolName, &m.Status, &m.RunStatus, &m.RunError, &m.CreatedAt, &m.Edited, &m.Reasoning, &m.RunDown); err != nil {
 			return nil, err
 		}
 		out = append(out, m)

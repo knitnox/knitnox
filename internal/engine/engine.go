@@ -484,6 +484,7 @@ func (e *Engine) process(run *store.Run) {
 	}
 	e.finishRun(run.ID, status, errMsg, steps)
 	e.st.TouchThread(run.ThreadID)
+	e.agentHealth(run, status) // tell the owner's feed when an agent starts having trouble, or works again (agents.go)
 	e.hub.Publish(run.ThreadID, EvRun, map[string]any{"run_id": run.ID, "status": status, "error": errMsg})
 	e.hub.Publish(run.ThreadID, EvMessages, nil)
 	if e.OnRunFinished != nil {

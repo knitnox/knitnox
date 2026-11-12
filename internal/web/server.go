@@ -254,6 +254,7 @@ func (s *Server) Handler() http.Handler {
 
 	u("GET /agents", s.agentsPage)
 	u("GET /agents/new", s.agentNewPage)
+	u("GET /agents/pulse", s.agentsPulse)
 	u("POST /agents", s.agentCreate)
 	u("GET /agents/{id}/panel", s.agentPanel)
 	u("POST /agents/{id}/settings", s.agentSettings)
@@ -491,7 +492,10 @@ func (s *Server) renderTemplate(w http.ResponseWriter, r *http.Request, page, na
 			}
 			data["ThreadGroups"], data["Archived"] = groupThreads(threads, time.Now().UTC())
 			data["HasChats"] = len(threads) > 0
-			data["MyAgents"], _ = s.st.ListAgents(u.ID)
+			agents, _ := s.st.ListAgents(u.ID)
+			data["MyAgents"] = agents
+			sum := countAgents(agents) // the two small numbers next to "Agents"
+			data["AgentsWorking"], data["AgentsTrouble"] = sum.Working, sum.Trouble
 			data["PlanDue"] = s.st.PlanCounts(u.ID, 0, engine.PlanToday(u.Location())).Today // tasks due today or late
 			data["FeedNew"] = s.st.FeedUnread(u.ID, s.feedPublicOn())                        // posts not looked at yet
 		}

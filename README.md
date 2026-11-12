@@ -12,7 +12,7 @@ One Go binary · one SQLite file · no build step · any OpenAI-compatible model
 ![SQLite](https://img.shields.io/badge/SQLite-no%20CGO-003B57?logo=sqlite&logoColor=white)
 ![Platforms](https://img.shields.io/badge/runs%20on-Linux%20·%20macOS%20·%20Windows-6b5cd6)
 
-[**Website**](https://knitnox.github.io/knitnox/) ·
+[**Website**](https://knitnox.github.io/) ·
 [Quick start](#-quick-start-no-api-key-needed) ·
 [Features](#-what-you-get) ·
 [User guide](docs/USER_GUIDE.md) ·

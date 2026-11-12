@@ -114,7 +114,9 @@ Everything Knitnox does today, grouped by area. Limits are listed at the end so 
 |---|---|
 | Your own tasks | A to-do list with notes, due dates and three states: to do, in progress, done |
 | Projects | Group tasks that belong together; each project shows its progress |
-| Views | To do, Today (due or late), Upcoming, Done and Bin, plus a search box |
+| Views | To do, Today (due or late), Upcoming and Done, a project filter, a search box and the bin |
+| Same layout as Memory | Three tabs: Tasks, Projects and Settings; one row of controls above the list |
+| Quick add | One box to add a task; date, project and note open when you click in it |
 | Dates without a calendar | Today, Tomorrow and Next week are one click, when adding a task and when moving one |
 | Your week | Today in one sentence and the next seven days with their task counts; click a day to see only that day |
 | Undo | Adding, finishing, moving and deleting a task each offer Undo |

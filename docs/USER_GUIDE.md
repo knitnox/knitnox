@@ -246,14 +246,16 @@ The same small form is on the **Memory → Settings** page, to add your own embe
 
 The **Plan Book** is your own to-do list. Open **Plan Book** in the sidebar. The number next to it is how many tasks are due today or late.
 
+The page has three tabs: **Tasks** (your list), **Projects** and **Settings**.
+
 ### Add and finish tasks
 
-The top of the page shows today's date, one sentence about what is due, and the next seven days. The small number under a day is how many tasks are due then.
+Above your tasks you see today's date, one sentence about what is due, and the next seven days. The small number on a day is how many tasks are due then.
 
 | I want to… | Do this |
 |---|---|
-| Add a task | Type it under **What do you need to do?** and press **Enter** |
-| Give it a date | Before adding, click **Today**, **Tomorrow**, **Next week** (the coming Monday) or **Pick a date…** |
+| Add a task | Type it in the **Add a task** box and press **Enter** |
+| Give it a date, a project or a note | Click in the box: the choices open under it. Pick **Today**, **Tomorrow**, **Next week** (the coming Monday) or **Pick a date…** before adding |
 | Finish a task | Click the circle in front of it |
 | Take back a wrong click | Click **Undo** in the line that appears after you add, finish, move or delete a task |
 | Move a task to another day | Click its date (or **Add a date**) and choose **Today**, **Tomorrow**, **Next week** or **Another date…** |
@@ -261,8 +263,8 @@ The top of the page shows today's date, one sentence about what is due, and the 
 | See one day only | Click that day in the row of seven days. Click it again, or **Show everything**, to go back |
 | Change a task, or see who changed it | Click its text, or **⋯** then **Change, or see its history** |
 | Show that I am working on it | **⋯**, then **I am working on it** |
-| Delete a task | **⋯**, then **Delete**. It waits under **Bin** for 30 days |
-| Bring a deleted task back | **Bin**, then **Restore** |
+| Delete a task | **⋯**, then **Delete**. It waits in the bin for 30 days |
+| Bring a deleted task back | Click the bin button next to **Find a task…**, then **Restore** |
 | See what is urgent | **Today** shows tasks due today or late |
 | Find a task | Type in **Find a task…** |
 
@@ -270,13 +272,13 @@ The top of the page shows today's date, one sentence about what is due, and the 
 
 A **project** groups tasks that belong together, like "Move house".
 
-- **Create one:** click **New project**, give it a name and, if you like, a line about its goal.
-- **Look at one:** click its name above the list. You see its tasks and how many are done.
+- **Create one:** open the **Projects** tab, click **New project**, give it a name and, if you like, a line about its goal.
+- **Look at one:** click it on the **Projects** tab, or pick it in the **All tasks** menu above your list. You see its tasks and how many are done.
 - **Rename or delete:** open the project, then **Rename or delete**. Deleting a project moves its tasks to the bin.
 
 ### Let the AI and agents help
 
-The AI cannot see your Plan Book until you click **Let the AI use it**. After that, in your own chats:
+The AI cannot see your Plan Book until you click **Let the AI use it** (on the banner, or on the **Settings** tab, where you can also turn it off again). After that, in your own chats:
 
 - "Add a task to call Sam on Friday."
 - "What is on my plan today?"

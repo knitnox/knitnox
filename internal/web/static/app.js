@@ -277,6 +277,13 @@
     const fill = e.target.closest("[data-plan-fill]"), box = $("#plan-title");
     if (fill && box) { box.value = fill.dataset.planFill; box.focus(); }
   });
+  // The add box is one line. Its choices (when, project, note) open once you use it and stay open while you
+  // choose; they close again when you click elsewhere with nothing typed.
+  document.addEventListener("focusin", (e) => e.target.closest?.(".plan-add")?.classList.add("is-open"));
+  document.addEventListener("click", (e) => {
+    const form = $(".plan-add.is-open");
+    if (form && !form.contains(e.target) && !e.target.closest("[data-plan-fill]") && !("keepOpen" in form.dataset) && !$("#plan-title").value.trim()) form.classList.remove("is-open");
+  });
   document.addEventListener("change", (e) => {
     if (!e.target.matches?.("[data-plan-pick]")) return;
     const date = $(".plan-date", e.target.form);

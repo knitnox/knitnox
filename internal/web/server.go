@@ -304,9 +304,11 @@ func (s *Server) Handler() http.Handler {
 	u("POST /plan/tasks/{id}/restore", s.planTaskAction(func(uid, id int64) error { return s.st.RestorePlanTask(uid, id, planUserActor) }))
 	u("POST /plan/tasks/{id}/purge", s.planTaskAction(s.st.PurgePlanTask))
 	u("POST /plan/bin/empty", s.planBinEmpty)
+	u("GET /plan/projects", s.planProjectsPage)
 	u("POST /plan/projects", s.planProjectCreate)
 	u("POST /plan/projects/{pid}", s.planProjectUpdate)
 	u("POST /plan/projects/{pid}/delete", s.planProjectDelete)
+	u("GET /plan/settings", s.planSettingsPage)
 	u("POST /plan/settings", s.planSwitch)
 	u("POST /agents/{id}/plan/access", s.agentPlanAccess)
 

@@ -1385,13 +1385,14 @@ main:focus, main:focus-visible { outline: none; }
    ========================================================================= */
 .sb-link .sb-count { margin-left: auto; }
 /* the box that adds a task: one big field, then "when" as buttons to tap */
-.plan-add { padding: 16px 18px 12px; margin-bottom: 14px; }
-.plan-add-head { margin-bottom: 8px; }
-.plan-add-head label { font-size: 16px; font-weight: 600; color: var(--fg); }
+/* the add box is one line; when, project and note show once you use it (app.js sets .is-open and keeps it while you choose) */
+.plan-add { margin-bottom: 14px; }
+.plan-add-more { display: none; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-top: 8px; padding: 12px 14px;
+  border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--bg); box-shadow: var(--shadow-sm); }
+.plan-add.is-open .plan-add-more, .plan-add:focus-within .plan-add-more { display: flex; }
 .plan-add-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
-.plan-add-row input { min-height: 46px; font-size: 15.5px; }
-.plan-add-row .btn { min-height: 46px; padding-inline: 18px; }
-.plan-add-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-top: 12px; }
+.plan-add-row input { min-height: 44px; font-size: 15px; }
+.plan-add-row .btn { min-height: 44px; padding-inline: 16px; }
 .plan-when { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; margin: 0; padding: 0; border: 0; }
 .plan-when legend { float: left; display: inline-flex; align-items: center; gap: 6px; margin-right: 4px; padding: 0; font-size: 13px; font-weight: 500; color: var(--fg-2); }
 .plan-when legend .i, .plan-proj > .i { width: 15px; height: 15px; color: var(--muted); flex-shrink: 0; }
@@ -1406,9 +1407,8 @@ main:focus, main:focus-visible { outline: none; }
 .plan-when:has([value=pick]:checked) .plan-date { display: block; }
 .plan-proj { flex-direction: row; align-items: center; gap: 6px; }
 .plan-proj select { width: auto; max-width: 220px; min-height: 32px; padding: 3px 32px 3px 12px; font-size: 13px; border-radius: 99px; }
-.plan-add .advanced { margin-top: 8px; }
+.plan-add .advanced { flex-basis: 100%; }
 .plan-add .advanced textarea { margin-top: 4px; }
-.plan-ai-off { margin-bottom: 14px; padding: 14px 16px; }
 
 /* what just happened, with a way back */
 /* The dock has no height and sticks to the bottom of the page area, so the bar floats over the list and nothing moves when it appears. */
@@ -1420,46 +1420,37 @@ main:focus, main:focus-visible { outline: none; }
 .plan-undo form { margin: 0; }
 
 /* today in words, and the next seven days */
-.plan-glance { display: flex; align-items: center; flex-wrap: wrap; gap: 16px 28px; padding: 18px 20px; margin-bottom: 16px; }
-.plan-glance-text { flex: 1 1 220px; min-width: 0; }
-.plan-glance-kicker { font-size: 12px; font-weight: 600; color: var(--accent-text); }
-.plan-glance h2 { font-size: 20px; }
-.plan-glance-text p { margin-top: 3px; font-size: 14px; color: var(--fg-2); }
-.plan-week-wrap { flex: 1 1 360px; min-width: 0; max-width: 470px; }
-.plan-week-wrap .hint { margin-top: 7px; }
-.plan-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-.plan-day { display: flex; flex-direction: column; align-items: center; padding: 7px 0 6px; border: 1px solid var(--border); border-radius: var(--r);
+.plan-glance { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px; margin-bottom: 16px; }
+.plan-glance-text { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; font-size: 13.5px; color: var(--fg-2); }
+.plan-glance-text b { font-size: 15px; font-weight: 600; color: var(--fg); }
+.plan-week { flex: 0 1 380px; min-width: 0; display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.plan-day { position: relative; display: flex; flex-direction: column; align-items: center; padding: 5px 0 4px; border: 1px solid var(--border); border-radius: var(--r);
   background: var(--bg); text-decoration: none; transition: background .12s, border-color .12s; }
-.plan-day span { font-size: 11.5px; font-weight: 500; color: var(--muted); }
-.plan-day b { font-size: 16px; font-weight: 600; line-height: 1.3; color: var(--fg); }
-.plan-day i { min-width: 18px; height: 18px; margin-top: 3px; padding: 0 5px; border-radius: 99px; background: var(--accent-soft-2); color: var(--accent-text);
-  font-style: normal; font-size: 11px; font-weight: 600; line-height: 18px; text-align: center; }
-.plan-day.is-free i { background: none; }
+.plan-day span { font-size: 12px; font-weight: 500; color: var(--muted); }
+.plan-day b { font-size: 15px; font-weight: 600; line-height: 1.25; color: var(--fg); }
+/* how many tasks are due that day: a small number on the corner */
+.plan-day i { position: absolute; top: -8px; right: -7px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--accent); color: var(--accent-fg);
+  font-style: normal; font-size: 12px; font-weight: 600; line-height: 18px; text-align: center; }
 .plan-day.is-today { border-color: var(--accent); }
 .plan-day.is-today span { color: var(--accent-text); font-weight: 600; }
 .plan-day.is-on { background: var(--accent); border-color: var(--accent); }
 .plan-day.is-on span, .plan-day.is-on b { color: var(--accent-fg); }
-.plan-day.is-on i { background: var(--accent-fg); color: var(--accent); }
-.plan-day.is-on.is-free i { background: none; }
+.plan-day.is-on i { background: var(--bg); color: var(--accent-text); box-shadow: 0 0 0 1px var(--accent); }
 @media (hover: hover) { .plan-day:not(.is-on):hover { border-color: var(--accent); background: var(--accent-soft); } }
 .plan-filter { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 8px 8px 8px 14px; margin-bottom: 12px; border-radius: var(--r);
   background: var(--accent-soft); font-size: 13.5px; color: var(--fg-2); }
 .plan-filter > .i { width: 16px; height: 16px; color: var(--accent-text); flex-shrink: 0; }
 .plan-filter span { flex: 1; min-width: 180px; }
 
-.plan-projects { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 16px; }
-.plan-projects .chip { height: 32px; padding: 0 12px; gap: 7px; text-decoration: none; font-size: 13px; color: var(--fg-2); max-width: 100%; }
-.plan-projects .chip { min-width: 0; flex-shrink: 1; }
-.plan-projects .chip .i, .plan-projects .chip b { flex-shrink: 0; }
-.plan-projects .chip > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* a long project name ends in "…" */
-.plan-projects .chip b { font-weight: 600; font-size: 11.5px; color: var(--muted); }
-.plan-projects .chip.is-on { color: var(--accent-text); }
-.plan-projects .chip.is-on b { color: var(--accent-text); }
-.plan-newproj { position: relative; }
-.plan-newproj > summary { list-style: none; border-style: dashed; }
-.plan-newproj > summary::-webkit-details-marker { display: none; }
-.plan-newproj > form { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; width: min(340px, 86vw); box-shadow: var(--shadow-lg); animation: menu .16s var(--ease); }
-@media (hover: hover) { .plan-projects .chip:not(.is-on):hover { border-color: var(--accent); color: var(--accent-text); } }
+
+/* the row of controls: project filter, find, bin, help */
+.plan-bar { margin-top: 0; }
+.plan-tools .tip { flex-shrink: 0; }
+.plan-tools .icon-btn.is-on { background: var(--accent-soft-2); color: var(--accent-text); }
+.feed-filter > summary > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-filter .menu a > span { min-width: 0; overflow-wrap: anywhere; }
+/* Projects tab: one card per project */
+.plan-proj-card .meter { margin-top: 8px; }
 
 .plan-project { display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
 .plan-project h3 { font-size: 17px; overflow-wrap: anywhere; }
@@ -1525,12 +1516,9 @@ button.plan-title { display: block; width: 100%; padding: 0; border: 0; border-r
 .plan-task.is-editing { display: grid; padding: 16px; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
 
 @media (max-width: 640px) {
-  .plan-add { padding: 14px 14px 10px; }
-  .plan-add-row { grid-template-columns: 1fr; }
   .plan-proj { margin-left: 0; width: 100%; }
   .plan-proj select { flex: 1; min-width: 0; max-width: none; } /* min-width: a long project name must not push the box out of the card */
-  .plan-glance { padding: 16px 14px; }
-  .plan-week { gap: 4px; }
+  .plan-week { flex-basis: 100%; gap: 5px; }
   .plan-bar .seg-links { display: flex; width: 100%; }
   .plan-bar .seg-links a { flex: 1 1 auto; padding: 6px 4px; text-align: center; }
   .seg-links .n.is-quiet { display: none; }
@@ -1690,7 +1678,7 @@ select.model-kind { width: auto; min-height: 28px; padding: 2px 30px 2px 10px; f
    would move the sheet off the screen (the Tools menu once opened above it), so these few lines must always win.
    ========================================================================= */
 @media (max-width: 640px) {
-  .row-menu .menu, .sb-menu .menu, .tip-body, .plan-newproj > form {
+  .row-menu .menu, .sb-menu .menu, .tip-body {
     position: fixed !important; left: 10px !important; right: 10px !important; top: auto !important; bottom: calc(10px + var(--safe-b)) !important;
     width: auto !important; min-width: 0 !important; max-width: none !important; max-height: 75vh; max-height: 75dvh; overflow-y: auto; z-index: 120; }
   .tip-body { padding: 16px; font-size: 14.5px; }

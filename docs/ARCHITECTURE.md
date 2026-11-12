@@ -572,7 +572,7 @@ agents.plan_access                                    none | read | write
 
 ### The page
 
-`/plan` renders the whole page; the list part (`plan-main`: project chips, view tabs with counts, grouped tasks) is a partial. Every change posts with htmx, includes the hidden `#plan-state` form (view, project, search text) and gets `plan-main` back, so counts and groups are always right without a reload. Open tasks are grouped by due date: Late, Today, Tomorrow, This week, Later, No date.
+The page has three tabs: Tasks (`/plan`), Projects (`/plan/projects`) and Settings (`/plan/settings`), all rendered by `planbook.html`. On the Tasks tab the list part (`plan-main`: the week, the open project, grouped tasks) is a partial. Every change posts with htmx, includes the hidden `#plan-state` form (view, project, search text) and gets `plan-main` back; the row of controls above the list (`plan-bar`: view tabs with counts, project filter, search, bin) comes along in the same answer marked `hx-swap-oob`, so counts and groups are always right without a reload. The add box sits outside the partial, so what is typed there survives a change to the list. Open tasks are grouped by due date: Late, Today, Tomorrow, This week, Later, No date.
 
 ### Trade-offs
 

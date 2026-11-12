@@ -49,6 +49,17 @@ func TestPlanBookPagesAndPermissions(t *testing.T) {
 	if !a.st.PlanEnabled(alice.id) || a.st.PlanEnabled(bob.id) {
 		t.Fatal("the switch did not change exactly alice's setting")
 	}
+	// The Settings tab has the same switch and stays on that tab; the Projects tab starts empty.
+	if p := alice.get("/plan/settings"); !strings.Contains(p, "Who may use my Plan Book") || !strings.Contains(p, "How the Plan Book works") ||
+		!strings.Contains(p, `href="/plan/settings" class="is-active" aria-current="page"`) || strings.Contains(p, "The AI cannot use your Plan Book yet") {
+		t.Error("the Settings tab is wrong")
+	}
+	if code, _, h := alice.post("/plan/settings", url.Values{"enabled": {"1"}, "from": {"settings"}}); code != http.StatusSeeOther || h.Get("Location") != "/plan/settings?done=on" {
+		t.Errorf("turn on from the Settings tab: %d %s", code, h.Get("Location"))
+	}
+	if p := alice.get("/plan/projects"); !strings.Contains(p, "No projects yet") || !strings.Contains(p, `action="/plan/projects"`) {
+		t.Error("the empty Projects tab is wrong")
+	}
 
 	// A project, then tasks in and outside it. Each change answers with the fresh list.
 	code, _, h := alice.post("/plan/projects", url.Values{"name": {"Kitchen refit"}, "notes": {"By March."}})
@@ -60,6 +71,10 @@ func TestPlanBookPagesAndPermissions(t *testing.T) {
 	code, list := alice.hx("/plan/tasks", url.Values{"title": {"Book the van"}, "due": {yesterday}, "project_id": {pid}, "project": {pid}})
 	if code != http.StatusOK || !strings.Contains(list, "Book the van") || !strings.Contains(list, "1 day late") || !strings.Contains(list, `class="plan-group is-late"`) {
 		t.Fatalf("create in project: %d %s", code, list)
+	}
+	// The answer carries the row of controls too, to be swapped in place (fresh counts); the full page does not mark it so.
+	if !strings.Contains(list, `id="plan-bar" hx-swap-oob="true"`) || strings.Contains(alice.get("/plan"), "hx-swap-oob") {
+		t.Error("the row of controls is not sent along with the list, or the full page marks it out-of-band")
 	}
 	alice.hx("/plan/tasks", url.Values{"title": {"Buy milk"}, "due": {today}, "notes": {"Oat."}})
 	if code, _ := alice.hx("/plan/tasks", url.Values{"title": {" "}}); code != http.StatusBadRequest {
@@ -77,6 +92,12 @@ func TestPlanBookPagesAndPermissions(t *testing.T) {
 	}
 	if p := alice.get("/plan?project=" + pid); !strings.Contains(p, "By March.") || !strings.Contains(p, "0 of 1 done") || strings.Contains(p, "Buy milk") {
 		t.Error("the project view is wrong")
+	}
+	if p := alice.get("/plan/projects"); !strings.Contains(p, `href="/plan?project=`+pid+`"`) || !strings.Contains(p, "1 to do · 0 done") || strings.Contains(p, "No projects yet") {
+		t.Error("the Projects tab does not list the project with its progress")
+	}
+	if p := bob.get("/plan/projects"); strings.Contains(p, "Kitchen refit") {
+		t.Error("bob can see alice's projects")
 	}
 	if p := alice.get("/plan?project=-1"); !strings.Contains(p, "Buy milk") || strings.Contains(p, "Book the van") {
 		t.Error("the “No project” view is wrong")

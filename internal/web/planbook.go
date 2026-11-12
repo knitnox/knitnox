@@ -16,9 +16,13 @@ import (
 // (/plan). The same list is used by the AI in their chats and by agents they
 // allowed (engine/planbook.go). Every query is scoped to the signed-in user.
 //
-// The list part of the page ("plan-main": projects, view tabs, tasks) is
-// re-rendered after every change, so counts and groups are always right
-// without a page reload. Which list is shown travels with each request as
+// The page has three tabs, like Memory: Tasks (/plan), Projects
+// (/plan/projects) and Settings (/plan/settings).
+//
+// On the Tasks tab the list ("plan-main": the week, the open project, the
+// tasks) is re-rendered after every change, and the row of controls above it
+// ("plan-bar") is sent along and swapped in place, so counts and groups are
+// always right without a page reload. Which list is shown travels with each request as
 // four fields: view, project, q, day.
 //
 // A change that is easy to make by accident (tick off, delete, new date)
@@ -288,9 +292,28 @@ func (s *Server) planPage(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
+	data["Tab"] = "tasks"
 	data["On"] = s.st.PlanEnabled(currentUser(r).ID)
 	data["Notice"] = r.URL.Query().Get("done")
 	s.render(w, r, "planbook", data)
+}
+
+// planProjectsPage is the Projects tab: every project with how far along it is, and a form for a new one.
+func (s *Server) planProjectsPage(w http.ResponseWriter, r *http.Request) {
+	u := currentUser(r)
+	projects, err := s.st.ListProjects(u.ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.render(w, r, "planbook", map[string]any{"Tab": "projects", "Projects": projects, "On": s.st.PlanEnabled(u.ID),
+		"BinDays": store.PlanBinDays, "Notice": r.URL.Query().Get("done")})
+}
+
+// planSettingsPage is the Settings tab: who may use the Plan Book, and how it works.
+func (s *Server) planSettingsPage(w http.ResponseWriter, r *http.Request) {
+	s.render(w, r, "planbook", map[string]any{"Tab": "settings", "On": s.st.PlanEnabled(currentUser(r).ID),
+		"BinDays": store.PlanBinDays, "Notice": r.URL.Query().Get("done")})
 }
 
 // planRefresh answers a change: the list again for htmx (with a line saying
@@ -313,6 +336,7 @@ func (s *Server) planRefresh(w http.ResponseWriter, r *http.Request, undo *planU
 	if undo != nil {
 		data["Undo"] = undo
 	}
+	data["OOB"] = true // send the row of controls along: its counts changed
 	s.renderPartial(w, r, "planbook", "plan-main", data)
 }
 
@@ -528,7 +552,11 @@ func (s *Server) planSwitch(w http.ResponseWriter, r *http.Request) {
 	if on {
 		done = "on"
 	}
-	http.Redirect(w, r, "/plan?done="+done, http.StatusSeeOther)
+	to := "/plan"
+	if r.FormValue("from") == "settings" { // switched on the Settings tab: stay there
+		to = "/plan/settings"
+	}
+	http.Redirect(w, r, to+"?done="+done, http.StatusSeeOther)
 }
 
 // agentPlanAccess sets what one agent may do with its owner's Plan Book.

@@ -49,7 +49,7 @@ func (s *Server) toolRows(owner *store.User, t *store.Thread, group bool) []tool
 	}
 	picture, _ := s.eng.CanMakeInChat(owner.ID)
 	personal(store.ToolMemory, "Memory", "Save facts about you and look them up", s.st.MemoryEnabled(owner.ID), "/memory", "Off for your account. Turn it on under Memory")
-	personal(store.ToolPlan, "Plan Book", "Add, list and finish your tasks", s.st.PlanEnabled(owner.ID), "/plan", "Off for your account. Turn it on under Plan Book")
+	personal(store.ToolPlan, "Plan Book", "Add, list and finish your tasks", s.st.PlanEnabled(owner.ID), "/plan/settings", "Off for your account. Turn it on under Plan Book → Settings")
 	personal(store.ToolFeed, "Feed", "Post to your feed and read your posts", s.st.FeedEnabled(owner.ID), "/feed/settings", "Off for your account. Turn it on under Feed → Settings")
 	personal(store.ToolPictures, "Pictures", "Make a picture and show it in the chat", picture, "/feed/settings", "No picture model yet. Choose one under Feed → Settings")
 

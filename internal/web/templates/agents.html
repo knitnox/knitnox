@@ -374,7 +374,7 @@
       </label>
     </form>
     <p class="hint">Each change the agent makes is recorded under its name, and anything it deletes waits in the bin for 30 days.</p>
-    {{if and (ne .A.PlanAccess "none") (not .PlanOn)}}<p class="hint"><b>The AI may not use your Plan Book yet</b>, so the agent sees nothing. <a href="/plan#ai">Turn it on</a></p>{{end}}
+    {{if and (ne .A.PlanAccess "none") (not .PlanOn)}}<p class="hint"><b>The AI may not use your Plan Book yet</b>, so the agent sees nothing. <a href="/plan/settings">Turn it on</a></p>{{end}}
   </section>
 
   <section class="panel-section" data-tab-pane="memory">

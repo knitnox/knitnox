@@ -1,4 +1,4 @@
-{{define "title"}}Plan Book · Knitnox{{end}}
+{{define "title"}}{{if eq .Tab "projects"}}Projects · {{else if eq .Tab "settings"}}Settings · {{end}}Plan Book · Knitnox{{end}}
 
 {{define "content"}}
 <div class="shell">
@@ -12,19 +12,40 @@
         {{else if eq .Notice "project-deleted"}}<div class="notice">{{template "i-check"}}The project is gone. Its tasks are in the bin for {{.BinDays}} days, in case you want one back.</div>
         {{end}}
 
+        <nav class="tabs" aria-label="Plan Book sections">
+          <a href="/plan" class="{{if eq .Tab "tasks"}}is-active{{end}}"{{if eq .Tab "tasks"}} aria-current="page"{{end}}>{{template "i-plan"}}Tasks</a>
+          <a href="/plan/projects" class="{{if eq .Tab "projects"}}is-active{{end}}"{{if eq .Tab "projects"}} aria-current="page"{{end}}>{{template "i-folder"}}Projects</a>
+          <a href="/plan/settings" class="{{if eq .Tab "settings"}}is-active{{end}}"{{if eq .Tab "settings"}} aria-current="page"{{end}}>{{template "i-settings"}}Settings</a>
+        </nav>
+
+        {{if and (not .On) (ne .Tab "settings")}}
+        <div class="card mem-off">
+          <div class="empty-icon">{{template "i-sparkles"}}</div>
+          <div class="grow">
+            <b>The AI cannot use your Plan Book yet</b>
+            <p class="hint">Turn this on and the AI in your own chats can add tasks for you, tell you what is due and tick things off when you ask. <a href="/plan/settings">What it may do</a></p>
+          </div>
+          <form method="post" action="/plan/settings">
+            <input type="hidden" name="_csrf" value="{{.CSRF}}">
+            <input type="hidden" name="enabled" value="1">
+            <button type="submit" class="btn primary">Let the AI use it</button>
+          </form>
+        </div>
+        {{end}}
+
+        {{if eq .Tab "tasks"}}
         <section class="section">
-          <form class="card plan-add" id="add" method="post" action="/plan/tasks" data-reset
+          {{template "plan-bar" .}}
+
+          {{if ne .State.View "bin"}}
+          <form class="plan-add{{if .State.Day}} is-open{{end}}" id="add" method="post" action="/plan/tasks" data-reset{{if .State.Day}} data-keep-open{{end}}
                 hx-post="/plan/tasks" hx-target="#plan-main" hx-include="#plan-state">
             <input type="hidden" name="_csrf" value="{{.CSRF}}">
-            <div class="h-row plan-add-head">
-              <label for="plan-title">What do you need to do?</label>
-              {{template "tip-open" "What is the Plan Book?"}}The <b>Plan Book</b> is your own to-do list. A <b>task</b> is one thing to do. A <b>project</b> is a folder for tasks that belong together, like “Move house”. You, the AI in your chats and agents you allow all work on the same list. It is private to you and never used in group chats. <a href="/help/guide">Read the guide</a>{{template "tip-close"}}
-            </div>
             <div class="plan-add-row">
-              <input id="plan-title" name="title" maxlength="200" required autocomplete="off" placeholder="e.g. Call Sam about the invoice" data-refocus>
-              <button type="submit" class="btn primary">{{template "i-plus"}}Add task</button>
+              <input id="plan-title" name="title" maxlength="200" required autocomplete="off" placeholder="Add a task, e.g. Call Sam about the invoice" aria-label="Add a task" data-refocus>
+              <button type="submit" class="btn primary">{{template "i-plus"}}Add</button>
             </div>
-            <div class="plan-add-opts">
+            <div class="plan-add-more">
               <fieldset class="plan-when">
                 <legend>{{template "i-clock"}}When?</legend>
                 <label class="pick-chip"><input type="radio" name="when" value="none"{{if not .State.Day}} checked{{end}}><span>No date</span></label>
@@ -40,40 +61,61 @@
                   {{range .Projects}}<option value="{{.ID}}" {{if eq .ID $.State.Project}}selected{{end}}>{{.Name}}</option>{{end}}
                 </select>
               </label>
+              <details class="advanced">
+                <summary>Add a note</summary>
+                <textarea name="notes" rows="2" maxlength="4000" placeholder="Anything worth remembering about this task (optional)" aria-label="Notes"></textarea>
+              </details>
             </div>
-            <details class="advanced">
-              <summary>Add a note</summary>
-              <textarea name="notes" rows="2" maxlength="4000" placeholder="Anything worth remembering about this task (optional)" aria-label="Notes"></textarea>
-            </details>
           </form>
-
-          <details class="how-wrap"{{if .Empty}} open{{end}}>
-            <summary>{{template "i-bulb"}}How does the Plan Book work?</summary>
-            <ol class="how">
-              <li><span class="how-num" aria-hidden="true">1</span><b>Write it down</b><p>Type a task above and choose when it is due. Or tell the AI: “remind me to renew my passport next week”.</p></li>
-              <li><span class="how-num" aria-hidden="true">2</span><b>Group it</b><p>Put tasks that belong together into a project. Each project shows how far along it is.</p></li>
-              <li><span class="how-num" aria-hidden="true">3</span><b>Tick it off</b><p>Click the circle when a task is done. Wrong click? Every change has an <b>Undo</b> button.</p></li>
-            </ol>
-          </details>
-
-          {{if not .On}}
-          <div class="card mem-off plan-ai-off">
-            <div class="empty-icon">{{template "i-sparkles"}}</div>
-            <div class="grow">
-              <b>The AI cannot use your Plan Book yet</b>
-              <p class="hint">Turn this on and the AI in your own chats can add tasks for you, tell you what is due and tick things off when you ask. <a href="#ai">What it may do</a></p>
-            </div>
-            <form method="post" action="/plan/settings">
-              <input type="hidden" name="_csrf" value="{{.CSRF}}">
-              <input type="hidden" name="enabled" value="1">
-              <button type="submit" class="btn primary">Let the AI use it</button>
-            </form>
-          </div>
           {{end}}
 
           <div id="plan-main">{{template "plan-main" .}}</div>
         </section>
 
+        {{else if eq .Tab "projects"}}
+        <section class="section">
+          <div class="section-head">
+            <div class="section-icon">{{template "i-folder"}}</div>
+            <div>
+              <div class="h-row"><h2>Projects</h2>
+                {{template "tip-open" "What is a project?"}}A <b>project</b> is a folder for tasks that belong together, like “Move house”. Each project shows how far along it is. A task does not need a project: use one only when it helps you.{{template "tip-close"}}
+              </div>
+              <p>Folders for tasks that belong together. Open one to see its tasks and how far along it is.</p>
+            </div>
+          </div>
+
+          <details class="card add-card" id="new"{{if not .Projects}} open{{end}}>
+            <summary>{{template "i-plus"}}<span>New project</span></summary>
+            <form class="form-grid" method="post" action="/plan/projects">
+              <input type="hidden" name="_csrf" value="{{.CSRF}}">
+              <label class="span-2">Project name <input name="name" maxlength="80" required autocomplete="off" placeholder="e.g. Move house"></label>
+              <label class="span-2">What it is about <small class="muted">optional</small><textarea name="notes" rows="2" maxlength="4000" placeholder="The goal, a deadline, who is involved…"></textarea></label>
+              <div class="span-2"><button type="submit" class="btn primary">Create project</button></div>
+            </form>
+          </details>
+
+          {{if .Projects}}
+          <div class="thing-grid">
+            {{range .Projects}}
+            {{$all := add .Open .Done}}
+            <a class="thing plan-proj-card" href="/plan?project={{.ID}}">
+              <b>{{.Name}}</b>
+              <small>{{if $all}}{{.Open}} to do · {{.Done}} done{{else}}No tasks yet{{end}}</small>
+              {{if $all}}<div class="meter"><span data-pct="{{pct (int64 .Done) (int64 $all)}}"></span></div>{{end}}
+            </a>
+            {{end}}
+          </div>
+          <p class="hint plan-more">To rename or delete a project, open it.</p>
+          {{else}}
+          <div class="empty-card">
+            <div class="empty-icon">{{template "i-folder"}}</div>
+            <p>No projects yet</p>
+            <span>Create one above when several tasks belong together. Tasks work fine without a project, too.</span>
+          </div>
+          {{end}}
+        </section>
+
+        {{else}}
         <section class="section" id="ai">
           <div class="section-head">
             <div class="section-icon">{{template "i-power"}}</div>
@@ -86,23 +128,73 @@
                 <li><b>In your own chats</b> the AI can list, add, change and tick off tasks when you ask.</li>
                 <li><b>In group chats</b> the Plan Book is never used.</li>
                 <li><b>Agents</b> get nothing unless you allow one: open the agent, then “Memory &amp; plans”. You choose read-only or full access.</li>
-                <li><b>Nothing is lost by mistake.</b> A deleted task waits in the bin for {{.BinDays}} days, and each task keeps a history of who changed it.</li>
+                <li><b>Nothing is lost by mistake.</b> A deleted task waits in the <a href="/plan?view=bin">bin</a> for {{.BinDays}} days, and each task keeps a history of who changed it.</li>
               </ul>
             </div>
             <form method="post" action="/plan/settings">
               <input type="hidden" name="_csrf" value="{{.CSRF}}">
+              <input type="hidden" name="from" value="settings">
               <input type="hidden" name="enabled" value="{{if .On}}0{{else}}1{{end}}">
               <button type="submit" class="btn{{if not .On}} primary{{end}}">{{if .On}}Turn off{{else}}Let the AI use it{{end}}</button>
             </form>
           </div>
         </section>
+
+        <section class="section" id="how">
+          <div class="section-head">
+            <div class="section-icon">{{template "i-bulb"}}</div>
+            <div><h2>How the Plan Book works</h2><p>Your own to-do list. You, the AI in your chats and the agents you allow all work on the same list.</p></div>
+          </div>
+          <ol class="how">
+            <li><span class="how-num" aria-hidden="true">1</span><b>Write it down</b><p>Type a task in the box on the Tasks tab and choose when it is due. Or tell the AI: “remind me to renew my passport next week”.</p></li>
+            <li><span class="how-num" aria-hidden="true">2</span><b>Group it</b><p>Put tasks that belong together into a <a href="/plan/projects">project</a>. Each project shows how far along it is.</p></li>
+            <li><span class="how-num" aria-hidden="true">3</span><b>Tick it off</b><p>Tap the circle when a task is done. Wrong tap? Every change has an <b>Undo</b> button.</p></li>
+          </ol>
+          <p class="hint plan-more">The row of seven days above your tasks shows the week ahead. The small number on a day is how many tasks are due then; tap a day to see only those. It is private to you and never used in group chats. <a href="/help/guide">Read the guide</a></p>
+        </section>
+        {{end}}
       </div>
     </div>
   </main>
 </div>
 {{end}}
 
-{{/* The list part of the page: what just happened, the week, projects, view tabs and tasks. Re-rendered after every change. */}}
+{{/* The one row of controls above the tasks: which tasks, which project, find, bin. Needs what "plan-main" needs.
+     It sits outside the list, so after a change the list sends it again with .OOB set and htmx puts it in place (the counts change). */}}
+{{define "plan-bar"}}
+{{$st := .State}}
+<div class="mem-bar plan-bar" id="plan-bar"{{if .OOB}} hx-swap-oob="true"{{end}}>
+  <div class="seg-links" role="group" aria-label="Show">
+    <a href="{{$st.URL "open" $st.Project}}"{{if and (eq $st.View "open") (not $st.Day)}} class="is-active"{{end}}>To do <span class="n">{{.Counts.Open}}</span></a>
+    <a href="{{$st.URL "today" $st.Project}}"{{if eq $st.View "today"}} class="is-active"{{end}}>Today <span class="n{{if .Counts.Overdue}} is-late{{end}}"{{if .Counts.Overdue}} title="{{.Counts.Overdue}} late"{{end}}>{{.Counts.Today}}</span></a>
+    <a href="{{$st.URL "upcoming" $st.Project}}"{{if eq $st.View "upcoming"}} class="is-active"{{end}}>Upcoming <span class="n">{{.Counts.Upcoming}}</span></a>
+    <a href="{{$st.URL "done" $st.Project}}"{{if eq $st.View "done"}} class="is-active"{{end}}>Done <span class="n is-quiet">{{.Counts.Done}}</span></a>
+    {{if eq $st.View "bin"}}<a href="{{$st.URL "bin" $st.Project}}" class="is-active">Bin</a>{{end}}
+  </div>
+  <div class="feed-tools plan-tools">
+    <details class="row-menu feed-filter">
+      <summary class="btn sm{{if $st.Project}} is-set{{end}}" title="Show only the tasks of one project">{{template "i-folder"}}<span>{{if .Project}}{{.Project.Name}}{{else if eq $st.Project -1}}No project{{else}}All tasks{{end}}</span>{{template "i-chevron-down"}}</summary>
+      <div class="menu" role="menu">
+        <div class="menu-label">Show tasks in</div>
+        <a role="menuitem" href="{{$st.URL $st.View 0}}"{{if eq $st.Project 0}} aria-current="true"{{end}}><span>All tasks</span><small>{{.AllOpen}}</small></a>
+        {{range .Projects}}<a role="menuitem" href="{{$st.URL $st.View .ID}}"{{if eq .ID $st.Project}} aria-current="true"{{end}} title="{{.Open}} to do, {{.Done}} done">{{template "i-folder"}}<span>{{.Name}}</span><small>{{.Open}}</small></a>{{end}}
+        {{if .Projects}}<a role="menuitem" href="{{$st.URL $st.View -1}}"{{if eq $st.Project -1}} aria-current="true"{{end}}><span>No project</span><small>{{.NoProjectOpen}}</small></a>{{end}}
+        <div class="menu-sep"></div>
+        <a role="menuitem" href="/plan/projects#new">{{template "i-plus"}}New project</a>
+      </div>
+    </details>
+    <form class="plan-find feed-find" action="/plan" method="get" role="search">
+      {{if ne $st.View "open"}}<input type="hidden" name="view" value="{{$st.View}}">{{end}}
+      {{if $st.Project}}<input type="hidden" name="project" value="{{$st.Project}}">{{end}}
+      <input type="search" name="q" value="{{$st.Query}}" placeholder="Find a task…" aria-label="Find a task" maxlength="100" autocomplete="off">
+    </form>
+    <a class="icon-btn{{if eq $st.View "bin"}} is-on{{end}}" href="{{$st.URL "bin" $st.Project}}" title="Bin: {{.Counts.Bin}} deleted task{{if ne .Counts.Bin 1}}s{{end}}" aria-label="Bin: {{.Counts.Bin}} deleted task{{if ne .Counts.Bin 1}}s{{end}}">{{template "i-trash"}}</a>
+    {{template "tip-open" "How does the Plan Book work?"}}The <b>Plan Book</b> is your own to-do list. A <b>task</b> is one thing to do. A <b>project</b> is a folder for tasks that belong together, like “Move house”. You, the AI in your chats and agents you allow all work on the same list. It is private to you and never used in group chats. <a href="/plan/settings#how">How it works</a>{{template "tip-close"}}
+  </div>
+</div>
+{{end}}
+
+{{/* The list part of the page: the week, the open project and the tasks. Re-rendered after every change. */}}
 {{define "plan-main"}}
 {{$st := .State}}
 <form id="plan-state" hidden>
@@ -111,35 +203,16 @@
   <input type="hidden" name="q" value="{{$st.Query}}">
   <input type="hidden" name="day" value="{{$st.Day}}">
 </form>
+{{if .OOB}}{{template "plan-bar" .}}{{end}}
 
-<div class="card plan-glance">
-  <div class="plan-glance-text">
-    <span class="plan-glance-kicker">Today</span>
-    <h2>{{.DateWords}}</h2>
-    <p>{{.Glance}}</p>
-  </div>
-  <div class="plan-week-wrap">
-    <nav class="plan-week" aria-label="Tasks due in the next 7 days">
-      {{range .Week}}<a class="plan-day{{if .IsToday}} is-today{{end}}{{if eq .Date $st.Day}} is-on{{end}}{{if not .Count}} is-free{{end}}" href="{{if eq .Date $st.Day}}{{$st.DayURL ""}}{{else}}{{$st.DayURL .Date}}{{end}}"{{if eq .Date $st.Day}} aria-current="true"{{end}} title="{{.Label}}: {{if .Count}}{{.Count}} to do{{else}}nothing due{{end}}" aria-label="{{.Label}}: {{if .Count}}{{.Count}} to do{{else}}nothing due{{end}}"><span>{{if .IsToday}}Today{{else}}{{.Weekday}}{{end}}</span><b>{{.Num}}</b><i>{{if .Count}}{{.Count}}{{end}}</i></a>{{end}}
-    </nav>
-    <p class="hint">The small number is how many tasks are due that day. Click a day to see only those.</p>
-  </div>
+{{if and (ne $st.View "done") (ne $st.View "bin")}}
+<div class="plan-glance">
+  <p class="plan-glance-text"><b>{{.DateWords}}</b><span>{{.Glance}}</span></p>
+  <nav class="plan-week" aria-label="Tasks due in the next 7 days">
+    {{range .Week}}<a class="plan-day{{if .IsToday}} is-today{{end}}{{if eq .Date $st.Day}} is-on{{end}}{{if not .Count}} is-free{{end}}" href="{{if eq .Date $st.Day}}{{$st.DayURL ""}}{{else}}{{$st.DayURL .Date}}{{end}}"{{if eq .Date $st.Day}} aria-current="true"{{end}} title="{{.Label}}: {{if .Count}}{{.Count}} to do{{else}}nothing due{{end}}" aria-label="{{.Label}}: {{if .Count}}{{.Count}} to do{{else}}nothing due{{end}}"><span>{{if .IsToday}}Today{{else}}{{.Weekday}}{{end}}</span><b>{{.Num}}</b>{{if .Count}}<i>{{.Count}}</i>{{end}}</a>{{end}}
+  </nav>
 </div>
-
-<nav class="plan-projects" aria-label="Projects">
-  <a class="chip{{if eq $st.Project 0}} is-on{{end}}" href="{{$st.URL $st.View 0}}"{{if eq $st.Project 0}} aria-current="true"{{end}}>All tasks<b>{{.AllOpen}}</b></a>
-  {{range .Projects}}<a class="chip{{if eq .ID $st.Project}} is-on{{end}}" href="{{$st.URL $st.View .ID}}"{{if eq .ID $st.Project}} aria-current="true"{{end}} title="{{.Open}} to do, {{.Done}} done">{{template "i-folder"}}<span>{{.Name}}</span><b>{{.Open}}</b></a>{{end}}
-  {{if .Projects}}<a class="chip{{if eq $st.Project -1}} is-on{{end}}" href="{{$st.URL $st.View -1}}"{{if eq $st.Project -1}} aria-current="true"{{end}}>No project<b>{{.NoProjectOpen}}</b></a>{{end}}
-  <details class="plan-newproj">
-    <summary class="chip">{{template "i-plus"}}New project</summary>
-    <form class="card stack sm" method="post" action="/plan/projects">
-      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-      <label>Project name <input name="name" maxlength="80" required autocomplete="off" placeholder="e.g. Move house"></label>
-      <label>What it is about <small class="muted">optional</small><textarea name="notes" rows="2" maxlength="4000" placeholder="The goal, a deadline, who is involved…"></textarea></label>
-      <div><button type="submit" class="btn primary sm">Create project</button></div>
-    </form>
-  </details>
-</nav>
+{{end}}
 
 {{with .Project}}
 <div class="card plan-project">
@@ -167,21 +240,6 @@
   </details>
 </div>
 {{end}}
-
-<div class="mem-bar plan-bar">
-  <div class="seg-links" role="group" aria-label="Show">
-    <a href="{{$st.URL "open" $st.Project}}"{{if and (eq $st.View "open") (not $st.Day)}} class="is-active"{{end}}>To do <span class="n">{{.Counts.Open}}</span></a>
-    <a href="{{$st.URL "today" $st.Project}}"{{if eq $st.View "today"}} class="is-active"{{end}}>Today <span class="n{{if .Counts.Overdue}} is-late{{end}}"{{if .Counts.Overdue}} title="{{.Counts.Overdue}} late"{{end}}>{{.Counts.Today}}</span></a>
-    <a href="{{$st.URL "upcoming" $st.Project}}"{{if eq $st.View "upcoming"}} class="is-active"{{end}}>Upcoming <span class="n">{{.Counts.Upcoming}}</span></a>
-    <a href="{{$st.URL "done" $st.Project}}"{{if eq $st.View "done"}} class="is-active"{{end}}>Done <span class="n is-quiet">{{.Counts.Done}}</span></a>
-    <a href="{{$st.URL "bin" $st.Project}}"{{if eq $st.View "bin"}} class="is-active"{{end}}>Bin <span class="n is-quiet">{{.Counts.Bin}}</span></a>
-  </div>
-  <form class="plan-find" action="/plan" method="get" role="search">
-    {{if ne $st.View "open"}}<input type="hidden" name="view" value="{{$st.View}}">{{end}}
-    {{if $st.Project}}<input type="hidden" name="project" value="{{$st.Project}}">{{end}}
-    <input type="search" name="q" value="{{$st.Query}}" placeholder="Find a task…" aria-label="Find a task" maxlength="100" autocomplete="off">
-  </form>
-</div>
 
 {{if $st.Day}}<p class="plan-filter">{{template "i-clock"}}<span>Only tasks due <b>{{.DayWords}}</b>. New tasks you add get this date.</span><a class="btn sm" href="{{$st.DayURL ""}}">Show everything</a></p>{{end}}
 {{if $st.Query}}<p class="lead">{{.Total}} task{{if ne .Total 1}}s{{end}} with “{{$st.Query}}” here. <a href="{{$st.URL $st.View $st.Project}}">Show all</a></p>{{end}}

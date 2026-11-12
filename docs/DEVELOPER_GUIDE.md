@@ -20,7 +20,7 @@ go run ./cmd/knitnox          # http://localhost:8080
 4. Send a message. Try "what time is it?" to see a tool call.
 5. To try the Plan Book: turn it on under **Plan Book**, then send "todo buy milk" and "plan".
    To try the Feed: open **Feed**, the settings button, **Let the AI post**, then send "post the weekly numbers are in" or "draw how a report gets made".
-   For pictures, voice and video add the models `mock-image`, `mock-voice` and `mock-video` to the mock provider (their kind is guessed from the name), then send "picture a loaf of bread", "say good morning" or "film a bakery counter".
+   For pictures, voice and video add the models `mock-image`, `mock-voice` and `mock-video` to the mock provider (their kind is guessed from the name), then send "picture a loaf of bread", "say good morning" or "film a bakery counter". With `mock-image` in place, "paint a red bicycle" makes a picture inside the chat, and with `mock-voice` every answer gets a speaker button.
 6. To try memory: turn it on under **Memory**, then send "remember that I like tea" and "recall tea". For smart search, set the embedding model `mock-embed` under **Admin panel → Settings**.
 
 Data lives in `./data` (the database, the secret key, uploads, feed media and automatic backups). Delete that folder to start clean.
@@ -83,6 +83,7 @@ Dependencies point one way: `web → engine → (llm, mcp, hub, store) → secre
 | The Feed page, charts, live updates | `web/feed.go`, `templates/feed.html`, the Feed part of `static/app.js` |
 | Feed settings, model choices, "add my own model", serving media | `web/feedmedia.go` |
 | Making pictures, voice and video; the picture check | `engine/feedmedia.go`, `llm/media.go`, `store/feedmedia.go`, `migrations/011_media.sql` |
+| Pictures made in a chat (`make_picture`) and Read aloud | `engine/chatmedia.go`, `store/chatmedia.go`, `web/chat.go → speakMessage`, the `reader` part of `static/app.js`, `migrations/012_chat_media.sql` |
 | What a model is for (chat, embedding, image, voice, video) | `store/providers.go` (`models.kind`, `GuessModelKind`, `KindModelOptions`) |
 | Long-term memory: tools, search, indexing | `engine/memory.go` |
 | Long-term memory: tables and queries | `store/memory.go`, `migrations/007_memory.sql` |
@@ -183,6 +184,7 @@ gofmt -l .           # should print nothing
 | `internal/web/feed_test.go` | Feed page, privacy between users, sharing, read counts, paging, bin, charts and pictures |
 | `internal/web/feedmedia_test.go` | Feed settings, model kinds, adding an own model in Feed and Memory settings, who may load media, picture sizes |
 | `internal/engine/feedmedia_test.go` | Pictures, voice and video against a fake provider: the redraw after a check, failures, the daily limit, own models |
+| `internal/engine/chatmedia_test.go`, `internal/web/chatmedia_test.go` | Pictures made in a chat, Read aloud, the shared daily limit, who may listen |
 | `internal/web/memory_test.go` | Memory pages, permissions, search settings, agent access |
 | `internal/web/help_test.go` | The guides and the issue tracker |
 | `internal/web/ui_test.go` | Theme and accent cookies, the getting-started list and other page details |

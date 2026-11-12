@@ -33,6 +33,8 @@ type turnCtx struct {
 	feedOn      bool           // this run may post to its owner's feed
 	feedDaily   int            // posts per day (agents only; 0 = no limit)
 	feedMedia   string         // what else a post can carry here, in a sentence ("" = nothing)
+	pictureOn   bool           // the make_picture tool is offered
+	callMsgID   int64          // the AI message whose tool calls are being run (pictures are linked to it)
 }
 
 // execute runs the agent loop for one queued user turn. It returns the number
@@ -86,6 +88,9 @@ func (e *Engine) execute(ctx context.Context, run *store.Run) (int, error) {
 	if tc.feedOn {
 		msgs[0].Content += feedNote(tc.agent != nil, tc.feedDaily, tc.feedMedia)
 	}
+	if tc.pictureOn {
+		msgs[0].Content += pictureNote
+	}
 
 	steps := 0
 	for {
@@ -113,6 +118,7 @@ func (e *Engine) execute(ctx context.Context, run *store.Run) (int, error) {
 		}
 
 		msgs = append(msgs, llm.Message{Role: "assistant", Content: res.Content, ToolCalls: res.ToolCalls})
+		tc.callMsgID = msgID
 		for _, call := range res.ToolCalls {
 			var out string
 			if route, ok := tools.routes[call.Function.Name]; ok && route.ask {

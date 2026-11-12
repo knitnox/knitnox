@@ -240,6 +240,7 @@ func (s *Server) Handler() http.Handler {
 	u("POST /t/{id}/runs/{rid}/edit", s.editRun)
 	u("POST /t/{id}/approvals/{aid}", s.decideApproval)
 	u("GET /files/{aid}", s.serveFile)
+	u("POST /t/{id}/messages/{mid}/speak", s.speakMessage)
 	u("GET /t/{id}/panel", s.threadPanel)
 	u("POST /t/{id}/settings", s.threadSettings)
 	u("POST /t/{id}/delete", s.deleteThread)

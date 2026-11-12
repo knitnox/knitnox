@@ -107,15 +107,9 @@ func (e *Engine) CreateFeedPost(userID int64, in store.FeedPostInput, by store.F
 			return 0, fmt.Errorf("no model is set up to make a %s; choose one on the Feed settings page", word)
 		}
 		in.MediaShared = p.IsGlobal()
-		if in.MediaShared {
-			if st, err := e.st.LoadSettings(); err == nil && st.FeedMediaDaily > 0 {
-				loc := time.UTC
-				if u, err := e.st.UserByID(userID); err == nil {
-					loc = u.Location()
-				}
-				if used := e.st.FeedMediaSince(userID, feedDayStart(loc)); used >= st.FeedMediaDaily {
-					return 0, fmt.Errorf("today's limit of %d pictures, recordings and videos made with the server's models is used up; it starts again tomorrow", st.FeedMediaDaily)
-				}
+		if in.MediaShared { // one limit for the Feed and for chats (chatmedia.go)
+			if err := e.mediaLimitLeft(userID); err != nil {
+				return 0, err
 			}
 		}
 	}

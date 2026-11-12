@@ -78,6 +78,11 @@
 
       <div class="composer-wrap">
         <button type="button" class="to-bottom" id="to-bottom" hidden aria-label="Jump to latest">{{template "i-arrow-down"}}</button>
+        <div class="reader" id="reader" hidden>
+          <span class="reader-label">{{template "i-volume"}}<span>Reading the answer</span></span>
+          <audio controls preload="none" aria-label="The answer read aloud"></audio>
+          <button type="button" class="icon-btn sm" data-reader-close aria-label="Stop reading and close" title="Close">{{template "i-x"}}</button>
+        </div>
         {{if .CanWrite}}
         <form class="composer" id="composer" autocomplete="off" data-vision="{{.Vision}}">
           <div class="composer-card" data-dropzone>
@@ -308,6 +313,11 @@
       <pre><code class="language-json">{{.Args}}</code></pre>
     </details>
     {{end}}
+    {{if .Images}}
+    <div class="msg-images made">
+      {{range .Images}}<button type="button" class="img-thumb" data-lightbox="/files/{{.ID}}" aria-label="Open the picture" title="{{.OrigName}}"><img src="/files/{{.ID}}" alt="{{.OrigName}}" loading="lazy" decoding="async"></button>{{end}}
+    </div>
+    {{end}}
     {{range .Approvals}}
     <div class="approval" id="approval-{{.ID}}">
       <div class="approval-head">{{template "i-shield"}}<span><span>The AI wants to run <b class="mono">{{.ToolName}}</b></span><small>from your <b>{{.ServerName}}</b> server · this may do things outside the chat</small></span></div>
@@ -324,6 +334,7 @@
     {{if and .Content (ne .Status "streaming")}}
     <div class="msg-actions">
       <button type="button" class="act" data-copy-msg aria-label="Copy" title="Copy"><span class="ic">{{template "i-copy"}}</span><span class="ic-done">{{template "i-check"}}</span></button>
+      {{if or .CanSpeak .Audio}}<button type="button" class="act" data-speak="/t/{{.ThreadID}}/messages/{{.ID}}/speak"{{if .Audio}} data-audio="/files/{{.Audio.ID}}"{{end}} aria-label="Read aloud" title="{{if .Audio}}Listen{{else}}Read aloud{{end}}">{{template "i-volume"}}</button>{{end}}
       {{if .CanRegen}}<button type="button" class="act" data-regen="/t/{{.ThreadID}}/runs/{{.RunID}}/edit" aria-label="Regenerate" title="Regenerate">{{template "i-refresh"}}</button>{{end}}
     </div>
     {{end}}

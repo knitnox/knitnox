@@ -373,6 +373,15 @@ kbd { font: 500 11px var(--font); color: var(--faint); border: 1px solid var(--b
 /* images in messages */
 .msg-images { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; max-width: min(85%, 480px); }
 .msg-user.is-mine .msg-images { justify-content: flex-end; }
+.msg-images.made { margin-top: 8px; }
+.act.is-busy { opacity: .5; cursor: progress; }
+.reader { display: flex; align-items: center; gap: 10px; margin: 0 auto 8px; padding: 6px 8px 6px 12px; max-width: 100%; width: fit-content;
+  border: 1px solid var(--border); border-radius: var(--r); background: var(--bg); box-shadow: var(--shadow); }
+.reader[hidden] { display: none; }
+.reader-label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.reader-label .i { width: 16px; height: 16px; color: var(--accent); }
+.reader audio { height: 34px; max-width: min(360px, 55vw); }
+@media (max-width: 520px) { .reader-label span { display: none; } }
 .img-thumb { padding: 0; border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; cursor: zoom-in;
   background: var(--bg-subtle); width: 148px; height: 148px; transition: transform .15s var(--ease); }
 .msg-images:has(.img-thumb:only-child) .img-thumb { width: auto; height: auto; max-width: 320px; max-height: 320px; }

@@ -306,6 +306,8 @@ type msgView struct {
 	Calls      []callView
 	Images     []store.Attachment
 	Files      []store.Attachment
+	Audio      *store.Attachment // the answer read aloud, once someone asked for it
+	CanSpeak   bool              // the viewer has a voice model: offer "Read aloud"
 	Approvals  []approvalView
 	Footer     string // run outcome shown under the run's last message
 }
@@ -322,12 +324,15 @@ type approvalView struct {
 // viewMessages builds the view models for a slice of messages. latestRun
 // controls edit/regenerate affordances (only meaningful for the newest page).
 func (s *Server) viewMessages(t *store.Thread, u *store.User, role string, msgs []store.Message, newest bool) map[string]any {
-	var userMsgIDs []int64
+	var userMsgIDs []int64 // every message that can carry files: uploads on a person's, made pictures and recordings on the AI's
 	runAuthor := map[int64]int64{}
 	var latest int64
+	_, canSpeak := s.eng.CanMakeInChat(u.ID)
 	for _, m := range msgs {
-		if m.Role == "user" {
+		if m.Role != "tool" {
 			userMsgIDs = append(userMsgIDs, m.ID)
+		}
+		if m.Role == "user" {
 			if m.AuthorUserID.Valid {
 				runAuthor[m.RunID] = m.AuthorUserID.Int64
 			}
@@ -350,12 +355,16 @@ func (s *Server) viewMessages(t *store.Thread, u *store.User, role string, msgs 
 	for i, m := range msgs {
 		v := msgView{Message: m}
 		for _, a := range atts[m.ID] {
-			if a.IsImage() {
+			switch {
+			case a.IsImage():
 				v.Images = append(v.Images, a)
-			} else {
+			case a.IsAudio():
+				v.Audio = &a
+			default:
 				v.Files = append(v.Files, a)
 			}
 		}
+		v.CanSpeak = canSpeak && m.Role == "assistant" && m.Status == store.MsgDone
 		v.Mine = m.AuthorUserID.Valid && m.AuthorUserID.Int64 == u.ID
 		v.Queued = m.RunStatus == store.RunPending
 		v.CanCancel = v.Queued && (v.Mine || role == "owner")
@@ -643,7 +652,7 @@ func (s *Server) serveFile(w http.ResponseWriter, r *http.Request) {
 	defer f.Close()
 	info, _ := f.Stat()
 	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
-	if a.IsImage() {
+	if a.IsImage() || a.IsAudio() {
 		w.Header().Set("Content-Type", a.Mime)
 		w.Header().Set("Content-Disposition", "inline")
 	} else {
@@ -655,6 +664,36 @@ func (s *Server) serveFile(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", safeFileName(a.OrigName)))
 	}
 	http.ServeContent(w, r, "", info.ModTime(), f)
+}
+
+// speakMessage answers with the address of an AI answer read aloud. The
+// recording is made the first time someone asks, with that person's voice
+// model, and kept on the message for everyone in the chat.
+func (s *Server) speakMessage(w http.ResponseWriter, r *http.Request) {
+	t, _, ok := s.loadThread(w, r)
+	if !ok {
+		return
+	}
+	msg, err := s.st.ThreadMessage(t.ID, pathID(r, "mid"))
+	if err != nil || msg.Role != "assistant" || msg.Status != store.MsgDone || strings.TrimSpace(msg.Content) == "" {
+		http.Error(w, "That answer cannot be read aloud.", http.StatusNotFound)
+		return
+	}
+	a, err := s.eng.SpeakMessage(r.Context(), currentUser(r).ID, msg)
+	switch {
+	case errors.Is(err, store.ErrNoMediaModel):
+		http.Error(w, "No voice model is set up. Choose one under Feed → Settings → Pictures, voice and video.", http.StatusBadRequest)
+		return
+	case errors.Is(err, engine.ErrSpeaking):
+		http.Error(w, "This answer is already being read. It will be ready in a moment.", http.StatusConflict)
+		return
+	case err != nil:
+		msg := err.Error()
+		http.Error(w, strings.ToUpper(msg[:1])+msg[1:]+".", http.StatusBadGateway)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"url": fmt.Sprintf("/files/%d", a.ID)})
 }
 
 func safeFileName(n string) string {

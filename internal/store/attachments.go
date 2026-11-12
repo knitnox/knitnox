@@ -65,6 +65,9 @@ func (s *Store) SaveUpload(data []byte, mime, origName, kind, text string) (NewA
 	if !ok {
 		ext, ok = AllowedFileTypes[mime]
 	}
+	if !ok && kind == KindAudio { // only recordings a voice model made, never an upload
+		ext, ok = AllowedAudioTypes[mime]
+	}
 	if !ok {
 		return NewAttachment{}, fmt.Errorf("unsupported file type %s", mime)
 	}

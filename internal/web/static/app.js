@@ -1071,6 +1071,31 @@
     const cancelEdit = t.closest("[data-edit-cancel]");
     if (cancelEdit) closeEdit(cancelEdit.closest(".msg"));
 
+    // Read aloud: the recording is made on the first click and kept on the
+    // answer. One player sits above the message box, outside the message list,
+    // so it keeps playing while the list is drawn again.
+    const speak = t.closest("[data-speak]");
+    if (speak && reader) {
+      const audio = $("audio", reader);
+      const play = (url) => {
+        reader.hidden = false;
+        if (!audio.src.endsWith(url)) audio.src = url;
+        audio.play().catch(() => {}); // the browser may want one more click; the controls are right there
+      };
+      if (speak.dataset.audio) play(speak.dataset.audio);
+      else if (!speak.disabled) {
+        speak.disabled = true; speak.classList.add("is-busy");
+        flash("Making the recording…");
+        try {
+          const r = await post(speak.dataset.speak, {});
+          if (r.ok) { const url = (await r.json()).url; speak.dataset.audio = url; flash(""); play(url); }
+          else flash(await errorText(r));
+        } catch { flash("Network error — please try again."); }
+        finally { speak.disabled = false; speak.classList.remove("is-busy"); }
+      }
+    }
+    if (t.closest("[data-reader-close]") && reader) { $("audio", reader).pause(); reader.hidden = true; }
+
     const regen = t.closest("[data-regen]");
     if (regen) {
       regen.disabled = true;
@@ -1115,6 +1140,7 @@
   });
 
   // ---------- server-sent events ----------
+  const reader = $("#reader");
   let es, opened = false, lastResync = 0;
   function connect() {
     es = new EventSource(`/t/${threadID}/events`);

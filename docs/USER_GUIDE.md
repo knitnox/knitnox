@@ -37,9 +37,13 @@ To change how Knitnox looks, open **Settings → Appearance**: choose **Auto**, 
 | Fix my last message | Hover it and click the pencil. The old answer is replaced |
 | Get a different answer | Click the circular arrow under the latest answer |
 | Copy an answer or a code block | Click the copy icon under the message, or **Copy** on the code block |
+| Get a picture | Ask for one in your own chat: "paint a red bicycle by the sea". It appears in the conversation; click it to see it large. Needs a picture model (see below) |
+| Have an answer read to me | Click the speaker button under the answer. The first time takes a moment; after that it plays at once. Needs a voice model (see below) |
 | See a picture from another website | Click the **Show picture from …** button. Pictures from other sites are not loaded by themselves, so an answer cannot quietly send anything to another site |
 
 On a phone, **Enter** adds a new line and the arrow button sends.
+
+**Pictures and voice need a model.** If the speaker button is missing, or the AI says it cannot make pictures, no model of that kind is set up for you. Choose one, or add your own, under **Feed → Settings → Pictures, voice and video**; your admin can also share one with everyone. Pictures are made in your own chats only, not in group chats. With the server's models there is a daily limit, shared with the Feed.
 
 ## Attach images and files
 

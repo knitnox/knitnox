@@ -721,3 +721,30 @@ There is no mail, so nothing is recovered by a link. A user's password is reset 
 - `GET /healthz` runs `SELECT 1` with a 3-second limit and answers 503 when the database does not.
 - `KNITNOX_LOG_FILE` adds a log file that is turned over at 10 MB (`cmd/knitnox/logfile.go`).
 - `.github/workflows/test.yml` runs `go vet`, the tests with the race detector, and a build.
+
+## 21. Pictures and voice inside a chat
+
+The picture and voice models (§19, model kinds) are also used in chats. Nothing new is stored in a new place: a made file is an **attachment** (§14) on the AI's message, so it is shown by the same template, served by `GET /files/{id}` to members of the chat only, backed up with `uploads/`, deleted with the chat, and never mistaken for an orphan by the hourly sweep.
+
+```
+attachments.made   0 = uploaded by a person
+                   1 = made by the user's own model
+                   2 = made by a model the server shares (counts toward the daily limit)
+attachments.kind   image | file | audio
+```
+
+| | Picture | Read aloud |
+|---|---|---|
+| Started by | the AI, with the built-in tool `make_picture` | a person, with the speaker button (`POST /t/{id}/messages/{mid}/speak`) |
+| Where | the owner's own chats (not group chats, not agents), when the owner has a picture model | any chat the person can read, when that person has a voice model |
+| Whose model and limit | the chat owner's | the person who pressed the button |
+| Linked to | the AI message that made the tool call (`turnCtx.callMsgID`) | the answer that is read |
+| Made | inside the run; the tool waits up to 4 minutes | inside the request; up to 3 minutes |
+| Made again? | each call makes a new picture | never: `MessageAudio` returns the kept recording to everyone |
+
+- **The model is chosen in one place.** Both use `store.FeedMediaModel` (the choice on Feed → Settings, else the first shared model of that kind) and `Engine.mediaLimitLeft`, which counts Feed media and chat media together against `settings.feed_media_daily`.
+- **The AI never gets the picture back.** The tool result only says it is shown, so nothing large enters the context and the prompt prefix is unchanged. A made picture is not sent to the model in later turns either: `buildContext` only loads attachments of user messages.
+- **The system prompt gains one fixed sentence** (`pictureNote`) while a picture model exists; it changes only when the owner changes their models.
+- **What is read.** `speakable` drops code blocks, link addresses and Markdown signs, and cuts at 4,000 characters on a sentence end.
+- **One player.** The `<audio>` element sits above the message box, outside `#messages`, so it keeps playing when the list is re-rendered.
+- Recordings are the only audio type `SaveUpload` accepts, and only with `KindAudio`; people still cannot upload audio.

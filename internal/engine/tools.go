@@ -96,6 +96,11 @@ func (e *Engine) openTools(ctx context.Context, tc *turnCtx) (*toolset, error) {
 		tc.feedOn, tc.feedMedia = true, e.feedMediaNote(tc.thread.OwnerUserID)
 		e.addFeedTools(ts, tc.thread.OwnerUserID, store.FeedActor{Kind: store.FeedByAI, ThreadID: tc.thread.ID}, 0, true, tc.loc, tc.checkModel())
 	}
+	// Pictures are made with the owner's model and count toward the owner's
+	// daily limit, so the tool is offered only in the owner's own chats.
+	if !tc.group {
+		tc.pictureOn = e.addPictureTool(ts, tc)
+	}
 	return ts, nil
 }
 

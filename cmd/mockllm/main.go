@@ -191,6 +191,12 @@ func chat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// A picture in the chat itself (offered when a picture model is set up): "paint ...".
+	if pic := toolNamed("make_picture"); pic != "" && !sawTool && strings.HasPrefix(lower, "paint ") {
+		callTool(pic, map[string]any{"description": strings.TrimSpace(lastUser[len("paint "):])})
+		return
+	}
+
 	if post := toolNamed("feed_post"); post != "" && !sawTool {
 		for word, arg := range map[string]string{"picture ": "image", "say ": "voice", "film ": "video", "draw ": "svg"} {
 			if !strings.HasPrefix(lower, word) {
@@ -237,6 +243,9 @@ func chat(w http.ResponseWriter, r *http.Request) {
 		reply = "The clock tool says it is **" + lastTool + "**."
 		if strings.Contains(lastTool, "emor") { // an answer from a memory tool
 			reply = "Here is what the memory tool answered:\n\n> " + strings.ReplaceAll(strings.TrimSpace(lastTool), "\n", "\n> ")
+		}
+		if strings.HasPrefix(lastTool, "The picture was made") { // an answer from make_picture
+			reply = "Here is your picture."
 		}
 		if strings.HasPrefix(lastTool, "Posted as #") { // an answer from the feed tool
 			reply = "Done. " + lastTool + " Open **Feed** in the sidebar to see it."

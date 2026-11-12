@@ -14,6 +14,7 @@ A small, self-hosted AI chat with **turn-based group chats**. It's one Go binary
 - **Memory**: opt-in long-term memory per user. The AI saves short facts in one chat and looks them up in another; people, places and projects are linked into a small graph you can browse on a map. Word search works out of the box, an embedding model adds search by meaning. Everything is readable, editable and deletable. See `docs/ARCHITECTURE.md` §17.
 - **Group chats**: invite people with a link. Everyone's messages go into one queue and the AI answers them one at a time. Billing and tool access stay safe by default.
 - **Images and documents**: attach up to 6 files per message (button, paste or drag-and-drop): PNG/JPEG/WebP/GIF for vision models, plus **PDF, text, Markdown, CSV, JSON and code files**, whose text is extracted and given to the model.
+- **Pictures and voice in a chat**: with a picture model set up, the AI in your own chats can make a picture and show it in the conversation; with a voice model, every answer has a **Read aloud** button. Both use the models chosen under Feed → Settings and share the Feed's daily limit.
 - **Custom instructions**: per user (your solo chats) and per chat ("answer in Bengali", "we are planning a wedding").
 - **Thinking models**: `reasoning_content` / `reasoning` streams (DeepSeek, vLLM, OpenRouter…) are shown in a collapsible "Thinking" block.
 - **Edit and regenerate**: edit your latest (or any queued) message, regenerate the last answer, or retry a failed one. The old answer is replaced.
@@ -318,7 +319,7 @@ Changed defaults to know about when upgrading from a version before November 202
 - `messages` grows forever (compaction never deletes). Deleting a chat removes its messages.
 - `backups/` holds the newest backups (7 unless changed), each a full copy including uploads.
 - `feedmedia/` grows with the pictures, recordings and videos of Feed posts; an hourly sweep removes files no post points to.
-- `uploads/` grows with images and documents. Deleting a chat deletes its files, and an hourly sweep removes files no row references any more (from deleted users, or queued messages that were cancelled). Uploads are capped at 6 files per message, 10 MB per image and 20 MB per document; browsers resize photos to ≤2048 px first, and extracted document text is capped at 120k characters per file.
+- `uploads/` grows with images and documents, and with the pictures and recordings made in chats (they are stored like uploads and go when their chat is deleted). Deleting a chat deletes its files, and an hourly sweep removes files no row references any more (from deleted users, or queued messages that were cancelled). Uploads are capped at 6 files per message, 10 MB per image and 20 MB per document; browsers resize photos to ≤2048 px first, and extracted document text is capped at 120k characters per file.
 - `messages_fts` (the search index) is roughly the size of the message text. It is maintained by triggers; rebuild it after a manual bulk import with `INSERT INTO messages_fts(messages_fts) VALUES('rebuild');`.
 - `tool_approvals` gets one row per asked tool call. It is small.
 - Expired sessions are purged hourly.

@@ -14,6 +14,8 @@ Everything Knitnox does today, grouped by area. Limits are listed at the end so 
 | Markdown and code | Tables, lists, quotes, syntax highlighting, a Copy button on code |
 | Long-chat memory | Older messages are summarised automatically; originals are kept |
 | Context meter | Shows how full the model's memory is for this chat |
+| Pictures in the chat | With a picture model set up, ask the AI in your own chat for a picture and it appears in the conversation |
+| Read aloud | With a voice model set up, a speaker button under every answer reads it to you; the recording is kept, so the next listen is instant |
 | Never stuck | If the AI provider goes silent or hangs up, the answer stops with what it has and you can retry |
 | Pictures from other sites wait | A picture hosted elsewhere shows as a button and loads only when you click it |
 
@@ -198,6 +200,7 @@ Everything Knitnox does today, grouped by area. Limits are listed at the end so 
 - **Approval waits.** A tool call waiting for approval holds that chat's queue until someone decides.
 - **Plan Book.** Due dates are days, not times; there are no reminders, subtasks, repeating tasks or shared projects yet.
 - **Feed.** No likes, comments or follows. One picture, recording or video per post; you cannot upload your own files to a post. Video uses the OpenAI video format only, which few providers offer. The read count is the number of other people who were shown a shared post.
+- **Pictures and voice in chats.** Pictures are made only in your own chats, not in group chats or by agents, and the AI cannot see the picture it made. Read aloud reads the first 4,000 characters of an answer and leaves code out. Videos are made only for Feed posts.
 - **Model kinds.** What a model is for is guessed from its name when it is added and can be changed in the providers list. Pictures, recordings and videos are not counted in token quotas; the admin sets a number per person per day instead.
 - **Memory search.** Smart search needs an embedding model; without one, only shared words match. Embedding calls are not counted in token quotas.
 - **Memory size.** Built for thousands of memories per person, not millions.

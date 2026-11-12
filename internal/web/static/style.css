@@ -1301,7 +1301,11 @@ main:focus, main:focus-visible { outline: none; }
 @media (hover: hover) { .rel a:hover { text-decoration: underline; } }
 .rel-list { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .rel-list .rel { padding: 6px 12px; font-size: 13.5px; }
-.thing-chip { text-decoration: none; color: var(--fg-2); }
+.thing-chip { text-decoration: none; color: var(--fg-2);
+  /* a long name is cut with "…" instead of widening the page */
+  max-width: 100%; min-width: 0; flex-shrink: 1; }
+.thing-chip .i { flex-shrink: 0; }
+.thing-chip > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (hover: hover) { .thing-chip:hover { border-color: var(--accent); color: var(--accent-text); } }
 
 /* the form */
@@ -1445,6 +1449,9 @@ main:focus, main:focus-visible { outline: none; }
 
 .plan-projects { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 16px; }
 .plan-projects .chip { height: 32px; padding: 0 12px; gap: 7px; text-decoration: none; font-size: 13px; color: var(--fg-2); max-width: 100%; }
+.plan-projects .chip { min-width: 0; flex-shrink: 1; }
+.plan-projects .chip .i, .plan-projects .chip b { flex-shrink: 0; }
+.plan-projects .chip > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* a long project name ends in "…" */
 .plan-projects .chip b { font-weight: 600; font-size: 11.5px; color: var(--muted); }
 .plan-projects .chip.is-on { color: var(--accent-text); }
 .plan-projects .chip.is-on b { color: var(--accent-text); }
@@ -1521,7 +1528,7 @@ button.plan-title { display: block; width: 100%; padding: 0; border: 0; border-r
   .plan-add { padding: 14px 14px 10px; }
   .plan-add-row { grid-template-columns: 1fr; }
   .plan-proj { margin-left: 0; width: 100%; }
-  .plan-proj select { flex: 1; max-width: none; }
+  .plan-proj select { flex: 1; min-width: 0; max-width: none; } /* min-width: a long project name must not push the box out of the card */
   .plan-glance { padding: 16px 14px; }
   .plan-week { gap: 4px; }
   .plan-bar .seg-links { display: flex; width: 100%; }
@@ -1676,3 +1683,23 @@ select.model-kind { width: auto; min-height: 28px; padding: 2px 30px 2px 10px; f
   .feed-head { flex-wrap: wrap; }
   .feed-agent { flex-wrap: wrap; }
 }
+
+/* =========================================================================
+   Phones: every pop-up is a sheet at the bottom of the screen.
+   Keep this block LAST. Menus get their own left/right/bottom rules further up for wide screens; on a phone those
+   would move the sheet off the screen (the Tools menu once opened above it), so these few lines must always win.
+   ========================================================================= */
+@media (max-width: 640px) {
+  .row-menu .menu, .sb-menu .menu, .tip-body, .plan-newproj > form {
+    position: fixed !important; left: 10px !important; right: 10px !important; top: auto !important; bottom: calc(10px + var(--safe-b)) !important;
+    width: auto !important; min-width: 0 !important; max-width: none !important; max-height: 75vh; max-height: 75dvh; overflow-y: auto; z-index: 120; }
+  .tip-body { padding: 16px; font-size: 14.5px; }
+  .tip-body a { white-space: normal; }
+  .menu-note { max-width: none; }
+  /* A blurred bar keeps "fixed" children inside itself, which cut the chat's menus off at the top of the screen.
+     Nothing scrolls under the bar, so the blur is not missed. */
+  .topbar { backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .topbar:not(.home-top) { background: var(--canvas); }
+}
+/* long folder paths and model names inside a sentence wrap instead of widening the page */
+p .mono, .hint .mono { overflow-wrap: anywhere; }

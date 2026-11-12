@@ -128,7 +128,7 @@
 
 <nav class="plan-projects" aria-label="Projects">
   <a class="chip{{if eq $st.Project 0}} is-on{{end}}" href="{{$st.URL $st.View 0}}"{{if eq $st.Project 0}} aria-current="true"{{end}}>All tasks<b>{{.AllOpen}}</b></a>
-  {{range .Projects}}<a class="chip{{if eq .ID $st.Project}} is-on{{end}}" href="{{$st.URL $st.View .ID}}"{{if eq .ID $st.Project}} aria-current="true"{{end}} title="{{.Open}} to do, {{.Done}} done">{{template "i-folder"}}{{.Name}}<b>{{.Open}}</b></a>{{end}}
+  {{range .Projects}}<a class="chip{{if eq .ID $st.Project}} is-on{{end}}" href="{{$st.URL $st.View .ID}}"{{if eq .ID $st.Project}} aria-current="true"{{end}} title="{{.Open}} to do, {{.Done}} done">{{template "i-folder"}}<span>{{.Name}}</span><b>{{.Open}}</b></a>{{end}}
   {{if .Projects}}<a class="chip{{if eq $st.Project -1}} is-on{{end}}" href="{{$st.URL $st.View -1}}"{{if eq $st.Project -1}} aria-current="true"{{end}}>No project<b>{{.NoProjectOpen}}</b></a>{{end}}
   <details class="plan-newproj">
     <summary class="chip">{{template "i-plus"}}New project</summary>
@@ -271,7 +271,7 @@
         </div>
       </details>
       {{end}}
-      {{if .Project}}<a class="chip thing-chip" href="/plan?project={{.ProjectID}}">{{template "i-folder"}}{{.Project}}</a>{{end}}
+      {{if .Project}}<a class="chip thing-chip" href="/plan?project={{.ProjectID}}">{{template "i-folder"}}<span>{{.Project}}</span></a>{{end}}
       {{if eq .CreatedBy "ai"}}<span class="badge">Added by the AI</span>{{else if eq .CreatedBy "agent"}}<span class="badge">Added by agent {{.ActorName}}</span>{{end}}
       {{if and .SourceThreadID .SourceTitle}}<span>in <a href="/t/{{.SourceThreadID}}">{{.SourceTitle}}</a></span>{{end}}
       {{if .InBin}}<span>deleted {{short .DeletedAt}}</span>{{end}}

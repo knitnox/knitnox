@@ -343,7 +343,7 @@
     {{if or .Entities .Relations}}
     <div class="mem-links">
       {{range .Relations}}<span class="rel"><a href="/memory/things/{{.SubjectID}}">{{.Subject}}</a><i>{{.Predicate}}</i><a href="/memory/things/{{.ObjectID}}">{{.Object}}</a></span>{{end}}
-      {{range aboutOnly .}}<a class="chip thing-chip" href="/memory/things/{{.ID}}">{{.Name}}</a>{{end}}
+      {{range aboutOnly .}}<a class="chip thing-chip" href="/memory/things/{{.ID}}"><span>{{.Name}}</span></a>{{end}}
     </div>
     {{end}}
     <div class="mem-meta">

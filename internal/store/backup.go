@@ -30,9 +30,10 @@ func (s *Store) Backup(dataDir, destDir string) (out string, err error) {
 	if err := os.MkdirAll(out, 0o700); err != nil {
 		return "", err
 	}
+	folder := out // `return "", err` clears out before this defer runs
 	defer func() {
 		if err != nil {
-			os.RemoveAll(out) // never leave a half backup that looks like a whole one
+			os.RemoveAll(folder) // never leave a half backup that looks like a whole one
 		}
 	}()
 	dbCopy := filepath.Join(out, "knitnox.db")

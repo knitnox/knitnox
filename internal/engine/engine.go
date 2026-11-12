@@ -433,7 +433,11 @@ func (e *Engine) process(run *store.Run) {
 		}
 		return // shutdown: stays pending
 	}
-	defer e.slots.release()
+	// The slot goes back as soon as the work is over, before the run is marked
+	// finished: whoever sees "finished" can count on the slot being free.
+	var giveBack sync.Once
+	release := func() { giveBack.Do(e.slots.release) }
+	defer release()
 	e.mu.Lock()
 	delete(e.waiting, run.ThreadID)
 	e.mu.Unlock()
@@ -463,6 +467,7 @@ func (e *Engine) process(run *store.Run) {
 	defer cancelRun()
 
 	steps, err := e.execute(runCtx, run)
+	release()
 
 	status, errMsg := store.RunDone, ""
 	if err != nil {

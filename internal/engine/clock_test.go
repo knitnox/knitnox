@@ -37,6 +37,10 @@ func TestTimeStamps(t *testing.T) {
 	if got := clockGuide(time.Local, true); !strings.Contains(got, "the server's time zone (UTC") {
 		t.Errorf("group guide = %q", got)
 	}
+	// The context meter of a group chat passes no zone; this used to panic.
+	if got := clockGuide(nil, true); !strings.Contains(got, "the server's time zone (UTC+00:00)") {
+		t.Errorf("group guide without a zone = %q", got)
+	}
 }
 
 var stampRe = regexp.MustCompile(`^\[\w{3}, \d{1,2} \w{3} \d{4}, \d\d:\d\d\]\n`)

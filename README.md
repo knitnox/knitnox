@@ -1,82 +1,117 @@
 <div align="center">
 
-<img src="favicon.svg" width="96" height="96" alt="Knitnox logo">
+<img src="favicon.svg" width="88" height="88" alt="Knitnox logo">
 
 # Knitnox
 
-**A calm, self-hosted AI chat you can share with people.**
-One Go binary · one SQLite file · no build step · any OpenAI-compatible model.
+### Decide together. With AI in the room.
+
+A calm, private AI for you and your people — chats, a feed, a Plan Book and a memory,<br>
+in one small program you run yourself.
 
 [![test](https://github.com/knitnox/knitnox/actions/workflows/test.yml/badge.svg)](https://github.com/knitnox/knitnox/actions/workflows/test.yml)
-![Go 1.26+](https://img.shields.io/badge/Go-1.26%2B-00ADD8?logo=go&logoColor=white)
-![SQLite](https://img.shields.io/badge/SQLite-no%20CGO-003B57?logo=sqlite&logoColor=white)
-![Platforms](https://img.shields.io/badge/runs%20on-Linux%20·%20macOS%20·%20Windows-6b5cd6)
+![Go 1.26+](https://img.shields.io/badge/Go-1.26%2B-black?logo=go&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-one%20file-black?logo=sqlite&logoColor=white)
+![Self-hosted](https://img.shields.io/badge/self--hosted-Linux%20·%20macOS%20·%20Windows-black)
 
-[**Website**](https://knitnox.github.io/) ·
-[Quick start](#-quick-start-no-api-key-needed) ·
-[Features](#-what-you-get) ·
-[User guide](docs/USER_GUIDE.md) ·
-[Developer guide](docs/DEVELOPER_GUIDE.md)
+[**Website**](https://knitnox.github.io/) · [Quick start](#quick-start-no-api-key-needed) · [User guide](docs/USER_GUIDE.md) · [Features](docs/FEATURES.md) · [Developer guide](docs/DEVELOPER_GUIDE.md)
+
+<br>
+
+<picture>
+  <source srcset="docs/screenshots/chat-dark.webp" media="(prefers-color-scheme: dark)">
+  <img src="docs/screenshots/chat-light.webp" width="900" alt="A Knitnox group chat: Leo and Mia say which weekend works, and the AI keeps track of who can come.">
+</picture>
 
 </div>
 
+<br>
+
+> **"Well, ChatGPT told me…"** — not any more.
+> In Knitnox, everyone in the chat sees the same answer at the same time. Ask together, agree together.
+
 ---
 
-## 💡 What is it?
+## Chats — alone or together
 
-Knitnox is a private ChatGPT-style app that you run on **your own machine or server**. You connect it to any AI provider (OpenAI, OpenRouter, Groq, Ollama, LM Studio…) and invite your family, friends or team.
+Think things through on your own, or invite family, friends or your team with a link. In a group, **everyone asks in one shared queue** and the AI answers each person in turn, by name. Plan a trip, split a bill, pick a date — and settle it in one place.
 
-Its special trick is **turn-based group chats**: several people talk to the same AI in one chat, and their messages are answered **one at a time, in order**, so nobody talks over anybody.
+- Answers keep coming after you close the tab; up to 10 messages wait in line
+- Attach PDFs, photos, code and notes; the AI can draw pictures and read answers aloud
+- Thinking models show their reasoning in a fold-away block
+- Your own API keys and tools stay yours inside a group
+
+<p align="center">
+<picture>
+  <source srcset="docs/screenshots/chat-end-dark.webp" media="(prefers-color-scheme: dark)">
+  <img src="docs/screenshots/chat-end-light.webp" width="820" alt="The group agrees on June 21 and the AI splits the cost.">
+</picture>
+</p>
+
+## Feed — your private timeline
+
+Like a social feed, but **just for you** until you choose to share. You, your chats and your agents post short updates — a morning brief, a sales chart, a decision a group just made — so insight comes to you instead of you hunting for it. Share a post with everyone on your server to keep your community in the loop.
+
+<p align="center">
+<picture>
+  <source srcset="docs/screenshots/feed-dark.webp" media="(prefers-color-scheme: dark)">
+  <img src="docs/screenshots/feed-light.webp" width="820" alt="The Feed: a post from a group chat, a morning brief from an agent and a chart.">
+</picture>
+</p>
+
+## Plan Book — tasks and projects, with a helper
+
+A simple place for what you need to do. When you allow it, **the AI adds tasks straight from your conversations**: agree on a trip in a group chat, and "Book the cabin" lands in your Plan Book with a due date. Every task shows who added it.
+
+<p align="center">
+<picture>
+  <source srcset="docs/screenshots/plan-dark.webp" media="(prefers-color-scheme: dark)">
+  <img src="docs/screenshots/plan-light.webp" width="820" alt="The Plan Book with tasks for today, tomorrow and this week.">
+</picture>
+</p>
+
+## Memory — it remembers, you stay in charge
+
+Tell it once that Ana is allergic to peanuts, and it remembers in every chat. People, places and projects are linked on **a map you can explore**. Memory is off until you switch it on, and you can read, edit or delete everything it knows.
+
+<p align="center">
+<picture>
+  <source srcset="docs/screenshots/memory-dark.webp" media="(prefers-color-scheme: dark)">
+  <img src="docs/screenshots/memory-light.webp" width="820" alt="The memory map linking people, places and projects.">
+</picture>
+</p>
+
+## And also
+
+| | |
+|---|---|
+| **Agents** | Background helpers with their own instructions, tools and to-do list. On a schedule, on demand, or handed tasks by a chat. Ready-made ones in the agent store. |
+| **Tools that ask first** | Connect tool servers (MCP). Per server: run automatically, or show **Allow / Deny / Always allow** and wait for a person. |
+| **Any AI model** | Any OpenAI-compatible API: OpenAI, OpenRouter, Groq, Together, or fully local with Ollama, LM Studio and vLLM. Users can bring their own keys. |
+| **Admin panel** | Providers and models, users, daily or monthly allowances, usage and cost per person and model. |
+| **On your phone** | Install it as an app, with push notifications when an answer is ready or a tool needs your OK. |
+| **Find anything** | Full-text search across every chat, `Ctrl+K` to jump anywhere, export as Markdown or JSON. |
+| **Built to stay up** | Checked automatic backups, time limits for silent providers, login protection and an audit log. |
+
+## Your server, your data
 
 ```text
- You ──┐
- Sam ──┼──►  one shared queue  ──►  AI answers each in turn  ──►  everyone sees it live
- Ana ──┘
+  your browser or phone
+          │
+      ┌───▼────┐
+      │knitnox │   one program on your machine — no Docker, no Node, no database server
+      └───┬────┘
+          │
+     knitnox.db    one SQLite file holds everything
+          │
+   the AI you choose  (cloud or fully local)
 ```
 
-Download one file, run it, open your browser. No Docker, no Node, no database server required.
+Help is built in: the user guide, feature list and developer guide are inside the app under **Help**, plus an **Issues** page for bugs and ideas.
 
 ---
 
-## ✨ What you get
-
-### 💬 Chatting
-| | |
-|---|---|
-| **Group chats** | Invite people with a link. One queue, answered in order. Billing and tool access stay safe by default. |
-| **Keeps working when you leave** | Replies keep generating on the server after you close the tab. Up to 10 messages can wait in line per chat. |
-| **Files and pictures** | Attach up to 6 files (click, paste or drag): images for vision models, plus PDF, text, Markdown, CSV, JSON and code. |
-| **Thinking models** | The reasoning of DeepSeek, vLLM and others shows in a collapsible *Thinking* block. |
-| **Edit, regenerate, retry** | Fix your last message, get another answer, or retry a failed one. |
-| **Pictures and voice** | With a picture model, the AI can draw in the chat. With a voice model, every answer gets a **Read aloud** button. |
-| **Long chats stay cheap** | Older turns are summarised automatically. Originals are never deleted. |
-
-### 🧠 An AI that helps beyond the chat
-| | |
-|---|---|
-| **Tools (MCP)** | Connect tool servers. Per server choose **Automatic** or **Ask before running** (Allow / Deny / Always allow). |
-| **Agents** | Background helpers with their own instructions, tools and to-do list. Run on a schedule or on demand, or let a chat hand them tasks. Ready-made ones in the **agent store**. |
-| **Memory** | Opt-in long-term memory. The AI remembers facts across chats and links people, places and projects on a map. You can read, edit and delete everything. |
-| **Plan Book** | Your own tasks and projects with due dates. Allowed AI chats and agents can add and finish tasks for you. |
-| **Feed** | A page of short posts by you, your chats and your agents, with reports, charts, diagrams, pictures, voice or video. Private until you share them. |
-| **Tools menu per chat** | Switch any of the above on or off for each chat. |
-
-### 🛠️ For the person who runs it
-| | |
-|---|---|
-| **Admin panel** | Providers and models, users, daily or monthly token quotas, usage and cost per user and model. |
-| **Bring your own key** | Admins share providers; users can also add their own. Keys are encrypted at rest. |
-| **Built to stay up** | A cap on simultaneous replies, time limits for silent providers, checked automatic backups, hourly cleanup, login protection and an audit log. |
-| **Install as an app** | A PWA with push notifications when a reply finishes or a tool needs your OK. |
-
-### 🎨 A calm interface
-Warm neutrals, one accent colour of six, light or dark. Works well on phones (slide-out drawer, bottom-sheet menus). `Ctrl+K` search and jump, full-text search across every chat, Markdown with code highlighting, export to Markdown or JSON. A strict security policy with no inline scripts at all.
-
-> 📖 Help is built in: the user guide, feature list and developer guide are inside the app under **Help**, plus an **Issues** page for bugs and ideas.
-
----
-
-## 🚀 Quick start (no API key needed)
+## Quick start (no API key needed)
 
 You need **Go 1.26+**. No C compiler is needed: SQLite is the pure-Go `modernc.org/sqlite`.
 
@@ -101,7 +136,7 @@ go run ./cmd/knitnox                 # http://localhost:8080
 
 ---
 
-## 📚 Guides
+## Guides
 
 | Guide | For |
 |---|---|
@@ -113,12 +148,12 @@ go run ./cmd/knitnox                 # http://localhost:8080
 
 ---
 
-## 📖 Reference
+## Reference
 
 Click a section to open it.
 
 <details>
-<summary><b>⚙️ Configuration</b> — environment variables and admin settings</summary>
+<summary><b>Configuration</b> — environment variables and admin settings</summary>
 
 All configuration is through environment variables. Everything else is set in the Admin UI and stored in SQLite.
 
@@ -163,7 +198,7 @@ Each user also has, under **Settings**: custom instructions, API keys, MCP serve
 </details>
 
 <details>
-<summary><b>📦 Building for Windows, Linux and macOS</b> — one static binary, cross-compiles from anywhere</summary>
+<summary><b>Building for Windows, Linux and macOS</b> — one static binary, cross-compiles from anywhere</summary>
 
 Knitnox is one static binary with everything (templates, CSS, JS, fonts, migrations) embedded. There is **no C code**, so you can build for any OS from any OS — no cross-compilers, no Docker, nothing to install besides Go 1.26+.
 
@@ -220,7 +255,7 @@ Notes:
 </details>
 
 <details>
-<summary><b>🌍 Deployment</b> — systemd, reverse proxy, Docker, Windows</summary>
+<summary><b>Deployment</b> — systemd, reverse proxy, Docker, Windows</summary>
 
 **Binary + systemd (Linux):**
 
@@ -273,7 +308,7 @@ Run **one instance only**. Workers and the event hub live in process memory (see
 </details>
 
 <details>
-<summary><b>🧰 Maintenance</b> — backups, forgotten passwords, upgrades, logs</summary>
+<summary><b>Maintenance</b> — backups, forgotten passwords, upgrades, logs</summary>
 
 ### Backups
 **Automatic:** the server writes a backup every 24 hours into `KNITNOX_BACKUP_DIR` (default `data/backups`) and keeps the newest 7. Both numbers are under **Admin → Settings → Backups**, which also shows when the last backup ran, warns when it failed (it is then retried every hour) and has a **Back up now** button. Every backup's database copy is opened and checked (`PRAGMA integrity_check`) before the backup counts as written; a backup that fails half-way is removed.
@@ -359,7 +394,7 @@ All colours, radii and shadows are CSS variables at the top of `internal/web/sta
 </details>
 
 <details>
-<summary><b>🧪 Development and tests</b> — project layout, running tests</summary>
+<summary><b>Development and tests</b> — project layout, running tests</summary>
 
 ```bash
 go test ./...              # engine end-to-end tests with fake LLM + MCP servers
@@ -409,7 +444,7 @@ The mock server (`go run ./cmd/mockllm`) exercises every feature without an API 
 </details>
 
 <details>
-<summary><b>🧩 Extending</b> — common recipes for changing the code</summary>
+<summary><b>Extending</b> — common recipes for changing the code</summary>
 
 ### Add an admin setting
 1. Add a field and default in `store/settings.go` (`Settings`, `DefaultSettings`, `LoadSettings`, `SaveSettings`).
@@ -450,7 +485,7 @@ Deliberately not implemented, because a user-supplied command means remote code 
 </details>
 
 <details>
-<summary><b>🔒 Security notes</b> — how users, keys and the server are protected</summary>
+<summary><b>Security notes</b> — how users, keys and the server are protected</summary>
 
 - **Passwords**: bcrypt. **Sessions**: random 256-bit tokens, only the SHA-256 is stored, HttpOnly + SameSite=Lax cookies.
 - **CSRF**: per-session token, required on every non-GET (`X-CSRF-Token` header or `_csrf` field).
@@ -470,7 +505,7 @@ Deliberately not implemented, because a user-supplied command means remote code 
 </details>
 
 <details>
-<summary><b>⚠️ Known limitations</b></summary>
+<summary><b>Known limitations</b></summary>
 
 - Single instance (in-memory workers, hub, slots and pending approvals).
 - MCP: Streamable HTTP transport only. The legacy HTTP+SSE transport (`GET /sse`), OAuth flows and stdio are not supported. Static auth headers work.

@@ -49,6 +49,9 @@ func messageStamp(createdAt string, loc *time.Location) string {
 // zoneWords names the clock the stamps use, for the system prompt.
 func zoneWords(loc *time.Location, serverTime bool) string {
 	if serverTime {
+		if loc == nil { // the context meter passes no zone; time.In(nil) panics
+			loc = time.UTC
+		}
 		return "the server's time zone (UTC" + time.Now().In(loc).Format("-07:00") + ")"
 	}
 	if loc == nil || loc == time.UTC || loc.String() == "UTC" {

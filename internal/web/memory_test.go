@@ -236,18 +236,25 @@ func TestAgentMemoryAccess(t *testing.T) {
 	if _, err := a.st.CreateAgent(ag, 0); err != nil {
 		t.Fatal(err)
 	}
-	path := fmt.Sprintf("/agents/%d/memory/access", ag.ID)
-	if code, _, _ := bob.post(path, url.Values{"use_memory": {"1"}}); code != http.StatusNotFound {
+	// The switch sits with the other tools, on the create form and in Setup.
+	if page := alice.get("/agents/new"); !strings.Contains(page, "Built into Knitnox") || !strings.Contains(page, `name="use_memory"`) {
+		t.Fatal("the create form does not offer the built-in tools")
+	}
+	path := fmt.Sprintf("/agents/%d/settings", ag.ID)
+	form := url.Values{"name": {"Helper"}, "instructions": {"x"}, "enabled": {"1"}, "use_memory": {"1"}}
+	if code, _, _ := bob.post(path, form); code != http.StatusNotFound {
 		t.Fatalf("bob changed alice's agent: %d", code)
 	}
-	code, panel, _ := alice.post(path, url.Values{"use_memory": {"1"}})
-	if code != http.StatusOK || !strings.Contains(panel, "Your memory is turned off") || !strings.Contains(panel, "The agent's own notes") {
-		t.Fatalf("panel after allowing: %d", code)
+	alice.post(path, form)
+	panel := alice.get(fmt.Sprintf("/agents/%d/panel", ag.ID))
+	if !strings.Contains(panel, `name="use_memory" value="1" checked`) || !strings.Contains(panel, "Your memory is turned off") || !strings.Contains(panel, "The agent's own notes") {
+		t.Fatal("the panel does not show the access after allowing")
 	}
 	if got, _ := a.st.AgentByID(ag.ID); !got.UseMemory {
 		t.Fatal("access was not saved")
 	}
-	alice.post(path, url.Values{})
+	form.Del("use_memory")
+	alice.post(path, form)
 	if got, _ := a.st.AgentByID(ag.ID); got.UseMemory {
 		t.Fatal("access was not removed")
 	}

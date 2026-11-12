@@ -21,6 +21,7 @@ func TestAgentPagesTasksAndStore(t *testing.T) {
 	code, body, h := alice.post("/agents", url.Values{
 		"name": {"Inbox helper"}, "description": {"Sorts email"}, "instructions": {"Draft replies. Never send."},
 		"model_id": {fmt.Sprint(modelID)}, "schedule_minutes": {"60"}, "max_steps": {"12"},
+		"use_memory": {"1"}, "plan_access": {"read"}, "feed_post": {"1"}, "feed_daily": {"7"},
 	})
 	if code != http.StatusSeeOther {
 		t.Fatalf("create agent = %d %s", code, body)
@@ -31,6 +32,10 @@ func TestAgentPagesTasksAndStore(t *testing.T) {
 		t.Fatalf("agents = %+v", agents)
 	}
 	ag := agents[0]
+	// The built-in tools ticked on the form are saved with the agent.
+	if !ag.UseMemory || ag.PlanAccess != store.PlanAccessRead || ag.FeedAccess != store.FeedAccessPost || ag.FeedDaily != 7 {
+		t.Fatalf("built-in tools after creating: memory %v, plan %q, feed %q, %d a day", ag.UseMemory, ag.PlanAccess, ag.FeedAccess, ag.FeedDaily)
+	}
 
 	// Its thread is the agent page, and stays out of the chat list.
 	page := alice.get(fmt.Sprintf("/t/%d", threadID))
@@ -256,6 +261,29 @@ func TestAgentMenuAndOwnServers(t *testing.T) {
 	}
 	if after, _ := a.st.ListAgents(alice.id); len(after) != len(before) {
 		t.Fatal("a rejected form still created an agent")
+	}
+
+	// The form has a page of its own. A mistake comes back on that page, with
+	// what was typed still there and a message next to the field.
+	if page := alice.get("/agents/new"); !strings.Contains(page, `action="/agents"`) || !strings.Contains(page, "When should it work?") || !strings.Contains(page, "Tools and access") {
+		t.Fatal("the new agent page is missing its form")
+	}
+	if list := alice.get("/agents"); !strings.Contains(list, `href="/agents/new"`) || strings.Contains(list, `name="instructions"`) {
+		t.Fatal("the list should link to the new agent page and no longer carry the form")
+	}
+	code, body, _ = alice.post("/agents", url.Values{"name": {"Half done"}, "description": {"kept"}, "schedule_minutes": {"1440"},
+		"use_memory": {"1"}, "own_name": {"oops"}, "own_url": {"not a url"}})
+	if code != http.StatusBadRequest {
+		t.Fatalf("form with mistakes = %d", code)
+	}
+	for _, want := range []string{`value="Half done"`, `value="kept"`, `value="1440" checked`, `name="use_memory" value="1" checked`,
+		`value="oops"`, `id="err-instructions"`, `id="err-own"`, "Nothing was created yet"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the form that came back is missing %s", want)
+		}
+	}
+	if strings.Contains(body, `id="err-name"`) {
+		t.Error("the name was fine but is marked as wrong")
 	}
 
 	// Own MCP servers: added in the panel, never on the Settings page.

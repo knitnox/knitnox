@@ -223,7 +223,7 @@
             <li{{if .Agents}} class="is-done"{{end}}>
               <span class="start-check" aria-hidden="true">{{if .Agents}}{{template "i-check"}}{{else}}4{{end}}</span>
               <span class="grow"><b>Create a background agent</b><small>A helper with its own job and to-do list that works while you are away.</small></span>
-              {{if .Agents}}<span class="start-done">Done</span>{{else}}<a class="btn sm" href="/agents">Create an agent</a>{{end}}
+              {{if .Agents}}<span class="start-done">Done</span>{{else}}<a class="btn sm" href="/agents/new">Create an agent</a>{{end}}
             </li>
           </ol>
         </section>
@@ -263,8 +263,12 @@
     {{if .Agent}}
     <span class="empty-icon">{{template "i-bot"}}</span>
     <p><b>{{.Agent.Name}} has not run yet</b></p>
-    <p>Every run shows up here like a chat, so you can see exactly what it did.<br>
-      Press <b>Run now</b> at the top, add a task under <b>Tasks &amp; settings</b>, or type an instruction below.</p>
+    <p>Every run shows up here like a chat, so you can see exactly what it did. Give it something to do:</p>
+    <div class="row wrap empty-next">
+      <button type="button" class="btn primary" hx-get="/agents/{{.Agent.ID}}/panel" hx-target="#panel" hx-swap="innerHTML">{{template "i-plus"}}Add its first task</button>
+      <button type="button" class="btn" hx-post="/agents/{{.Agent.ID}}/run" hx-swap="none">{{template "i-arrow-up"}}Run it now</button>
+    </div>
+    <p class="hint">Or type an instruction below. Its tools and schedule are under <b>Tasks &amp; settings</b> at the top.</p>
     {{else}}
     <span class="logo xl" aria-hidden="true"></span>
     <p>Send a message to start the conversation.</p>
@@ -481,7 +485,7 @@
         {{range .Agents}}
         <label class="check"><input type="checkbox" name="agent" value="{{.ID}}" {{if .Connected}}checked{{end}}><span>{{.Name}}{{if not .Enabled}} <small>paused</small>{{end}}{{if .Description}}<small>{{.Description}}</small>{{end}}</span></label>
         {{else}}
-        <p class="hint">No agents yet. Create one under <a href="/agents">Agents</a>.</p>
+        <p class="hint">No agents yet. <a href="/agents/new">Create one</a>.</p>
         {{end}}
       </div>
       <button type="submit" class="btn primary">Save changes</button>

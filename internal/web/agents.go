@@ -83,7 +83,20 @@ func (s *Server) agentFormData(userID int64, a *store.Agent, modelID int64) map[
 		sel, ok := selected[srv.ID]
 		tools = append(tools, agentTool{MCPServer: srv, Selected: ok, Tools: strings.ReplaceAll(sel.Tools, ",", ", ")})
 	}
-	return map[string]any{"A": a, "ModelOptions": opts, "ModelID": modelID, "Tools": tools, "Schedules": scheduleOptions}
+	return map[string]any{"A": a, "ModelOptions": opts, "ModelID": modelID, "Tools": tools, "Schedules": scheduleOptions,
+		"MemoryOn": s.st.MemoryEnabled(userID), "PlanOn": s.st.PlanEnabled(userID)}
+}
+
+// saveAgentAccess stores what the agent may do with its owner's memory, Plan
+// Book and Feed (the "Built into Knitnox" part of the form).
+func (s *Server) saveAgentAccess(a *store.Agent) error {
+	if err := s.st.SetAgentUseMemory(a.ID, a.UseMemory); err != nil {
+		return err
+	}
+	if err := s.st.SetAgentPlanAccess(a.ID, a.PlanAccess); err != nil {
+		return err
+	}
+	return s.st.SetAgentFeedAccess(a.ID, a.FeedAccess, a.FeedDaily)
 }
 
 // readAgentForm copies the owner-editable fields from the form into a and
@@ -98,6 +111,13 @@ func (s *Server) readAgentForm(r *http.Request, a *store.Agent) (modelID int64, 
 	a.DailyRuns = int(formInt(r, "daily_runs", 48))
 	a.HistoryRuns = int(formInt(r, "history_runs", 5))
 	a.OnlyWithTasks = r.FormValue("only_with_tasks") == "1"
+	a.UseMemory = r.FormValue("use_memory") == "1"
+	a.PlanAccess = r.FormValue("plan_access")
+	a.FeedAccess = store.FeedAccessNone
+	if r.FormValue("feed_post") == "1" {
+		a.FeedAccess = store.FeedAccessPost
+	}
+	a.FeedDaily = int(formInt(r, "feed_daily", int64(a.FeedDaily)))
 	modelID = formInt(r, "model_id", 0)
 	if opts, _ := s.st.ModelOptions(a.UserID); findOption(opts, modelID) == nil {
 		modelID = s.defaultModel(a.UserID, opts)
@@ -113,7 +133,8 @@ func (s *Server) readAgentForm(r *http.Request, a *store.Agent) (modelID int64, 
 }
 
 func newAgentDefaults(userID int64) *store.Agent {
-	return &store.Agent{UserID: userID, MaxSteps: 20, DailyRuns: 48, HistoryRuns: 5, Enabled: true}
+	return &store.Agent{UserID: userID, MaxSteps: 20, DailyRuns: 48, HistoryRuns: 5, Enabled: true,
+		PlanAccess: store.PlanAccessNone, FeedAccess: store.FeedAccessNone, FeedDaily: store.FeedDailyDef}
 }
 
 // ---- my agents ----
@@ -132,19 +153,67 @@ func (s *Server) agentsPage(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, "agents", data)
 }
 
+// agentNewPage is the "new agent" form on a page of its own.
+func (s *Server) agentNewPage(w http.ResponseWriter, r *http.Request) {
+	u := currentUser(r)
+	s.renderAgentNew(w, r, newAgentDefaults(u.ID), 0, nil, nil, nil)
+}
+
+// renderAgentNew draws the "new agent" form. After a mistake it is drawn again
+// with everything the person typed (a, modelID, picked, own) and a message
+// next to each field that needs fixing (errs).
+func (s *Server) renderAgentNew(w http.ResponseWriter, r *http.Request, a *store.Agent, modelID int64, picked []store.AgentTool, own, errs map[string]string) {
+	data := s.agentFormData(a.UserID, a, modelID)
+	tools := data["Tools"].([]agentTool)
+	for i := range tools {
+		for _, p := range picked {
+			if p.ServerID == tools[i].ID {
+				tools[i].Selected, tools[i].Tools = true, p.Tools
+			}
+		}
+	}
+	if own == nil {
+		own = map[string]string{}
+	}
+	if errs == nil {
+		errs = map[string]string{}
+	}
+	data["View"] = "new"
+	data["PageTitle"] = "New agent"
+	data["Own"] = own
+	data["Errors"] = errs
+	// Open "Tools and access" when something in it is chosen or needs fixing.
+	data["OpenTools"] = a.UseMemory || a.PlanAccess != store.PlanAccessNone || a.FeedAccess == store.FeedAccessPost ||
+		len(picked) > 0 || own["name"] != "" || own["url"] != ""
+	if len(errs) > 0 {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+	s.render(w, r, "agents", data)
+}
+
 func (s *Server) agentCreate(w http.ResponseWriter, r *http.Request) {
 	u := currentUser(r)
 	a := newAgentDefaults(u.ID)
 	modelID, tools := s.readAgentForm(r, a)
-	if strings.TrimSpace(a.Name) == "" || strings.TrimSpace(a.Instructions) == "" {
-		s.errorPage(w, r, http.StatusBadRequest, "An agent needs a name and instructions.")
-		return
+	if a.PlanAccess != store.PlanAccessRead && a.PlanAccess != store.PlanAccessWrite {
+		a.PlanAccess = store.PlanAccessNone
+	}
+	errs := map[string]string{}
+	if strings.TrimSpace(a.Name) == "" {
+		errs["name"] = "Give the agent a name."
+	}
+	if strings.TrimSpace(a.Instructions) == "" {
+		errs["instructions"] = "Describe its job in a sentence or two, so it knows what to do."
 	}
 	// Optional: one MCP server that only this agent uses. Checked before the
 	// agent is created so a typo does not leave a half-configured agent behind.
 	ownName, ownURL := strings.TrimSpace(r.FormValue("own_name")), strings.TrimSpace(r.FormValue("own_url"))
 	if (ownName != "" || ownURL != "") && (ownName == "" || !validURL(ownURL)) {
-		s.errorPage(w, r, http.StatusBadRequest, "The agent's own MCP server needs a name and a valid http(s) URL. Go back to fix it, or leave both empty.")
+		errs["own"] = "The agent's own server needs a name and a full address that starts with http:// or https://. Fix it, or leave both empty."
+	}
+	if len(errs) > 0 {
+		own := map[string]string{"name": ownName, "url": ownURL, "headers": r.FormValue("own_headers"), "approval": r.FormValue("own_approval")}
+		s.renderAgentNew(w, r, a, modelID, tools, own, errs)
 		return
 	}
 	if _, err := s.st.CreateAgent(a, modelID); err != nil {
@@ -152,6 +221,10 @@ func (s *Server) agentCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.st.SetAgentMCP(a.ID, u.ID, tools); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	if err := s.saveAgentAccess(a); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
@@ -187,8 +260,6 @@ func (s *Server) renderAgentPanel(w http.ResponseWriter, r *http.Request, a *sto
 	data["Tasks"] = tasks
 	data["OwnServers"], _ = s.st.ListAgentOwnServers(a.ID)
 	data["NotesLog"], _ = s.st.AgentNotesLog(a.ID, 5)
-	data["MemoryOn"] = s.st.MemoryEnabled(a.UserID)
-	data["PlanOn"] = s.st.PlanEnabled(a.UserID)
 	listing, _ := s.st.StoreListingFor(a.ID)
 	data["Listing"] = listing
 	if listing == nil { // suggest what a new listing should say about tools
@@ -235,6 +306,10 @@ func (s *Server) agentSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.st.SetAgentMCP(a.ID, a.UserID, tools); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	if err := s.saveAgentAccess(a); err != nil {
 		s.serverError(w, r, err)
 		return
 	}

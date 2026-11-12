@@ -685,21 +685,3 @@ func (s *Server) feedSwitch(w http.ResponseWriter, r *http.Request) {
 	}
 	http.Redirect(w, r, "/feed/settings?done="+done, http.StatusSeeOther)
 }
-
-// agentFeedAccess sets whether one agent may post to its owner's feed, and how often per day.
-func (s *Server) agentFeedAccess(w http.ResponseWriter, r *http.Request) {
-	a, ok := s.loadAgent(w, r)
-	if !ok {
-		return
-	}
-	level := store.FeedAccessNone
-	if r.FormValue("feed_post") == "1" {
-		level = store.FeedAccessPost
-	}
-	if err := s.st.SetAgentFeedAccess(a.ID, level, int(formInt(r, "feed_daily", int64(a.FeedDaily)))); err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	a, _ = s.st.AgentByID(a.ID)
-	s.renderAgentPanel(w, r, a)
-}

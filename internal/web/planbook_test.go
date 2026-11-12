@@ -306,18 +306,21 @@ func TestAgentPlanAccess(t *testing.T) {
 	if _, err := a.st.CreateAgent(ag, 0); err != nil {
 		t.Fatal(err)
 	}
-	path := fmt.Sprintf("/agents/%d/plan/access", ag.ID)
-	if code, _, _ := bob.post(path, url.Values{"level": {"write"}}); code != http.StatusNotFound {
+	path := fmt.Sprintf("/agents/%d/settings", ag.ID)
+	form := url.Values{"name": {"Helper"}, "instructions": {"x"}, "enabled": {"1"}, "plan_access": {"write"}}
+	if code, _, _ := bob.post(path, form); code != http.StatusNotFound {
 		t.Fatalf("bob changed alice's agent: %d", code)
 	}
-	code, panel, _ := alice.post(path, url.Values{"level": {"write"}})
-	if code != http.StatusOK || !strings.Contains(panel, `value="write" selected`) || !strings.Contains(panel, "The AI may not use your Plan Book yet") {
-		t.Fatalf("panel after allowing: %d", code)
+	alice.post(path, form)
+	panel := alice.get(fmt.Sprintf("/agents/%d/panel", ag.ID))
+	if !strings.Contains(panel, `value="write" selected`) || !strings.Contains(panel, "The AI may not use your Plan Book yet") {
+		t.Fatal("the panel does not show the access after allowing")
 	}
 	if got, _ := a.st.AgentByID(ag.ID); got.PlanAccess != store.PlanAccessWrite {
 		t.Fatalf("access = %q", got.PlanAccess)
 	}
-	alice.post(path, url.Values{"level": {"everything"}})
+	form.Set("plan_access", "everything")
+	alice.post(path, form)
 	if got, _ := a.st.AgentByID(ag.ID); got.PlanAccess != store.PlanAccessNone {
 		t.Fatalf("an unknown level became %q", got.PlanAccess)
 	}

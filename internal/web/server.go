@@ -253,13 +253,13 @@ func (s *Server) Handler() http.Handler {
 	u("POST /invite/{tok}", s.acceptInvite)
 
 	u("GET /agents", s.agentsPage)
+	u("GET /agents/new", s.agentNewPage)
 	u("POST /agents", s.agentCreate)
 	u("GET /agents/{id}/panel", s.agentPanel)
 	u("POST /agents/{id}/settings", s.agentSettings)
 	u("POST /agents/{id}/toggle", s.agentToggle)
 	u("POST /agents/{id}/run", s.agentRun)
 	u("POST /agents/{id}/memory/clear", s.agentClearMemory)
-	u("POST /agents/{id}/memory/access", s.agentMemoryAccess)
 	u("POST /agents/{id}/delete", s.agentDelete)
 	u("POST /agents/{id}/tasks", s.agentTaskCreate)
 	u("POST /agents/{id}/tasks/{tid}", s.agentTaskAction)
@@ -310,7 +310,6 @@ func (s *Server) Handler() http.Handler {
 	u("POST /plan/projects/{pid}/delete", s.planProjectDelete)
 	u("GET /plan/settings", s.planSettingsPage)
 	u("POST /plan/settings", s.planSwitch)
-	u("POST /agents/{id}/plan/access", s.agentPlanAccess)
 
 	u("GET /feed", s.feedPage)
 	u("POST /feed", s.feedCreate)
@@ -333,7 +332,6 @@ func (s *Server) Handler() http.Handler {
 	u("POST /feed/settings/models/add", s.feedModelAdd)
 	u("GET /feed/p/{id}/media", s.feedMedia)
 	u("POST /memory/settings/model/add", s.memoryModelAdd)
-	u("POST /agents/{id}/feed/access", s.agentFeedAccess)
 
 	u("GET /help", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, "/help/guide", http.StatusSeeOther) })
 	u("GET /help/{doc}", s.helpPage)

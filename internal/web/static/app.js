@@ -576,6 +576,30 @@
     for (const b of $$(kind === "theme" ? "[data-theme-set]" : "[data-accent-set]")) b.setAttribute("aria-pressed", String(b.dataset[attr] === value));
   }
 
+  // ---------- new agent: the closed "Tools and access" box says in one line what is chosen ----------
+  function sumChosen(box) {
+    const out = $("[data-sum-out]", box);
+    if (!out) return;
+    const chosen = [];
+    for (const el of $$("[data-sum]", box)) {
+      const isSelect = el.tagName === "SELECT";
+      const on = el.type === "checkbox" ? el.checked : isSelect ? el.value !== "none" : el.value.trim() !== "";
+      if (on) chosen.push(el.dataset.sum + (isSelect && el.value === "read" ? " (read only)" : ""));
+    }
+    out.textContent = chosen.length ? chosen.join(" · ") : out.dataset.sumOut;
+  }
+  for (const box of $$("[data-sum-box]")) {
+    sumChosen(box);
+    box.addEventListener("input", () => sumChosen(box));
+    box.addEventListener("change", () => sumChosen(box));
+  }
+  // a mistake sent the form back: open the box that holds the first marked field and put the cursor there
+  const badField = $(".agent-new [aria-invalid=true]");
+  if (badField) {
+    for (let d = badField.closest("details"); d; d = d.parentElement.closest("details")) d.open = true;
+    badField.focus();
+  }
+
   // ---------- agent panel tabs (the open tab survives the panel being re-rendered) ----------
   function showTab(name) {
     if (!panel) return;

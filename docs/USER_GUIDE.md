@@ -117,11 +117,18 @@ An **agent** is a saved worker with a job, its own tools and a to-do list. It ca
 
 ### Create an agent
 
-1. Click **Agents** in the sidebar, then **Create an agent**.
-2. Give it a **name** and write its **instructions**: its job, in plain words.
-3. Choose **when it runs**: only when asked, or on a schedule.
-4. Under **Tools**, tick the MCP servers it may use. To allow only some tools, type their names in the box; **Show tools** lists them.
-5. Click **Create agent**.
+1. Click **Agents** in the sidebar, then **New agent**. Not sure where to start? Pick one of the examples at the top and change it.
+2. Give it a **name**.
+3. Write **what it should do**: its job, in plain words.
+4. Choose **when it works**: only when asked, or on a schedule.
+5. Click **Create agent**. The button stays at the bottom of the screen.
+
+Those three answers are enough. Two optional boxes sit below them:
+
+- **Tools and access:** let the agent use your Memory, Plan Book or Feed, and tick the tool servers (MCP) it may use. A ticked server shows a box: leave it empty to allow all of its tools, or type only the names it needs; **Show tools** lists them. While the box is closed, it says in one line what you chose.
+- **Model and limits:** which AI model it uses, and how many steps and runs it may make.
+
+If something is missing, the page tells you next to the field, and nothing you typed is lost. After creating, you land on the agent's page, where **Add its first task** and **Run it now** are waiting.
 
 ### Give it work
 
@@ -143,7 +150,7 @@ Disconnecting an agent from a chat does not stop the agent.
 
 A dedicated server is used by one agent only. Your chats and other agents never see it. It works alongside the shared servers you ticked.
 
-- **While creating the agent:** open **Add an MCP server only this agent uses** at the bottom of the form.
+- **While creating the agent:** open **Tools and access**, then **Add a tool server only this agent uses**.
 - **Later:** in **Tasks & settings**, find **This agent's own MCP servers**. Add as many as you need, test them, or remove them.
 
 ### Pause, limits and memory
@@ -152,9 +159,14 @@ A dedicated server is used by one agent only. Your chats and other agents never 
 - **Limits:** set the steps per run and the automatic runs per day under **Limits**.
 - **Adjustments:** short extra guidance on top of the instructions. A connected chat's AI may edit this part, never the instructions or tools. Every change is listed.
 - **Its own notes:** notes the agent writes for its later runs. You can clear them.
-- **Your Plan Book:** in the same tab, choose whether the agent may read your tasks, or also add and change them.
-- **Your Feed:** in the same tab, tick **Let this agent post to my feed** and set how many posts a day it may add.
-- **Your memory:** in the agent's **Memory & plans** tab you can let it read what Knitnox remembers about you. It can never change it.
+
+### Let an agent use your Memory, Plan Book and Feed
+
+An agent gets none of these unless you allow it. You choose them under **Built into Knitnox**: in **Tools and access** while creating the agent, or later in its **Setup** tab under **Which tools may it use?** (then **Save changes**).
+
+- **Memory:** tick it to let the agent read what Knitnox remembers about you. It can never change it.
+- **Plan Book:** choose whether the agent may read your tasks, or also add, change and delete them.
+- **Feed:** tick it to let the agent post to your feed, and set how many posts a day it may add.
 
 ### The agent store
 
@@ -215,7 +227,7 @@ Open the settings button, then **Who may post**. The AI cannot post until you cl
 - "Post this with a diagram of the steps."
 - "What is on my feed about the invoice?"
 
-To let an agent post, open the agent, go to **Memory & plans**, tick **Let this agent post to my feed** and set its posts per day. When the limit is reached, the agent keeps working but posts nothing more that day.
+To let an agent post, open the agent, go to **Setup** → **Which tools may it use?**, tick **Feed**, set its posts per day and save. When the limit is reached, the agent keeps working but posts nothing more that day.
 
 What the AI and agents post is always private. Only you can share a post. They can read your own posts but never what other people shared. The feed is never used in group chats.
 
@@ -284,7 +296,7 @@ The AI cannot see your Plan Book until you click **Let the AI use it** (on the b
 - "What is on my plan today?"
 - "Mark the passport task as done."
 
-The Plan Book is never used in group chats. To let an agent use it, open the agent, go to **Memory & plans**, and choose **Read them** or **Read, add, change and delete them**. Tasks added by the AI or an agent are labelled, and anything they delete goes to the bin.
+The Plan Book is never used in group chats. To let an agent use it, open the agent, go to **Setup** → **Which tools may it use?** → **Plan Book**, and choose **Read them** or **Read, add, change and delete them**. Tasks added by the AI or an agent are labelled, and anything they delete goes to the bin.
 
 ## Memory: what the AI remembers about you
 

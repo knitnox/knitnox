@@ -6,17 +6,117 @@
   <main class="main" id="main" tabindex="-1">
     {{template "page-top" .PageTitle}}
     <div class="page-scroll">
-      <div class="page">
-        <div class="seg-links">
-          <a href="/agents"{{if eq .View "list"}} class="is-active"{{end}}>My agents</a>
-          <a href="/store"{{if ne .View "list"}} class="is-active"{{end}}>Agent store</a>
-        </div>
+      <div class="page{{if eq .View "new"}} narrow{{end}}">
+        {{if eq .View "new"}}
+        <a class="back-link" href="/agents">{{template "i-chevron-left"}}All agents</a>
+        <form class="agent-new" method="post" action="/agents">
+          <input type="hidden" name="_csrf" value="{{.CSRF}}">
+          <header class="new-head">
+            <h2>Create an agent</h2>
+            <p>An agent is a helper that works in the background. Answer three questions and it is ready. Everything else is optional, and you can change all of it later.</p>
+          </header>
 
-        {{if eq .View "list"}}
+          {{if .Errors}}<div class="notice is-bad" role="alert">{{template "i-alert"}}Nothing was created yet. Please fix what is marked below.</div>{{end}}
+          {{if not .ModelOptions}}<div class="notice is-warn">{{template "i-alert"}}<span>No AI model is set up yet, so the agent cannot run. <a href="/settings#keys">Add your API key</a> first, or ask your admin.</span></div>{{end}}
+
+          <div class="examples">
+            <span class="field-label">Not sure where to start? Pick an example, then change anything.</span>
+            <div class="row wrap">
+              <button type="button" class="chip" data-fill='{"name":"Inbox helper","description":"Sorts new email and drafts replies","instructions":"You look after my inbox. For each task, find the email it is about, write a short, polite draft reply and save it as a draft. Never send anything yourself. When a task is finished, say in one line what you did.","schedule_minutes":"60"}'>{{template "i-mail"}}Inbox helper</button>
+              <button type="button" class="chip" data-fill='{"name":"Daily brief","description":"Writes a short morning summary of topics I follow","instructions":"Every run, look up what is new about the topics in your tasks. Write a brief with at most five bullet points, each with a source link. Skip anything you already reported; keep a list of what you reported in your memory.","schedule_minutes":"1440"}'>{{template "i-sparkles"}}Daily brief</button>
+              <button type="button" class="chip" data-fill='{"name":"Researcher","description":"Digs into a question and reports back with sources","instructions":"You research the questions in your task list, one task per run. Search, read at least three sources, and write a clear answer with links. Say plainly when sources disagree or when you could not find something.","schedule_minutes":"0"}'>{{template "i-search"}}Researcher</button>
+              <button type="button" class="chip" data-fill='{"name":"Reminder keeper","description":"Keeps my to-dos and reminds me what is due","instructions":"Your task list is my to-do list. Every run, check which tasks are due or overdue and write one short message listing them, most urgent first. Do not mark tasks as done yourself unless a task says so.","schedule_minutes":"1440"}'>{{template "i-clock"}}Reminder keeper</button>
+            </div>
+          </div>
+
+          <section class="card new-step">
+            <h3 class="step"><span aria-hidden="true">1</span>Who is it?</h3>
+            <label>Name
+              <input name="name" value="{{.A.Name}}" maxlength="60" placeholder="Inbox helper" required{{if .Errors.name}} aria-invalid="true" aria-describedby="err-name"{{end}}></label>
+            {{with .Errors.name}}<p class="field-error" id="err-name">{{template "i-alert"}}{{.}}</p>{{end}}
+            <label>What it is for <small class="muted">optional · one line, shown in your list and to chats it is connected to</small>
+              <input name="description" value="{{.A.Description}}" maxlength="300" placeholder="Sorts new email and drafts replies"></label>
+          </section>
+
+          <section class="card new-step">
+            <h3 class="step"><span aria-hidden="true">2</span>What should it do?</h3>
+            <label>Its job, in plain words <small class="muted">the agent reads this at the start of every run</small>
+              <textarea name="instructions" rows="6" maxlength="8000" required placeholder="You look after my inbox. For each task, find the email, write a short polite draft reply and save it as a draft. Never send anything yourself."{{if .Errors.instructions}} aria-invalid="true" aria-describedby="err-instructions"{{end}}>{{.A.Instructions}}</textarea></label>
+            {{with .Errors.instructions}}<p class="field-error" id="err-instructions">{{template "i-alert"}}{{.}}</p>{{end}}
+          </section>
+
+          <section class="card new-step">
+            <h3 class="step"><span aria-hidden="true">3</span>When should it work?</h3>
+            <fieldset class="pick-row">
+              <legend class="sr-only">When it runs</legend>
+              {{range .Schedules}}<label class="pick-chip"><input type="radio" name="schedule_minutes" value="{{.Minutes}}"{{if eq .Minutes $.A.ScheduleMinutes}} checked{{end}}><span>{{.Label}}</span></label>
+              {{end}}
+            </fieldset>
+            <p class="hint">Whatever you pick, you can always start it yourself with “Run now”.</p>
+          </section>
+
+          <h3 class="new-optional">Optional</h3>
+
+          <details class="card fold" data-sum-box{{if .OpenTools}} open{{end}}>
+            <summary>
+              <span class="fold-icon">{{template "i-plug"}}</span>
+              <span class="grow"><b>Tools and access</b><small data-sum-out="Nothing chosen: it works from its own to-do list">Nothing chosen: it works from its own to-do list</small></span>
+              {{template "i-chevron-down"}}
+            </summary>
+            <div class="fold-body stack">
+              {{template "agent-tools" .}}
+              <details class="advanced"{{if or .Own.name .Own.url}} open{{end}}>
+                <summary>Add a tool server only this agent uses</summary>
+                <div class="stack sm">
+                  <p class="hint">A dedicated MCP server works alongside the shared ones above. Your chats and other agents never see it. You can add more later on the agent's page.</p>
+                  {{with .Errors.own}}<p class="field-error flat" id="err-own">{{template "i-alert"}}{{.}}</p>{{end}}
+                  <label>Name <input name="own_name" value="{{.Own.name}}" placeholder="crm"{{if .Errors.own}} aria-invalid="true" aria-describedby="err-own"{{end}}></label>
+                  <label>URL <input name="own_url" value="{{.Own.url}}" placeholder="https://example.com/mcp" data-sum="its own server"{{if .Errors.own}} aria-invalid="true" aria-describedby="err-own"{{end}}></label>
+                  <label>Headers <small class="muted">optional, one per line</small>
+                    <textarea name="own_headers" rows="2" placeholder="Authorization: Bearer …" class="mono">{{.Own.headers}}</textarea></label>
+                  <label>When the agent wants to use a tool
+                    <select name="own_approval">
+                      <option value="auto">Run it automatically</option>
+                      <option value="ask"{{if eq .Own.approval "ask"}} selected{{end}}>Ask me before running (the run waits for you)</option>
+                    </select>
+                  </label>
+                </div>
+              </details>
+            </div>
+          </details>
+
+          <details class="card fold">
+            <summary>
+              <span class="fold-icon">{{template "i-settings"}}</span>
+              <span class="grow"><b>Model and limits</b><small>Which AI model it thinks with, and how much it may do. The defaults are fine to start.</small></span>
+              {{template "i-chevron-down"}}
+            </summary>
+            <div class="fold-body stack">
+              {{template "agent-model" .}}
+              {{template "agent-limits" .}}
+            </div>
+          </details>
+
+          <div class="create-bar">
+            <span class="hint grow">It starts switched on. Next you land on its page, where you can give it a first task.</span>
+            <a class="btn ghost" href="/agents">Cancel</a>
+            <button type="submit" class="btn primary">{{template "i-plus"}}Create agent</button>
+          </div>
+        </form>
+        {{else}}
+        <nav class="tabs" aria-label="Agents sections">
+          <a href="/agents"{{if eq .View "list"}} class="is-active" aria-current="page"{{end}}>{{template "i-bot"}}My agents</a>
+          <a href="/store"{{if ne .View "list"}} class="is-active" aria-current="page"{{end}}>{{template "i-sparkles"}}Agent store</a>
+        </nav>
+        {{end}}
+
+        {{if eq .View "new"}}
+        {{else if eq .View "list"}}
         <section class="section">
-          <div class="section-head">
+          <div class="section-head agents-head">
             <div class="section-icon">{{template "i-bot"}}</div>
-            <div><h2>Your agents</h2><p>An agent is a saved worker with a job, its own tools and a to-do list. It runs in the background, on a schedule or when asked, and starts fresh every run.</p></div>
+            <div class="grow"><h2>Your agents</h2><p>An agent is a saved helper with a job, its own tools and a to-do list. It works in the background, on a schedule or when asked, and starts fresh every run.</p></div>
+            <a class="btn primary" href="/agents/new">{{template "i-plus"}}New agent</a>
           </div>
 
           <details class="how-wrap"{{if not .Agents}} open{{end}}>
@@ -26,43 +126,6 @@
               <li><span class="how-num" aria-hidden="true">2</span><b>Give it work</b><p>Add tasks to its to-do list, or let it wake up on a schedule. It works without you.</p></li>
               <li><span class="how-num" aria-hidden="true">3</span><b>Talk to it from a chat</b><p>Connect it with the <b>Agents</b> button in any chat, then just ask: “ask Inbox helper to reply to Sam”.</p></li>
             </ol>
-          </details>
-
-          <details class="card add-card" id="create"{{if not .Agents}} open{{end}}>
-            <summary>{{template "i-plus"}}<span>Create an agent</span></summary>
-            <form class="form-grid" method="post" action="/agents">
-              <input type="hidden" name="_csrf" value="{{.CSRF}}">
-              <div class="span-2 examples">
-                <span class="field-label">Not sure where to start? Fill the form with an example, then change anything.</span>
-                <div class="row wrap">
-                  <button type="button" class="chip" data-fill='{"name":"Inbox helper","description":"Sorts new email and drafts replies","instructions":"You look after my inbox. For each task, find the email it is about, write a short, polite draft reply and save it as a draft. Never send anything yourself. When a task is finished, say in one line what you did.","schedule_minutes":"60"}'>{{template "i-mail"}}Inbox helper</button>
-                  <button type="button" class="chip" data-fill='{"name":"Daily brief","description":"Writes a short morning summary of topics I follow","instructions":"Every run, look up what is new about the topics in your tasks. Write a brief with at most five bullet points, each with a source link. Skip anything you already reported; keep a list of what you reported in your memory.","schedule_minutes":"1440"}'>{{template "i-sparkles"}}Daily brief</button>
-                  <button type="button" class="chip" data-fill='{"name":"Researcher","description":"Digs into a question and reports back with sources","instructions":"You research the questions in your task list, one task per run. Search, read at least three sources, and write a clear answer with links. Say plainly when sources disagree or when you could not find something.","schedule_minutes":"0"}'>{{template "i-search"}}Researcher</button>
-                  <button type="button" class="chip" data-fill='{"name":"Reminder keeper","description":"Keeps my to-dos and reminds me what is due","instructions":"Your task list is my to-do list. Every run, check which tasks are due or overdue and write one short message listing them, most urgent first. Do not mark tasks as done yourself unless a task says so.","schedule_minutes":"1440"}'>{{template "i-clock"}}Reminder keeper</button>
-                </div>
-              </div>
-              {{template "agent-fields" .}}
-              <details class="advanced span-2">
-                <summary>Add an MCP server only this agent uses (optional)</summary>
-                <div class="form-grid">
-                  <p class="hint span-2">A dedicated server works alongside the shared ones ticked above. Your chats and other agents never see it. You can add more later under the agent's Tasks &amp; settings.</p>
-                  <label>Name <input name="own_name" placeholder="crm"></label>
-                  <label>URL <input name="own_url" placeholder="https://example.com/mcp"></label>
-                  <label class="span-2">Headers <small class="muted">optional, one per line</small>
-                    <textarea name="own_headers" rows="2" placeholder="Authorization: Bearer …" class="mono"></textarea></label>
-                  <label class="span-2">When the agent wants to use a tool
-                    <select name="own_approval">
-                      <option value="auto">Run it automatically</option>
-                      <option value="ask">Ask me before running (the run waits for you)</option>
-                    </select>
-                  </label>
-                </div>
-              </details>
-              <div class="span-2 row wrap">
-                <button type="submit" class="btn primary">Create agent</button>
-                <span class="hint">Or start from a ready-made one in the <a href="/store">agent store</a>.</span>
-              </div>
-            </form>
           </details>
 
           <div class="stack">
@@ -92,7 +155,8 @@
             <div class="empty-card">
               <div class="empty-icon">{{template "i-bot"}}</div>
               <p>No agents yet</p>
-              <span>Create one above, or install a ready-made agent from the <a href="/store">agent store</a>.</span>
+              <span>Create your first one in a minute, or install a ready-made agent from the <a href="/store">agent store</a>.</span>
+              <a class="btn primary" href="/agents/new">{{template "i-plus"}}Create an agent</a>
             </div>
             {{end}}
           </div>
@@ -186,20 +250,12 @@
 </div>
 {{end}}
 
-{{/* Form fields shared by "Create an agent" and the agent's settings.
-     Needs .A (agent), .ModelOptions, .ModelID, .Tools, .Schedules. */}}
+{{/* The agent's settings form (Setup tab). The "new agent" page lays the same
+     parts out by itself. Needs .A (agent), .ModelOptions, .ModelID, .Tools, .Schedules. */}}
 {{define "agent-fields"}}
 <h4 class="step span-2"><span aria-hidden="true">1</span>Who is it?</h4>
 <label>Name <input name="name" value="{{.A.Name}}" maxlength="60" placeholder="Inbox helper" required></label>
-<label>Model
-  <select name="model_id">
-    {{range .ModelOptions}}
-    <option value="{{.ModelID}}" {{if eq .ModelID $.ModelID}}selected{{end}}>{{.ModelName}} — {{.ProviderName}}{{if .Personal}} (your key){{end}}</option>
-    {{else}}
-    <option value="0">No models available yet</option>
-    {{end}}
-  </select>
-</label>
+{{template "agent-model" .}}
 <label class="span-2">What it is for <small class="muted">one line; shown in your list and to chats it is connected to</small>
   <input name="description" value="{{.A.Description}}" maxlength="300" placeholder="Sorts new email and drafts replies"></label>
 <h4 class="step span-2"><span aria-hidden="true">2</span>What should it do?</h4>
@@ -213,34 +269,82 @@
 </label>
 
 <h4 class="step span-2"><span aria-hidden="true">4</span>Which tools may it use?</h4>
-<div class="field-group span-2">
-  <div class="field-label sr-only">Tools</div>
-  <p class="hint">Tick the MCP servers this agent may use. Leave the box empty to allow every tool of a server, or list only the tool names it needs.</p>
-  {{range .Tools}}
-  <div class="agent-tool">
-    <label class="check"><input type="checkbox" name="mcp" value="{{.ID}}" {{if .Selected}}checked{{end}}>
-      <span>{{.Name}}{{if .Asks}} <small>asks you before running</small>{{end}}{{if not .Enabled}} <small>disabled in Settings</small>{{end}}</span></label>
-    <div class="row">
-      <input name="tools_{{.ID}}" value="{{.Tools}}" placeholder="all tools, or: search, create_draft" aria-label="Allowed tools of {{.Name}}" class="mono">
-      <button type="button" class="btn ghost sm" hx-post="/settings/mcp/{{.ID}}/test" hx-target="#agent-tools-{{$.A.ID}}-{{.ID}}" hx-indicator="this">Show tools</button>
-    </div>
-    <div class="test-result" id="agent-tools-{{$.A.ID}}-{{.ID}}"></div>
-  </div>
-  {{else}}
-  <p class="hint">No MCP servers yet. Add them in <a href="/settings">Settings</a>. Without tools the agent can still work on its to-do list.</p>
-  {{end}}
-</div>
+{{template "agent-tools" .}}
 
 <details class="advanced span-2">
   <summary>Limits</summary>
-  <div class="stack sm">
-    <label class="inline-field">Up to <input name="max_steps" type="number" value="{{.A.MaxSteps}}" min="1" max="50"> tool steps per run</label>
-    <label class="inline-field">At most <input name="daily_runs" type="number" value="{{.A.DailyRuns}}" min="1" max="500"> automatic runs per day</label>
-    <label class="inline-field">A connected chat may read its last <input name="history_runs" type="number" value="{{.A.HistoryRuns}}" min="1" max="20"> runs</label>
-    <label class="check"><input type="checkbox" name="only_with_tasks" value="1" {{if .A.OnlyWithTasks}}checked{{end}}>
-      <span>Skip scheduled runs when there are no open tasks<small>Saves tokens for agents that only work from their to-do list.</small></span></label>
-  </div>
+  {{template "agent-limits" .}}
 </details>
+{{end}}
+
+{{define "agent-model"}}
+<label>Model
+  <select name="model_id">
+    {{range .ModelOptions}}
+    <option value="{{.ModelID}}" {{if eq .ModelID $.ModelID}}selected{{end}}>{{.ModelName}} — {{.ProviderName}}{{if .Personal}} (your key){{end}}</option>
+    {{else}}
+    <option value="0">No models available yet</option>
+    {{end}}
+  </select>
+</label>
+{{end}}
+
+{{define "agent-limits"}}
+<div class="stack sm">
+  <label class="inline-field">Up to <input name="max_steps" type="number" value="{{.A.MaxSteps}}" min="1" max="50"> tool steps per run</label>
+  <label class="inline-field">At most <input name="daily_runs" type="number" value="{{.A.DailyRuns}}" min="1" max="500"> automatic runs per day</label>
+  <label class="inline-field">A connected chat may read its last <input name="history_runs" type="number" value="{{.A.HistoryRuns}}" min="1" max="20"> runs</label>
+  <label class="check"><input type="checkbox" name="only_with_tasks" value="1" {{if .A.OnlyWithTasks}}checked{{end}}>
+    <span>Skip scheduled runs when there are no open tasks<small>Saves tokens for agents that only work from their to-do list.</small></span></label>
+</div>
+{{end}}
+
+{{/* What the agent may use: the three built-in tools, then the owner's tool servers.
+     A row lights up when it is chosen, and its extra fields (.only-chosen) show only then: see style.css. */}}
+{{define "agent-tools"}}
+<div class="field-group span-2">
+  <div class="field-label">Built into Knitnox</div>
+  <p class="hint">Your own memory, Plan Book and Feed. An agent gets none of them unless you allow it here.</p>
+  <div class="agent-tool">
+    <label class="check"><input type="checkbox" name="use_memory" value="1" {{if .A.UseMemory}}checked{{end}} data-sum="Memory">
+      <span>Memory<small>Read what Knitnox <a href="/memory">remembers about you</a>. It can never change it.</small></span></label>
+    {{if not .MemoryOn}}<p class="hint"><b>Your memory is turned off</b>, so the agent sees nothing until you <a href="/memory/settings">turn it on</a>.</p>{{end}}
+  </div>
+  <div class="agent-tool">
+    <label>Plan Book <small class="muted">your own to-do list on the <a href="/plan">Plan Book</a> page, not the agent's task list</small>
+      <select name="plan_access" data-sum="Plan Book">
+        <option value="none" {{if eq .A.PlanAccess "none"}}selected{{end}}>No access</option>
+        <option value="read" {{if eq .A.PlanAccess "read"}}selected{{end}}>Read your tasks</option>
+        <option value="write" {{if eq .A.PlanAccess "write"}}selected{{end}}>Read, add, change and delete your tasks</option>
+      </select>
+    </label>
+    <p class="hint only-chosen">Each change is recorded under the agent's name, and anything it deletes waits in the bin for 30 days.</p>
+    {{if not .PlanOn}}<p class="hint"><b>The AI may not use your Plan Book yet</b>, so the agent sees nothing until you <a href="/plan/settings">turn it on</a>.</p>{{end}}
+  </div>
+  <div class="agent-tool">
+    <label class="check"><input type="checkbox" name="feed_post" value="1" {{if eq .A.FeedAccess "post"}}checked{{end}} data-sum="Feed">
+      <span>Feed<small>Post what it did or found to your <a href="/feed">Feed</a>. Its posts stay private until you share them.</small></span></label>
+    <label class="inline-field only-chosen">At most <input name="feed_daily" type="number" min="1" max="50" value="{{.A.FeedDaily}}"> posts per day</label>
+    <p class="hint only-chosen">A post can carry a report, a small chart or a diagram, and a picture, voice or video if you set up <a href="/feed/settings#models">those models</a>. The agent reads your own posts so it does not repeat itself.</p>
+  </div>
+</div>
+<div class="field-group span-2">
+  <div class="field-label">Your tool servers <small class="muted">(MCP)</small></div>
+  {{if .Tools}}<p class="hint">Tick the ones this agent may use. A ticked server shows a box: leave it empty to allow all of its tools, or list only the tool names the agent needs.</p>{{end}}
+  {{range .Tools}}
+  <div class="agent-tool">
+    <label class="check"><input type="checkbox" name="mcp" value="{{.ID}}" {{if .Selected}}checked{{end}} data-sum="{{.Name}}">
+      <span>{{.Name}}{{if .Asks}} <small>asks you before running</small>{{end}}{{if not .Enabled}} <small>disabled in Settings</small>{{end}}</span></label>
+    <div class="row only-chosen">
+      <input name="tools_{{.ID}}" value="{{.Tools}}" placeholder="all tools, or: search, create_draft" aria-label="Allowed tools of {{.Name}}" class="mono">
+      <button type="button" class="btn ghost sm" hx-post="/settings/mcp/{{.ID}}/test" hx-target="#agent-tools-{{$.A.ID}}-{{.ID}}" hx-indicator="this">Show tools</button>
+    </div>
+    <div class="test-result only-chosen" id="agent-tools-{{$.A.ID}}-{{.ID}}"></div>
+  </div>
+  {{else}}
+  <p class="hint">None connected yet. Tool servers let an agent reach things outside Knitnox, such as your email or calendar. Add them in <a href="/settings#tools">Settings</a>. Without them the agent can still work on its to-do list and use what you allowed above.</p>
+  {{end}}
+</div>
 {{end}}
 
 {{/* Side panel of an agent's page: tasks, settings, sharing. */}}
@@ -255,7 +359,7 @@
     <button type="button" role="tab" data-tab-btn="tasks">{{template "i-list"}}Tasks</button>
     <button type="button" role="tab" data-tab-btn="setup">{{template "i-settings"}}Setup</button>
     <button type="button" role="tab" data-tab-btn="tools">{{template "i-plug"}}Own tools</button>
-    <button type="button" role="tab" data-tab-btn="memory">{{template "i-brain"}}Memory &amp; plans</button>
+    <button type="button" role="tab" data-tab-btn="memory">{{template "i-brain"}}Notes</button>
     <button type="button" role="tab" data-tab-btn="share">{{template "i-sparkles"}}Share</button>
   </nav>
 
@@ -354,43 +458,8 @@
   </section>
 
   <section class="panel-section" data-tab-pane="memory">
-    <h3>Your long-term memory</h3>
-    <form hx-post="/agents/{{.A.ID}}/memory/access" hx-trigger="change" hx-target="#panel">
-      <label class="check"><input type="checkbox" name="use_memory" value="1" {{if .A.UseMemory}}checked{{end}}>
-        <span>Let this agent read what Knitnox remembers about me<small>It can search and read your <a href="/memory">memory</a> to do its job better. It can never add, change or delete anything there.</small></span></label>
-    </form>
-    {{if and .A.UseMemory (not .MemoryOn)}}<p class="hint"><b>Your memory is turned off</b>, so the agent sees nothing yet. <a href="/memory/settings">Turn it on</a></p>{{end}}
-  </section>
-
-  <section class="panel-section" data-tab-pane="memory">
-    <h3>Your Plan Book</h3>
-    <form hx-post="/agents/{{.A.ID}}/plan/access" hx-trigger="change" hx-target="#panel">
-      <label>What this agent may do with your tasks <small class="muted">your own to-do list on the <a href="/plan">Plan Book</a> page, not the agent's task list</small>
-        <select name="level">
-          <option value="none" {{if eq .A.PlanAccess "none"}}selected{{end}}>Nothing: it cannot see them</option>
-          <option value="read" {{if eq .A.PlanAccess "read"}}selected{{end}}>Read them</option>
-          <option value="write" {{if eq .A.PlanAccess "write"}}selected{{end}}>Read, add, change and delete them</option>
-        </select>
-      </label>
-    </form>
-    <p class="hint">Each change the agent makes is recorded under its name, and anything it deletes waits in the bin for 30 days.</p>
-    {{if and (ne .A.PlanAccess "none") (not .PlanOn)}}<p class="hint"><b>The AI may not use your Plan Book yet</b>, so the agent sees nothing. <a href="/plan/settings">Turn it on</a></p>{{end}}
-  </section>
-
-  <section class="panel-section" data-tab-pane="memory">
-    <h3>Your Feed</h3>
-    <form class="stack sm" hx-post="/agents/{{.A.ID}}/feed/access" hx-trigger="change" hx-target="#panel">
-      <label class="check"><input type="checkbox" name="feed_post" value="1" {{if eq .A.FeedAccess "post"}}checked{{end}}>
-        <span>Let this agent post to my feed<small>It can add short posts about what it did or found to your <a href="/feed">Feed</a>, with a report, a small chart or a diagram it draws. If you set up <a href="/feed/settings#models">picture, voice or video models</a>, it can add those too. Its posts are private: only you can share them.</small></span></label>
-      <label>Posts per day, at most <small class="muted">1 to 50. When the limit is reached the agent keeps working but posts nothing more that day.</small>
-        <input name="feed_daily" type="number" min="1" max="50" value="{{.A.FeedDaily}}"></label>
-    </form>
-    <p class="hint">The agent can read your own posts, so it does not repeat itself. It never sees what other people shared.</p>
-  </section>
-
-  <section class="panel-section" data-tab-pane="memory">
     <h3>The agent's own notes</h3>
-    <p class="hint">Every run starts fresh, so the agent keeps short notes here for its later runs. You can read them and wipe them.</p>
+    <p class="hint">Every run starts fresh, so the agent keeps short notes here for its later runs. You can read them and wipe them. Whether it may use <b>your</b> memory, Plan Book or Feed is chosen under <b>Setup</b> → “Which tools may it use?”.</p>
     {{if .A.Memory}}
     <div class="task-text memory-box">{{.A.Memory}}</div>
     <button class="btn ghost sm" hx-post="/agents/{{.A.ID}}/memory/clear" hx-target="#panel" hx-confirm="Clear this agent's memory?">Clear memory</button>

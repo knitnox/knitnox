@@ -1673,6 +1673,63 @@ select.model-kind { width: auto; min-height: 28px; padding: 2px 30px 2px 10px; f
 }
 
 /* =========================================================================
+   Agents: the list header and the "new agent" page
+   ========================================================================= */
+.agents-head { flex-wrap: wrap; }
+.agents-head .grow { min-width: 220px; }
+.back-link { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; margin-bottom: 10px; font-size: 13.5px; font-weight: 500; color: var(--muted); text-decoration: none; }
+.back-link .i { width: 16px; height: 16px; }
+.back-link:hover { color: var(--fg); }
+.agent-new { display: flex; flex-direction: column; gap: 14px; }
+.agent-new .notice { margin-bottom: 0; }
+.new-head h2 { font-size: 22px; letter-spacing: -.02em; }
+.new-head p { margin-top: 4px; color: var(--muted); max-width: 60ch; }
+.new-step { display: flex; flex-direction: column; gap: 14px; }
+.new-step .step { margin: 0; }
+.pick-row { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.new-optional { margin: 10px 2px -4px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+/* a card that opens: icon, title, one line saying what is inside */
+.fold { padding: 0; }
+.fold > summary { display: flex; align-items: center; gap: 12px; padding: 14px 18px; cursor: pointer; list-style: none; border-radius: var(--r-lg); }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary b { display: block; font-size: 14.5px; font-weight: 600; }
+.fold > summary small { display: block; margin-top: 1px; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.fold > summary > .i { width: 16px; height: 16px; color: var(--muted); transition: transform .2s var(--ease); }
+.fold[open] > summary > .i { transform: rotate(180deg); }
+.fold[open] > summary { border-bottom: 1px solid var(--border); border-radius: var(--r-lg) var(--r-lg) 0 0; }
+.fold-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: var(--r-sm); background: var(--accent-soft); color: var(--accent-text); flex-shrink: 0; }
+.fold-icon .i { width: 17px; height: 17px; }
+.fold-body { padding: 18px; }
+@media (hover: hover) { .fold:not([open]) > summary:hover { background: var(--bg-subtle); } }
+/* what went wrong, next to the field */
+.field-error { display: flex; align-items: flex-start; gap: 6px; margin-top: -8px; font-size: 13px; font-weight: 500; line-height: 1.45; color: var(--danger); }
+.field-error.flat { margin-top: 0; }
+.field-error .i { width: 15px; height: 15px; margin-top: 2px; }
+.agent-new [aria-invalid="true"] { border-color: var(--danger); }
+.notice.is-bad { background: var(--danger-soft); color: var(--danger); }
+.notice.is-warn { background: var(--warn-soft); color: var(--warn); align-items: flex-start; }
+.notice.is-warn .i { margin-top: 3px; }
+.notice a { color: inherit; }
+/* the Create button stays in reach however long the form gets */
+.create-bar { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 4px -12px 0; padding: 12px;
+  padding-bottom: calc(12px + var(--safe-b)); background: var(--canvas); border-top: 1px solid var(--border); }
+.create-bar .hint { min-width: 200px; }
+/* a tool the agent may use: its row lights up, and its extra fields show only then */
+.agent-tool:has(> .check input:checked), .agent-tool:has(select[name="plan_access"] option:not([value="none"]):checked) { border-color: var(--accent); background: var(--accent-soft); }
+.agent-tool:has(> .check input:not(:checked)) > .only-chosen, .agent-tool:has(select[name="plan_access"] option[value="none"]:checked) > .only-chosen { display: none; }
+.agent-tool .check a, .agent-tool label small a { color: inherit; }
+.empty-next { justify-content: center; }
+@media (max-width: 640px) {
+  .agents-head .btn { width: 100%; }
+  .fold > summary { padding: 12px 14px; }
+  .fold-body, .new-step { padding: 14px; }
+  .create-bar { margin: 4px -8px 0; }
+  .create-bar .hint { display: none; }
+  .create-bar .btn { flex: 1; }
+  .pick-row .pick-chip span { height: 38px; }
+}
+
+/* =========================================================================
    Phones: every pop-up is a sheet at the bottom of the screen.
    Keep this block LAST. Menus get their own left/right/bottom rules further up for wide screens; on a phone those
    would move the sheet off the screen (the Tools menu once opened above it), so these few lines must always win.

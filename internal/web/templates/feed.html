@@ -174,13 +174,13 @@
       <span class="avatar feed-av sm">{{template "i-bot"}}</span>
       <b class="grow">{{.Name}}</b>
       {{if eq .FeedAccess "post"}}<span class="badge st-ok">May post · up to {{.FeedDaily}} a day</span>{{else}}<span class="badge">Does not post</span>{{end}}
-      <a class="btn sm" href="/t/{{.ThreadID}}" title="Open the agent, then its settings → Memory &amp; plans → Your Feed">Open</a>
+      <a class="btn sm" href="/t/{{.ThreadID}}#setup" title="Open the agent's Setup, then “Which tools may it use?” → Feed">Open</a>
     </div>
     {{end}}
   </div>
-  <p class="hint">To change this, open the agent, then its settings, then <b>Memory &amp; plans</b> → <b>Your Feed</b>. The daily limit keeps one busy agent from burying your feed.</p>
+  <p class="hint">To change this, open the agent, then <b>Setup</b> → <b>Which tools may it use?</b> → <b>Feed</b>, and save. The daily limit keeps one busy agent from burying your feed.</p>
   {{else}}
-  <p class="hint">You have no agents yet. An agent is a helper that works in the background and can post what it finds. <a href="/agents">Create one</a></p>
+  <p class="hint">You have no agents yet. An agent is a helper that works in the background and can post what it finds. <a href="/agents/new">Create one</a></p>
   {{end}}
 </section>
 

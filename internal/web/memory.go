@@ -512,20 +512,6 @@ func (s *Server) memoryExport(w http.ResponseWriter, r *http.Request) {
 	enc.Encode(map[string]any{"exported_at": store.Now(), "user": u.Username, "memories": items})
 }
 
-// agentMemoryAccess lets one agent read its owner's memory, or stops it.
-func (s *Server) agentMemoryAccess(w http.ResponseWriter, r *http.Request) {
-	a, ok := s.loadAgent(w, r)
-	if !ok {
-		return
-	}
-	if err := s.st.SetAgentUseMemory(a.ID, r.FormValue("use_memory") == "1"); err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	a.UseMemory = r.FormValue("use_memory") == "1"
-	s.renderAgentPanel(w, r, a)
-}
-
 // adminEmbedTest tries the embedding model typed into Admin → Settings.
 func (s *Server) adminEmbedTest(w http.ResponseWriter, r *http.Request) {
 	pid := formInt(r, "embed_provider_id", 0)

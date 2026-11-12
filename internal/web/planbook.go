@@ -558,17 +558,3 @@ func (s *Server) planSwitch(w http.ResponseWriter, r *http.Request) {
 	}
 	http.Redirect(w, r, to+"?done="+done, http.StatusSeeOther)
 }
-
-// agentPlanAccess sets what one agent may do with its owner's Plan Book.
-func (s *Server) agentPlanAccess(w http.ResponseWriter, r *http.Request) {
-	a, ok := s.loadAgent(w, r)
-	if !ok {
-		return
-	}
-	if err := s.st.SetAgentPlanAccess(a.ID, r.FormValue("level")); err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	a, _ = s.st.AgentByID(a.ID)
-	s.renderAgentPanel(w, r, a)
-}

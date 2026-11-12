@@ -327,21 +327,29 @@ func TestFeedSwitches(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	access := fmt.Sprintf("/agents/%d/feed/access", aid)
+	access := fmt.Sprintf("/agents/%d/settings", aid)
+	form := func(more url.Values) url.Values {
+		v := url.Values{"name": {"Scout"}, "instructions": {"Look."}}
+		for k, val := range more {
+			v[k] = val
+		}
+		return v
+	}
 	if ag, _ := a.st.AgentByID(aid); ag.FeedAccess != store.FeedAccessNone || ag.FeedDaily != store.FeedDailyDef {
 		t.Fatalf("a new agent starts with feed access %q, %d a day", ag.FeedAccess, ag.FeedDaily)
 	}
-	code, panel := alice.hx(access, url.Values{"feed_post": {"1"}, "feed_daily": {"999"}})
-	if code != http.StatusOK || !strings.Contains(panel, "Let this agent post to my feed") || !strings.Contains(panel, `name="feed_daily" type="number" min="1" max="50" value="50"`) {
+	code, _ := alice.hx(access, form(url.Values{"feed_post": {"1"}, "feed_daily": {"999"}}))
+	panel := alice.get(fmt.Sprintf("/agents/%d/panel", aid))
+	if code != http.StatusOK || !strings.Contains(panel, `name="feed_post" value="1" checked`) || !strings.Contains(panel, `name="feed_daily" type="number" min="1" max="50" value="50"`) {
 		t.Fatalf("allow: %d", code)
 	}
 	if ag, _ := a.st.AgentByID(aid); ag.FeedAccess != store.FeedAccessPost || ag.FeedDaily != store.FeedDailyMax {
 		t.Fatalf("after allowing: %q, %d", ag.FeedAccess, ag.FeedDaily)
 	}
-	if code, _ := bob.hx(access, url.Values{"feed_post": {"1"}}); code != http.StatusNotFound {
+	if code, _ := bob.hx(access, form(url.Values{"feed_post": {"1"}})); code != http.StatusNotFound {
 		t.Errorf("bob changed alice's agent: %d", code)
 	}
-	alice.hx(access, url.Values{"feed_daily": {"3"}}) // the box unticked
+	alice.hx(access, form(url.Values{"feed_daily": {"3"}})) // the box unticked
 	if ag, _ := a.st.AgentByID(aid); ag.FeedAccess != store.FeedAccessNone || ag.FeedDaily != 3 {
 		t.Fatalf("after stopping: %q, %d", ag.FeedAccess, ag.FeedDaily)
 	}

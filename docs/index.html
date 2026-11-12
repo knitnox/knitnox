@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="en" data-accent="iris">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knitnox — a calm, self-hosted AI chat</title>
+<meta name="description" content="Knitnox is a self-hosted AI chat with turn-based group chats, agents, memory and tools. One Go binary, one SQLite file, any OpenAI-compatible model.">
+<meta property="og:title" content="Knitnox — a calm, self-hosted AI chat">
+<meta property="og:description" content="Turn-based group chats, agents, memory and tools. One binary, one file, your own server.">
+<meta name="theme-color" content="#f8f7f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#18181b" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cdefs%3E%3Cmask id='r'%3E%3Crect x='72' y='72' width='368' height='368' rx='88' fill='white'/%3E%3Crect x='160' y='160' width='192' height='192' rx='44' fill='black'/%3E%3C/mask%3E%3C/defs%3E%3Crect width='512' height='512' rx='112' fill='%23fff'/%3E%3Crect x='72' y='72' width='368' height='368' rx='88' fill='%2309090b' mask='url(%23r)'/%3E%3C/svg%3E">
+<style>
+/* ---------- Tokens (same family as the app's style.css) ---------- */
+:root {
+  --ah: 277; --ac: 1;
+  --accent: oklch(53% calc(.19 * var(--ac)) var(--ah));
+  --accent-hover: oklch(47% calc(.19 * var(--ac)) var(--ah));
+  --accent-fg: #fff;
+  --accent-soft: oklch(96% calc(.028 * var(--ac)) var(--ah));
+  --accent-soft-2: oklch(92% calc(.05 * var(--ac)) var(--ah));
+  --accent-text: oklch(44% calc(.17 * var(--ac)) var(--ah));
+  --accent-glow: oklch(70% calc(.16 * var(--ac)) var(--ah) / .28);
+  --canvas: #f8f7f4;
+  --bg: #ffffff;
+  --bg-subtle: #f1efea;
+  --fg: #24221f;
+  --fg-2: #47443f;
+  --muted: #6f6b64;
+  --border: #e7e3dc;
+  --border-2: #d5d0c6;
+  --code-bg: #2a2825;
+  --code-fg: #f3f1ec;
+  --ok: #2c7a4b; --ok-soft: #e3f3e9;
+  --warn: #8f5600; --warn-soft: #fbefd8;
+  --shadow: 0 1px 3px rgba(60,50,30,.05), 0 8px 20px -6px rgba(60,50,30,.09);
+  --shadow-lg: 0 24px 64px -16px rgba(60,50,30,.22), 0 2px 6px rgba(60,50,30,.05);
+  --font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  --r-sm: 11px; --r: 14px; --r-lg: 18px; --r-xl: 26px;
+  --ease: cubic-bezier(.2,.8,.2,1);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --accent: oklch(75% calc(.13 * var(--ac)) var(--ah));
+    --accent-hover: oklch(80% calc(.12 * var(--ac)) var(--ah));
+    --accent-fg: #16161a;
+    --accent-soft: oklch(28% calc(.04 * var(--ac)) var(--ah));
+    --accent-soft-2: oklch(34% calc(.06 * var(--ac)) var(--ah));
+    --accent-text: oklch(84% calc(.09 * var(--ac)) var(--ah));
+    --accent-glow: oklch(60% calc(.14 * var(--ac)) var(--ah) / .22);
+    --canvas: #18181b;
+    --bg: #202024;
+    --bg-subtle: #27272c;
+    --fg: #ededf0;
+    --fg-2: #cdcdd4;
+    --muted: #9d9da6;
+    --border: #2f2f35;
+    --border-2: #3d3d44;
+    --code-bg: #111113;
+    --code-fg: #ededf0;
+    --ok: #6fcf97; --ok-soft: #1d3326;
+    --warn: #f0b45a; --warn-soft: #3a2c14;
+    --shadow: 0 1px 3px rgba(0,0,0,.3), 0 8px 20px -6px rgba(0,0,0,.4);
+    --shadow-lg: 0 24px 64px -16px rgba(0,0,0,.6), 0 2px 6px rgba(0,0,0,.3);
+    color-scheme: dark;
+  }
+}
+:root[data-accent="ocean"]    { --ah: 238; }
+:root[data-accent="forest"]   { --ah: 158; }
+:root[data-accent="sunset"]   { --ah: 48; }
+:root[data-accent="rose"]     { --ah: 8; }
+:root[data-accent="graphite"] { --ah: 265; --ac: .1; }
+
+/* ---------- Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--canvas); color: var(--fg);
+  font: 16px/1.6 var(--font); -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+a { color: var(--accent-text); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+h1, h2, h3 { line-height: 1.15; letter-spacing: -.02em; margin: 0; }
+p { margin: 0; }
+code { font-family: var(--mono); font-size: .9em; }
+.wrap { width: min(1120px, 100% - 32px); margin-inline: auto; }
+section { padding: 88px 0; }
+.eyebrow {
+  display: inline-block; font-size: 13px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--accent-text);
+}
+.section-head { max-width: 640px; margin-bottom: 44px; }
+.section-head h2 { font-size: clamp(28px, 4vw, 40px); margin: 10px 0 14px; }
+.section-head p { color: var(--muted); font-size: 18px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+
+/* ---------- Nav ---------- */
+nav.top {
+  position: sticky; top: 0; z-index: 20;
+  background: color-mix(in srgb, var(--canvas) 82%, transparent);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+nav.top .wrap { display: flex; align-items: center; gap: 24px; height: 64px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: var(--fg); text-decoration: none; }
+.logo { width: 30px; height: 30px; flex: none; }
+.logo .tile { fill: var(--bg); stroke: var(--border-2); stroke-width: 16; }
+.logo .ring { fill: var(--fg); }
+.logo rect.tile + rect.ring + rect.tile { stroke: none; }
+nav.top .links { display: flex; gap: 22px; margin-left: auto; }
+nav.top .links a { color: var(--fg-2); text-decoration: none; font-size: 15px; }
+nav.top .links a:hover { color: var(--fg); }
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 20px; border-radius: 999px; font-weight: 600; font-size: 15px;
+  text-decoration: none; border: 1px solid transparent; cursor: pointer;
+  transition: transform .2s var(--ease), background .2s, box-shadow .2s;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn-primary { background: var(--accent); color: var(--accent-fg); box-shadow: 0 6px 20px -6px var(--accent-glow); }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-ghost { background: var(--bg); color: var(--fg); border-color: var(--border-2); }
+.btn svg { width: 18px; height: 18px; }
+nav.top .btn { padding: 8px 16px; font-size: 14px; }
+
+/* ---------- Hero ---------- */
+.hero { position: relative; padding: 72px 0 96px; }
+.hero::before {
+  content: ""; position: absolute; inset: -120px 0 auto; height: 620px; z-index: -1;
+  background:
+    radial-gradient(40% 50% at 18% 30%, var(--accent-glow), transparent 70%),
+    radial-gradient(35% 45% at 85% 20%, color-mix(in srgb, var(--accent-glow) 60%, transparent), transparent 70%);
+  filter: blur(10px);
+}
+.hero .wrap { display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center; }
+.pill {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px 6px 8px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 999px;
+  font-size: 14px; color: var(--fg-2); box-shadow: var(--shadow);
+}
+.pill b { background: var(--accent-soft); color: var(--accent-text); padding: 2px 9px; border-radius: 999px; font-size: 12px; }
+.hero h1 { font-size: clamp(40px, 6vw, 64px); margin: 22px 0 20px; letter-spacing: -.035em; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero .lead { font-size: 19px; color: var(--fg-2); max-width: 540px; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 30px; color: var(--muted); font-size: 14px; }
+.facts span::before { content: "✓"; color: var(--ok); font-weight: 700; margin-right: 7px; }
+
+/* ---------- Chat mockup ---------- */
+.window {
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-xl);
+  box-shadow: var(--shadow-lg); overflow: hidden;
+}
+.window-bar {
+  display: flex; align-items: center; gap: 10px; padding: 14px 18px;
+  border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 600;
+}
+.window-bar .dots { display: flex; gap: 6px; }
+.window-bar .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--border-2); }
+.window-bar .people { margin-left: auto; display: flex; }
+.avatar {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 700; color: #fff; flex: none;
+}
+.window-bar .people .avatar { border: 2px solid var(--bg); margin-left: -8px; width: 26px; height: 26px; font-size: 11px; }
+.a-sam { background: #c2532b; } .a-ana { background: #2f8a4c; } .a-you { background: #2f6fd6; }
+.a-ai { background: var(--accent); color: var(--accent-fg); }
+.chat { padding: 20px 18px 8px; display: flex; flex-direction: column; gap: 14px; min-height: 380px; }
+.msg { display: flex; gap: 10px; align-items: flex-start; opacity: 0; transform: translateY(8px); animation: in .5s var(--ease) forwards; }
+.msg .body { max-width: 82%; }
+.msg .who { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+.bubble { background: var(--bg-subtle); padding: 10px 14px; border-radius: 4px var(--r) var(--r) var(--r); font-size: 14.5px; line-height: 1.5; }
+.msg.ai .bubble { background: var(--accent-soft); }
+.tool {
+  margin-top: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  border: 1px dashed var(--border-2); border-radius: var(--r-sm); padding: 8px 10px; font-size: 13px; color: var(--fg-2);
+}
+.tool .chip { background: var(--ok-soft); color: var(--ok); padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 12px; }
+.queue {
+  margin: 4px 18px 18px; padding: 10px 14px; border-radius: var(--r);
+  background: var(--warn-soft); color: var(--warn); font-size: 13px; display: flex; align-items: center; gap: 10px;
+  opacity: 0; animation: in .5s var(--ease) forwards; animation-delay: 1.6s;
+}
+.typing { display: inline-flex; gap: 4px; padding: 4px 0; }
+.typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: blink 1.2s infinite; }
+.typing i:nth-child(2) { animation-delay: .2s; } .typing i:nth-child(3) { animation-delay: .4s; }
+.composer {
+  display: flex; align-items: center; gap: 10px; margin: 0 18px 18px; padding: 10px 10px 10px 16px;
+  border: 1px solid var(--border-2); border-radius: 999px; color: var(--muted); font-size: 14px;
+}
+.composer .send { margin-left: auto; width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: grid; place-items: center; }
+.composer .send svg { width: 16px; height: 16px; stroke: var(--accent-fg); }
+@keyframes in { to { opacity: 1; transform: none; } }
+@keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+
+/* ---------- Strip ---------- */
+.strip { border-block: 1px solid var(--border); background: var(--bg); padding: 28px 0; }
+.strip .wrap { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px 34px; color: var(--muted); font-size: 15px; }
+.strip strong { color: var(--fg-2); font-weight: 600; }
+
+/* ---------- How group chats work ---------- */
+.flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; counter-reset: step; }
+.step { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 26px; position: relative; box-shadow: var(--shadow); }
+.step::before {
+  counter-increment: step; content: counter(step);
+  display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px;
+  background: var(--accent-soft); color: var(--accent-text); font-weight: 700; margin-bottom: 16px;
+}
+.step h3 { font-size: 19px; margin-bottom: 8px; }
+.step p { color: var(--muted); font-size: 15px; }
+
+/* ---------- Features ---------- */
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.card {
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: 24px; transition: transform .25s var(--ease), box-shadow .25s, border-color .25s;
+}
+.card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); border-color: var(--accent-soft-2); }
+.card .ic {
+  width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent-text); margin-bottom: 16px;
+}
+.card .ic svg { width: 22px; height: 22px; }
+.card h3 { font-size: 17px; margin-bottom: 6px; }
+.card p { color: var(--muted); font-size: 15px; }
+.card.wide { grid-column: span 2; }
+.card.wide p { max-width: 560px; }
+
+/* ---------- Accent picker ---------- */
+.picker { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 28px; color: var(--muted); font-size: 14px; }
+.swatch {
+  width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--bg); cursor: pointer;
+  box-shadow: 0 0 0 1px var(--border-2); transition: transform .15s var(--ease);
+}
+.swatch:hover { transform: scale(1.12); }
+.swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--fg); }
+.s-iris { background: oklch(53% .19 277); } .s-ocean { background: oklch(53% .19 238); }
+.s-forest { background: oklch(53% .19 158); } .s-sunset { background: oklch(53% .19 48); }
+.s-rose { background: oklch(53% .19 8); } .s-graphite { background: oklch(53% .019 265); }
+
+/* ---------- Architecture ---------- */
+.arch { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+.stack { display: flex; flex-direction: column; gap: 10px; }
+.layer {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 16px 20px; border-radius: var(--r); background: var(--bg); border: 1px solid var(--border);
+}
+.layer b { font-size: 15px; }
+.layer span { color: var(--muted); font-size: 13px; text-align: right; }
+.layer.hi { background: var(--accent); border-color: transparent; color: var(--accent-fg); }
+.layer.hi span { color: inherit; opacity: .85; }
+.checks { list-style: none; padding: 0; margin: 24px 0 0; display: grid; gap: 12px; }
+.checks li { display: flex; gap: 12px; color: var(--fg-2); }
+.checks li::before {
+  content: ""; flex: none; width: 22px; height: 22px; margin-top: 2px; border-radius: 50%;
+  background: var(--ok-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232c7a4b' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5L20 7'/%3E%3C/svg%3E") center / 13px no-repeat;
+}
+
+/* ---------- Quick start ---------- */
+.qs { display: grid; grid-template-columns: 1fr 1.1fr; gap: 40px; align-items: start; }
+.terminal { background: var(--code-bg); color: var(--code-fg); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-lg); }
+.terminal .bar { display: flex; align-items: center; gap: 6px; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.terminal .bar i { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,.18); }
+.terminal .bar button {
+  margin-left: auto; background: rgba(255,255,255,.08); color: inherit; border: 0;
+  border-radius: 8px; padding: 5px 12px; font: 600 12px var(--font); cursor: pointer;
+}
+.terminal .bar button:hover { background: rgba(255,255,255,.16); }
+.terminal pre { margin: 0; padding: 20px; font: 14px/1.75 var(--mono); overflow-x: auto; }
+.terminal .c { color: #8c95a3; }
+.terminal .p { color: oklch(78% .12 var(--ah)); user-select: none; }
+.steps { list-style: none; padding: 0; margin: 0; counter-reset: s; display: grid; gap: 18px; }
+.steps li { display: grid; grid-template-columns: 34px 1fr; gap: 14px; }
+.steps li::before {
+  counter-increment: s; content: counter(s); width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid var(--border-2); display: grid; place-items: center; font-weight: 700; color: var(--accent-text); background: var(--bg);
+}
+.steps b { display: block; margin-bottom: 2px; }
+.steps p { color: var(--muted); font-size: 15px; }
+.providers { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.providers span { background: var(--bg); border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px; font-size: 13px; color: var(--fg-2); }
+
+/* ---------- Final CTA + footer ---------- */
+.final {
+  text-align: center; padding: 64px 28px; border-radius: var(--r-xl);
+  background: linear-gradient(135deg, var(--accent-soft), var(--bg) 70%);
+  border: 1px solid var(--border);
+}
+.final h2 { font-size: clamp(28px, 4vw, 42px); margin-bottom: 14px; }
+.final p { color: var(--muted); font-size: 18px; max-width: 520px; margin: 0 auto; }
+.final .cta { justify-content: center; }
+footer { padding: 40px 0 56px; color: var(--muted); font-size: 14px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: center; justify-content: space-between; }
+footer .links { display: flex; flex-wrap: wrap; gap: 18px; }
+footer a { color: var(--fg-2); text-decoration: none; }
+footer a:hover { color: var(--fg); }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 920px) {
+  .hero .wrap, .arch, .qs { grid-template-columns: 1fr; }
+  .grid { grid-template-columns: 1fr 1fr; }
+  .flow { grid-template-columns: 1fr; }
+  nav.top .links { display: none; }
+  nav.top .btn { margin-left: auto; }
+  section { padding: 64px 0; }
+  .hero { padding: 40px 0 64px; }
+}
+@media (max-width: 600px) {
+  .grid { grid-template-columns: 1fr; }
+  .card.wide { grid-column: auto; display: block; }
+  .chat { min-height: 0; }
+  .msg .body { max-width: 88%; }
+  .layer { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .layer span { text-align: left; }
+  .hero .lead { font-size: 17px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .msg, .queue { opacity: 1; transform: none; }
+  html { scroll-behavior: auto; }
+}
+</style>
+</head>
+<body>
+
+<nav class="top" aria-label="Main">
+  <div class="wrap">
+    <a class="brand" href="#">
+      <svg class="logo" viewBox="0 0 512 512" aria-hidden="true">
+        <rect class="tile" x="8" y="8" width="496" height="496" rx="108"/>
+        <rect class="ring" x="72" y="72" width="368" height="368" rx="88"/>
+        <rect class="tile" x="160" y="160" width="192" height="192" rx="44"/>
+      </svg>
+      Knitnox
+    </a>
+    <div class="links">
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#inside">Inside</a>
+      <a href="#start">Get started</a>
+    </div>
+    <a class="btn btn-ghost" href="https://github.com/knitnox/knitnox">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+      GitHub
+    </a>
+  </div>
+</nav>
+
+<main>
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="wrap">
+    <div>
+      <span class="pill"><b>Self-hosted</b> Your server, your models, your data</span>
+      <h1>One AI chat.<br><em>Everyone</em> gets a turn.</h1>
+      <p class="lead">Knitnox is a calm, private AI chat you run yourself. Invite family, friends or your team into shared chats where the AI answers each person in order — plus agents, memory, tools and a feed, all in one small app.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="#start">
+          Try it in two minutes
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <a class="btn btn-ghost" href="https://github.com/knitnox/knitnox">View the code</a>
+      </div>
+      <div class="facts">
+        <span>One binary</span><span>One SQLite file</span><span>No API key to try</span><span>Phone friendly</span>
+      </div>
+    </div>
+
+    <div class="window" role="img" aria-label="Example group chat: Sam and Ana ask the AI questions, and it answers them one at a time while a third message waits in the queue.">
+      <div class="window-bar">
+        <span class="dots"><i></i><i></i><i></i></span>
+        🍰 Acme Bakery · weekend plan
+        <span class="people"><span class="avatar a-sam">S</span><span class="avatar a-ana">A</span><span class="avatar a-you">Y</span></span>
+      </div>
+      <div class="chat" aria-hidden="true">
+        <div class="msg" style="animation-delay:.1s">
+          <span class="avatar a-sam">S</span>
+          <div class="body"><div class="who">Sam</div><div class="bubble">How many croissants did we sell last Saturday?</div></div>
+        </div>
+        <div class="msg" style="animation-delay:.5s">
+          <span class="avatar a-ana">A</span>
+          <div class="body"><div class="who">Ana</div><div class="bubble">And can you remind me to order more butter? 🧈</div></div>
+        </div>
+        <div class="msg ai" style="animation-delay:1s">
+          <span class="avatar a-ai">K</span>
+          <div class="body">
+            <div class="who">Knitnox · answering Sam</div>
+            <div class="bubble">You sold <b>184 croissants</b> — 22% more than the Saturday before.</div>
+            <div class="tool"><span class="chip">✓ allowed</span> used the <code>sales</code> tool</div>
+          </div>
+        </div>
+        <div class="msg ai" style="animation-delay:2.2s">
+          <span class="avatar a-ai">K</span>
+          <div class="body">
+            <div class="who">Knitnox · answering Ana</div>
+            <div class="bubble"><span class="typing"><i></i><i></i><i></i></span></div>
+          </div>
+        </div>
+      </div>
+      <div class="queue" aria-hidden="true">⏳ 1 more message waiting in line — everyone gets a turn</div>
+      <div class="composer" aria-hidden="true">
+        Message the group…
+        <span class="send"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="strip">
+  <div class="wrap">
+    Works with <strong>OpenAI</strong> <strong>OpenRouter</strong> <strong>Groq</strong> <strong>Together</strong> <strong>Ollama</strong> <strong>LM Studio</strong> <strong>vLLM</strong> <strong>LiteLLM</strong> and any OpenAI-compatible API
+  </div>
+</div>
+
+<!-- ================= HOW ================= -->
+<section id="how">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">How group chats work</span>
+      <h2>Like a polite meeting, not a shouting match.</h2>
+      <p>Most AI chats are built for one person. Knitnox is built for a table full of people.</p>
+    </div>
+    <div class="flow">
+      <div class="step">
+        <h3>Invite with a link</h3>
+        <p>Share a chat link with anyone who has an account. They join and see the whole conversation, live.</p>
+      </div>
+      <div class="step">
+        <h3>Everyone joins one queue</h3>
+        <p>Messages from all people line up in order. Up to 10 can wait, and you can still edit one that hasn't been answered yet.</p>
+      </div>
+      <div class="step">
+        <h3>The AI answers each in turn</h3>
+        <p>Answers stream to everyone at once, and keep going on the server even if you close the tab. Your keys and tools stay yours.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FEATURES ================= -->
+<section id="features" style="padding-top:0">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Features</span>
+      <h2>Much more than a chat box.</h2>
+      <p>An AI that remembers, plans, posts and works in the background — and asks before it does anything important.</p>
+    </div>
+    <div class="grid">
+      <article class="card wide">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg></div>
+        <h3>Tools that ask first</h3>
+        <p>Connect tool servers (MCP) — a calendar, a database, a web search. Choose per server: run automatically, or show an <b>Allow / Deny / Always allow</b> card and wait for a person.</p>
+      </article>
+      <article class="card">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="13" rx="3"/><path d="M12 7V3M8 13h.01M16 13h.01M9 17h6"/></svg></div>
+        <h3>Agents</h3>
+        <p>Background helpers with their own instructions, tools and to-do list. On a schedule, on demand, or handed tasks by a chat.</p>
+      </article>
+      <article class="card">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="10" cy="18" r="2.5"/><path d="M8.2 7.2l7.4.4M7 8.3l2.3 7.4M16.5 10l-4.6 6.4"/></svg></div>
+        <h3>Memory</h3>
+        <p>Opt-in. The AI remembers short facts across chats and links people, places and projects on a map you can browse — and edit.</p>
+      </article>
+      <article class="card">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="17" rx="3"/><path d="M8 2v4M16 2v4M8 12l2.5 2.5L16 9"/></svg></div>
+        <h3>Plan Book</h3>
+        <p>Your tasks and projects with due dates. When you allow it, chats and agents can add and finish tasks for you.</p>
+      </article>
+      <article class="card">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div>
+        <h3>Feed</h3>
+        <p>Short posts from you, your chats and your agents — with charts, diagrams, pictures, voice or video. Private until shared.</p>
+      </article>
+      <article class="card">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M21 15l-5-5-8 9"/></svg></div>
+        <h3>Files, pictures, voice</h3>
+        <p>Drop in PDFs, code, CSV or photos. With a picture model the AI can draw; with a voice model, every answer can be read aloud.</p>
+      </article>
+      <article class="card">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-4 10.5V17h8v-3.5A6 6 0 0 0 12 3zM9 21h6"/></svg></div>
+        <h3>Thinking, shown gently</h3>
+        <p>Reasoning models stream their thoughts into a collapsible block, above a clean answer.</p>
+      </article>
+      <article class="card">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20V10M9 20V4M15 20v-7M21 20v-11"/></svg></div>
+        <h3>Admin panel</h3>
+        <p>Providers and models, users, daily or monthly token quotas, and usage with cost per person and model.</p>
+      </article>
+      <article class="card wide">
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/></svg></div>
+        <h3>A calm interface, your colour</h3>
+        <p>Warm neutrals, light or dark, made for phones too. Install it as an app with push notifications. Pick one of six accents — try them here:</p>
+        <div class="picker" role="group" aria-label="Accent colour">
+          <button class="swatch s-iris" data-a="iris" aria-label="Iris" aria-pressed="true"></button>
+          <button class="swatch s-ocean" data-a="ocean" aria-label="Ocean" aria-pressed="false"></button>
+          <button class="swatch s-forest" data-a="forest" aria-label="Forest" aria-pressed="false"></button>
+          <button class="swatch s-sunset" data-a="sunset" aria-label="Sunset" aria-pressed="false"></button>
+          <button class="swatch s-rose" data-a="rose" aria-label="Rose" aria-pressed="false"></button>
+          <button class="swatch s-graphite" data-a="graphite" aria-label="Graphite" aria-pressed="false"></button>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ================= INSIDE ================= -->
+<section id="inside" style="background:var(--bg);border-block:1px solid var(--border)">
+  <div class="wrap arch">
+    <div>
+      <span class="eyebrow">Inside</span>
+      <h2 style="font-size:clamp(28px,4vw,40px);margin:10px 0 14px">Small enough to understand. Sturdy enough to trust.</h2>
+      <p style="color:var(--muted);font-size:18px">No microservices, no message broker, no front-end build. Just Go, SQLite and plain HTML that loads fast on any phone.</p>
+      <ul class="checks">
+        <li>API keys encrypted at rest (AES-256-GCM), never sent back to the browser</li>
+        <li>Strict content policy with no inline scripts — model output is cleaned before it's shown</li>
+        <li>Automatic, checked backups and one-command restore</li>
+        <li>Login protection, quotas, time limits for silent providers and an audit log</li>
+        <li>Long chats summarised automatically — originals are never deleted</li>
+      </ul>
+    </div>
+    <div class="stack" aria-label="Knitnox layers">
+      <div class="layer"><b>Your browser</b><span>htmx + a little vanilla JS · installable app</span></div>
+      <div class="layer hi"><b>knitnox</b><span>one Go binary · web, engine, agents, scheduler</span></div>
+      <div class="layer"><b>knitnox.db</b><span>one SQLite file · full-text search</span></div>
+      <div class="layer"><b>Your AI providers &amp; tools</b><span>any OpenAI-compatible API · MCP servers</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= QUICK START ================= -->
+<section id="start">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Get started</span>
+      <h2>Running in two minutes. No API key needed.</h2>
+      <p>A built-in practice AI lets you try every feature before connecting a real one. All you need is Go 1.26 or newer.</p>
+    </div>
+    <div class="qs">
+      <div class="terminal">
+        <div class="bar"><i></i><i></i><i></i><button type="button" id="copy">Copy</button></div>
+<pre id="cmds"><span class="c"># get the code</span>
+<span class="p">$ </span>git clone https://github.com/knitnox/knitnox.git
+<span class="p">$ </span>cd knitnox
+
+<span class="c"># terminal 1: the practice AI</span>
+<span class="p">$ </span>go run ./cmd/mockllm
+
+<span class="c"># terminal 2: Knitnox</span>
+<span class="p">$ </span>go run ./cmd/knitnox
+<span class="c"># → open http://localhost:8080</span></pre>
+      </div>
+      <div>
+        <ol class="steps">
+          <li><div><b>Create your account</b><p>The first account on a new server becomes the admin.</p></div></li>
+          <li><div><b>Add the practice AI</b><p>Admin → Providers → Add: base URL <code>http://localhost:9090/v1</code>, any key, then fetch models.</p></div></li>
+          <li><div><b>Start chatting</b><p>Ask <i>"what time is it?"</i> to see a tool ask for permission, or attach a PDF.</p></div></li>
+          <li><div><b>Connect a real model</b><p>OpenAI, OpenRouter, or fully local with Ollama — and invite your people.</p></div></li>
+        </ol>
+        <div class="providers"><span>Linux</span><span>macOS</span><span>Windows</span><span>Raspberry Pi</span><span>Docker</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="final">
+      <h2>Your own AI, at your own table.</h2>
+      <p>Self-hosted, private by default, and simple enough for everyone you invite.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="https://github.com/knitnox/knitnox">Get Knitnox on GitHub</a>
+        <a class="btn btn-ghost" href="https://github.com/knitnox/knitnox/blob/main/docs/USER_GUIDE.md">Read the user guide</a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© Knitnox · made with care, runs on your machine</span>
+    <div class="links">
+      <a href="https://github.com/knitnox/knitnox/blob/main/docs/USER_GUIDE.md">User guide</a>
+      <a href="https://github.com/knitnox/knitnox/blob/main/docs/FEATURES.md">Features</a>
+      <a href="https://github.com/knitnox/knitnox/blob/main/docs/DEVELOPER_GUIDE.md">Developers</a>
+      <a href="https://github.com/knitnox/knitnox/blob/main/docs/ARCHITECTURE.md">Architecture</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Accent picker: same six accents as the app.
+  document.querySelectorAll('.swatch').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.documentElement.dataset.accent = b.dataset.a;
+      document.querySelectorAll('.swatch').forEach(function (s) { s.setAttribute('aria-pressed', s === b); });
+    });
+  });
+  // Copy the quick-start commands without the prompts and comments.
+  document.getElementById('copy').addEventListener('click', function () {
+    var btn = this;
+    var text = document.getElementById('cmds').innerText.split('\n')
+      .filter(function (l) { return l.startsWith('$ '); })
+      .map(function (l) { return l.slice(2); }).join('\n');
+    navigator.clipboard.writeText(text).then(function () {
+      btn.textContent = 'Copied ✓';
+      setTimeout(function () { btn.textContent = 'Copy'; }, 1600);
+    });
+  });
+</script>
+</body>
+</html>

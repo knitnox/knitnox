@@ -1,64 +1,124 @@
+<div align="center">
+
+<img src="favicon.svg" width="96" height="96" alt="Knitnox logo">
+
 # Knitnox
 
-A small, self-hosted AI chat with **turn-based group chats**. It's one Go binary with one SQLite file, and the frontend has no build step.
+**A calm, self-hosted AI chat you can share with people.**
+One Go binary · one SQLite file · no build step · any OpenAI-compatible model.
 
-- **Any OpenAI-compatible API** (OpenAI, OpenRouter, Groq, Together, Ollama, LM Studio, vLLM, LiteLLM…). Admins add shared providers, and users can add their own keys.
-- **Admin panel**: providers and models, users, per-user token quotas (daily or monthly), usage per user and model with cost, and global settings.
-- **Background generation**: replies keep generating on the server after you close the tab, and you see the result when you come back.
-- **Message queue**: up to 10 pending messages per chat (configurable), answered in order.
-- **Context compaction**: after 50 message pairs, or when the context reaches 70% of the model's window, older turns are summarised. Originals are never deleted.
-- **MCP tools** with two modes per server: **Automatic** (tools run immediately) or **Ask before running** (the chat shows an Allow / Deny / Always-allow card and the reply waits for a person). Agent loops have a step limit and retries.
-- **Agents**: saved background workers with their own instructions, a chosen set of MCP tools and a to-do list. They run on a schedule or on demand, start fresh every run, and can be connected to a chat so its AI hands them tasks. Ready-made agents are shared in the **agent store**. See `docs/ARCHITECTURE.md` §16.
-- **Plan Book**: each user's own tasks and projects, with due dates, a bin and a change history. Once the user allows it, the AI in their chats and chosen agents can add, list and finish tasks. See `docs/ARCHITECTURE.md` §18.
-- **Feed**: one page of short posts per user, newest first. The user, the AI in their chats and chosen agents post there, with an optional report, a chart, a diagram the AI draws, or a picture, voice recording or video made by a model of that kind. Posts are private until their owner shares them with everyone on the server; agents have a daily post limit. See `docs/ARCHITECTURE.md` §19.
-- **Memory**: opt-in long-term memory per user. The AI saves short facts in one chat and looks them up in another; people, places and projects are linked into a small graph you can browse on a map. Word search works out of the box, an embedding model adds search by meaning. Everything is readable, editable and deletable. See `docs/ARCHITECTURE.md` §17.
-- **Group chats**: invite people with a link. Everyone's messages go into one queue and the AI answers them one at a time. Billing and tool access stay safe by default.
-- **Images and documents**: attach up to 6 files per message (button, paste or drag-and-drop): PNG/JPEG/WebP/GIF for vision models, plus **PDF, text, Markdown, CSV, JSON and code files**, whose text is extracted and given to the model.
-- **Tools menu per chat**: a **Tools** button next to Attach lists what the AI may use in that chat (memory, Plan Book, Feed, pictures, connected agents and each tool server) and lets the owner switch any of it off, before the first message or later.
-- **Pictures and voice in a chat**: with a picture model set up, the AI in your own chats can make a picture and show it in the conversation; with a voice model, every answer has a **Read aloud** button. They work for everyone as soon as an admin shares such a model; a user's own model, or their choice under Feed → Settings, takes its place. The Feed's daily limit covers both.
-- **Custom instructions**: per user (your solo chats) and per chat ("answer in Bengali", "we are planning a wedding").
-- **Thinking models**: `reasoning_content` / `reasoning` streams (DeepSeek, vLLM, OpenRouter…) are shown in a collapsible "Thinking" block.
-- **Edit and regenerate**: edit your latest (or any queued) message, regenerate the last answer, or retry a failed one. The old answer is replaced.
-- **Find things again**: full-text search across every chat you belong to (SQLite FTS5), "Load earlier messages" for long chats, pin and archive, rename and delete from the sidebar, export as Markdown or JSON.
-- **Install it as an app** (PWA) and get **push notifications** when a reply finishes while you're away or a tool needs your approval.
-- **Operations**: a global cap on simultaneous generations (protects your provider from 429s, honours `Retry-After`), time limits so a silent provider can never hold a chat, automatic checked backups, hourly housekeeping of old log rows, login brute-force protection, an audit log of admin actions and a context-window meter in every chat.
-- **Markdown + code highlighting**: GitHub-style Markdown (tables, task lists, quotes), monochrome syntax highlighting for 30+ common languages, and a Copy button on every code block.
-- **A calm UI** (warm neutrals plus one accent colour of six to choose from; light, dark or following the device) in an app shell like the familiar chat apps: a sidebar with pinned and date-grouped chats, a "⋯" menu on every chat, a `Ctrl+K` search-and-jump box, keyboard shortcuts, a full-screen image viewer and copy buttons on messages. It is built for phones too, with a slide-out drawer, bottom-sheet menus, safe-area handling and no iOS zoom on inputs. htmx powers the forms and about 1,150 lines of vanilla JS run the rest. The CSP allows no inline scripts or styles at all.
+[![test](https://github.com/knitnox/knitnox/actions/workflows/test.yml/badge.svg)](https://github.com/knitnox/knitnox/actions/workflows/test.yml)
+![Go 1.26+](https://img.shields.io/badge/Go-1.26%2B-00ADD8?logo=go&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-no%20CGO-003B57?logo=sqlite&logoColor=white)
+![Platforms](https://img.shields.io/badge/runs%20on-Linux%20·%20macOS%20·%20Windows-6b5cd6)
 
-- **Help built in**: a user guide, a feature list and a developer guide under **Help**, plus an **Issues** page where anyone can report a bug, idea or question and admins reply.
+[**Website**](https://knitnox.github.io/knitnox/) ·
+[Quick start](#-quick-start-no-api-key-needed) ·
+[Features](#-what-you-get) ·
+[User guide](docs/USER_GUIDE.md) ·
+[Developer guide](docs/DEVELOPER_GUIDE.md)
 
-**Guides:** [User guide](docs/USER_GUIDE.md) · [Features](docs/FEATURES.md) · [Developer guide](docs/DEVELOPER_GUIDE.md) · [Build guide](docs/BUILD_GUIDE.md) · [Architecture](docs/ARCHITECTURE.md). All but the last are also shown inside the app under **Help**.
+</div>
 
 ---
 
-## Quick start (no API key needed)
+## 💡 What is it?
 
-Requires **Go 1.26+**. CGO is not needed: SQLite is the pure-Go `modernc.org/sqlite`.
+Knitnox is a private ChatGPT-style app that you run on **your own machine or server**. You connect it to any AI provider (OpenAI, OpenRouter, Groq, Ollama, LM Studio…) and invite your family, friends or team.
+
+Its special trick is **turn-based group chats**: several people talk to the same AI in one chat, and their messages are answered **one at a time, in order**, so nobody talks over anybody.
+
+```text
+ You ──┐
+ Sam ──┼──►  one shared queue  ──►  AI answers each in turn  ──►  everyone sees it live
+ Ana ──┘
+```
+
+Download one file, run it, open your browser. No Docker, no Node, no database server required.
+
+---
+
+## ✨ What you get
+
+### 💬 Chatting
+| | |
+|---|---|
+| **Group chats** | Invite people with a link. One queue, answered in order. Billing and tool access stay safe by default. |
+| **Keeps working when you leave** | Replies keep generating on the server after you close the tab. Up to 10 messages can wait in line per chat. |
+| **Files and pictures** | Attach up to 6 files (click, paste or drag): images for vision models, plus PDF, text, Markdown, CSV, JSON and code. |
+| **Thinking models** | The reasoning of DeepSeek, vLLM and others shows in a collapsible *Thinking* block. |
+| **Edit, regenerate, retry** | Fix your last message, get another answer, or retry a failed one. |
+| **Pictures and voice** | With a picture model, the AI can draw in the chat. With a voice model, every answer gets a **Read aloud** button. |
+| **Long chats stay cheap** | Older turns are summarised automatically. Originals are never deleted. |
+
+### 🧠 An AI that helps beyond the chat
+| | |
+|---|---|
+| **Tools (MCP)** | Connect tool servers. Per server choose **Automatic** or **Ask before running** (Allow / Deny / Always allow). |
+| **Agents** | Background helpers with their own instructions, tools and to-do list. Run on a schedule or on demand, or let a chat hand them tasks. Ready-made ones in the **agent store**. |
+| **Memory** | Opt-in long-term memory. The AI remembers facts across chats and links people, places and projects on a map. You can read, edit and delete everything. |
+| **Plan Book** | Your own tasks and projects with due dates. Allowed AI chats and agents can add and finish tasks for you. |
+| **Feed** | A page of short posts by you, your chats and your agents, with reports, charts, diagrams, pictures, voice or video. Private until you share them. |
+| **Tools menu per chat** | Switch any of the above on or off for each chat. |
+
+### 🛠️ For the person who runs it
+| | |
+|---|---|
+| **Admin panel** | Providers and models, users, daily or monthly token quotas, usage and cost per user and model. |
+| **Bring your own key** | Admins share providers; users can also add their own. Keys are encrypted at rest. |
+| **Built to stay up** | A cap on simultaneous replies, time limits for silent providers, checked automatic backups, hourly cleanup, login protection and an audit log. |
+| **Install as an app** | A PWA with push notifications when a reply finishes or a tool needs your OK. |
+
+### 🎨 A calm interface
+Warm neutrals, one accent colour of six, light or dark. Works well on phones (slide-out drawer, bottom-sheet menus). `Ctrl+K` search and jump, full-text search across every chat, Markdown with code highlighting, export to Markdown or JSON. A strict security policy with no inline scripts at all.
+
+> 📖 Help is built in: the user guide, feature list and developer guide are inside the app under **Help**, plus an **Issues** page for bugs and ideas.
+
+---
+
+## 🚀 Quick start (no API key needed)
+
+You need **Go 1.26+**. No C compiler is needed: SQLite is the pure-Go `modernc.org/sqlite`.
 
 ```bash
-# terminal 1: a fake OpenAI-compatible API + fake MCP server for development
-go run ./cmd/mockllm                # http://localhost:9090
+# terminal 1: a fake AI provider + fake tool server, for trying things out
+go run ./cmd/mockllm                 # http://localhost:9090
 
 # terminal 2: Knitnox
 go run ./cmd/knitnox                 # http://localhost:8080
 ```
 
-1. Open http://localhost:8080. The **first account you create becomes the admin**. After that sign-up is closed: make more accounts under **Admin → Users**, or open sign-up under **Admin → Settings**.
-2. **Admin → Providers → Add provider**
-   - Name: `Mock`, Base URL: `http://localhost:9090/v1`, API key: anything. Then click **Fetch models from provider** and tick `mock` (or type `mock` in the Models box).
-3. **Settings → MCP servers → Add**
-   - Name `clock`, URL `http://localhost:9090/mcp`, mode **Ask me before running**, then click **Test**.
-4. Go to **Chats**, type a message and press Enter.
-   - "what time is it?" → the AI asks to run the clock tool; click **Allow once**, **Deny** or **Always allow**.
-   - "please think about cats" → a streamed **Thinking** block appears above the answer.
-   - attach a PDF or `.txt` → the mock echoes the extracted text back.
+1. Open **http://localhost:8080** and create an account. **The first account becomes the admin.**
+2. **Admin → Providers → Add provider**: name `Mock`, base URL `http://localhost:9090/v1`, any API key. Click **Fetch models from provider** and tick `mock`.
+3. **Settings → MCP servers → Add**: name `clock`, URL `http://localhost:9090/mcp`, mode **Ask me before running**, then **Test**.
+4. Go to **Chats** and try:
+   - *"what time is it?"* → the AI asks to use the clock tool. Click **Allow once**.
+   - *"please think about cats"* → a streamed **Thinking** block appears.
+   - attach a PDF or `.txt` → the mock echoes its text back.
 
-To use a real provider, add e.g. `https://api.openai.com/v1` with your key and model `gpt-4o-mini`.
-For Ollama: `http://localhost:11434/v1`, any key, model `llama3.2`.
+**Using a real model:** add `https://api.openai.com/v1` with your key and model `gpt-4o-mini`.
+**Fully local with Ollama:** `http://localhost:11434/v1`, any key, model `llama3.2`.
 
 ---
 
-## Configuration
+## 📚 Guides
+
+| Guide | For |
+|---|---|
+| [User guide](docs/USER_GUIDE.md) | Everyone using Knitnox |
+| [Features](docs/FEATURES.md) | The complete feature list |
+| [Build guide](docs/BUILD_GUIDE.md) | Building and running on each OS |
+| [Developer guide](docs/DEVELOPER_GUIDE.md) | Changing the code |
+| [Architecture](docs/ARCHITECTURE.md) | How it works inside, in depth |
+
+---
+
+## 📖 Reference
+
+Click a section to open it.
+
+<details>
+<summary><b>⚙️ Configuration</b> — environment variables and admin settings</summary>
 
 All configuration is through environment variables. Everything else is set in the Admin UI and stored in SQLite.
 
@@ -81,7 +141,7 @@ Bash: `KNITNOX_ADDR=:3000 go run ./cmd/knitnox`
 |---|---|---|
 | Allow anyone to sign up | **off** | The first account can always be made. After that an admin creates accounts, or switches this on |
 | Allowance for people who sign up | 0 (no limit) | Token quota given to accounts made by signing up, per day or month |
-| Keep users' own providers and tools away from this server's network | off | See Security notes → SSRF |
+| Keep users' own providers and tools away from this server's network | off | See Security → SSRF |
 | Housekeeping | 730 days / 730 days / 300 | How long the usage log and the audit log are kept, and how many past runs per agent. `0` = for ever. Chats, memories, tasks and posts are never removed |
 | Queue limit per chat | 10 | Pending messages per chat |
 | Agent max steps per turn | 10 | LLM ↔ tool round trips per turn. At the limit, one final answer is forced without tools |
@@ -100,47 +160,10 @@ Bash: `KNITNOX_ADDR=:3000 go run ./cmd/knitnox`
 
 Each user also has, under **Settings**: custom instructions, API keys, MCP servers (with the Automatic / Ask-first switch), notifications, and "Log out everywhere".
 
----
+</details>
 
-## Project layout
-
-```
-cmd/
-  knitnox/        main: config, startup, graceful shutdown, CLI commands
-  mockllm/       dev-only fake OpenAI + MCP server
-internal/
-  store/         ALL SQL lives here (+ migrations/*.sql, embedded)
-  secret/        AES-256-GCM for API keys / MCP headers
-  llm/           streaming client for /chat/completions (tool calls, reasoning, Retry-After)
-  mcp/           MCP client (Streamable HTTP transport)
-  netguard/      which addresses the server may call for a user (SSRF check at connect time)
-  files/         upload classification + text extraction (PDF, text)
-  hub/           in-memory pub/sub per thread (feeds SSE)
-  engine/        thread workers, queue, slots, agent loop, tool approval, compaction, quotas,
-                 agents and their scheduler, memory, Plan Book, Feed
-  web/           router, auth/CSRF/login limiter, handlers, push, backups, templates/, static/ (all embedded)
-docs/            the guides (USER_GUIDE, FEATURES, DEVELOPER_GUIDE, BUILD_GUIDE are shown in the app), ARCHITECTURE.md
-.github/workflows/test.yml   vet, tests with the race detector and a build, on every push
-```
-
-Dependencies only point downward: `web → engine → (llm, mcp, hub, store) → secret`, `web → files → store`, and `llm`, `mcp → netguard`. Only `store` touches the database.
-
----
-
-## Development
-
-```bash
-go test ./...              # engine end-to-end tests with fake LLM + MCP servers
-go vet ./...
-go build -o knitnox ./cmd/knitnox
-```
-
-- Templates, CSS and JS are embedded with `go:embed`, so **restart the server after editing them** (`go run` rebuilds).
-- `go test -race ./...` needs CGO (`CGO_ENABLED=1` and a C compiler). `.github/workflows/test.yml` runs it on Linux for every push once the project is on GitHub.
-
----
-
-## Building for Windows, Linux and macOS
+<details>
+<summary><b>📦 Building for Windows, Linux and macOS</b> — one static binary, cross-compiles from anywhere</summary>
 
 Knitnox is one static binary with everything (templates, CSS, JS, fonts, migrations) embedded. There is **no C code**, so you can build for any OS from any OS — no cross-compilers, no Docker, nothing to install besides Go 1.26+.
 
@@ -169,7 +192,7 @@ In PowerShell, clear the variables afterwards (`Remove-Item Env:GOOS, Env:GOARCH
 **All six at once**, zipped with checksums into `dist/`:
 
 ```bash
-scripts/build-all.sh 1.0.0          # Linux / macOS / Git Bash
+scripts/build-all.sh 1.0.0               # Linux / macOS / Git Bash
 .\scripts\build-all.ps1 -Version 1.0.0   # Windows PowerShell
 ```
 
@@ -194,22 +217,10 @@ Notes:
 - `mockllm` is built the same way (`./cmd/mockllm`) if you want the fake provider on a server.
 - The `Dockerfile` does a Linux amd64 build inside the image; for an ARM server use `docker build --platform linux/arm64 …`.
 
-Tests (all with in-process fake LLM / MCP servers, no network):
-- `internal/engine/engine_test.go`: a basic turn and usage, queue order and limit, the tool loop through MCP (JSON and SSE responses), group-chat name prefixes and tool hiding, compaction, quota blocking, stopping mid-stream, editing and regenerating, images as content parts.
-- `internal/engine/features_test.go`: tool approval (allow, deny, timeout, stop while waiting), the parallel-run cap, custom instructions (and that personal ones stay out of group chats), inline file text, reasoning capture, search and paging.
-- `internal/engine/reliability_test.go`, `safety_test.go`: a silent provider, the per-run time limit, a panic inside a run or a hook, a cut-off answer, and that a tool call which may have run is not repeated.
-- `internal/llm/llm_test.go`, `stall_test.go`: `Retry-After` handling; the idle watchdog before and during an answer.
-- `internal/web/web_test.go`: HTTP-level flows: CSRF, login lockout, uploads and their validation, permissions for non-members, rename/pin/archive/export/search, tool approval over HTTP, paging, admin settings and the audit log, PWA files.
-- `internal/web/accounts_test.go`, `hardening_test.go`: the password typed twice, changing a username, signing other devices out, the admin backup; sign-up closed by default and limited per address, the login limiter's keys, `X-Forwarded-For`, the health check.
-- `internal/store/backup_test.go`, `housekeeping_test.go`: a backup can be opened again, a failed one leaves nothing behind, only the newest are kept; old log rows and agent runs are removed and chats are not; exactly one first admin.
-- `internal/netguard`, `internal/mcp`, `internal/secret`, `internal/files`: the address rules, which failed tool calls are safe to repeat, sealing and opening secrets, file types decided by content.
-- Agents, memory, the Plan Book, the Feed and the help pages each have their own test files in `internal/engine` and `internal/web`; the Developer guide lists them.
+</details>
 
-The mock server (`go run ./cmd/mockllm`) exercises every feature without an API key.
-
----
-
-## Deployment
+<details>
+<summary><b>🌍 Deployment</b> — systemd, reverse proxy, Docker, Windows</summary>
 
 **Binary + systemd (Linux):**
 
@@ -242,7 +253,7 @@ location / {
 
 Caddy works with no special config: `reverse_proxy 127.0.0.1:8080`.
 
-**HTTPS matters more now:** installing Knitnox as an app and push notifications only work on `https://` (or `localhost`). The login limiter trusts `X-Forwarded-For` only when the connection comes from loopback, i.e. from a proxy on the same machine.
+**HTTPS matters:** installing Knitnox as an app and push notifications only work on `https://` (or `localhost`). The login limiter trusts `X-Forwarded-For` only when the connection comes from loopback, i.e. from a proxy on the same machine.
 
 **Docker:**
 
@@ -259,9 +270,10 @@ Run **one instance only**. Workers and the event hub live in process memory (see
 
 **Many tabs over plain `http://`:** a browser opens at most six connections to one server, and every open chat or Feed page holds one for live updates. With six or more Knitnox tabs open, further pages wait. Over HTTPS (Caddy, nginx with HTTP/2) all tabs share one connection and the limit is gone.
 
----
+</details>
 
-## Maintenance
+<details>
+<summary><b>🧰 Maintenance</b> — backups, forgotten passwords, upgrades, logs</summary>
 
 ### Backups
 **Automatic:** the server writes a backup every 24 hours into `KNITNOX_BACKUP_DIR` (default `data/backups`) and keeps the newest 7. Both numbers are under **Admin → Settings → Backups**, which also shows when the last backup ran, warns when it failed (it is then retried every hour) and has a **Back up now** button. Every backup's database copy is opened and checked (`PRAGMA integrity_check`) before the backup counts as written; a backup that fails half-way is removed.
@@ -344,9 +356,60 @@ Logs are structured text on stderr (`log/slog`). Worth watching: `run failed`, `
 ### Changing the look
 All colours, radii and shadows are CSS variables at the top of `internal/web/static/style.css`, with a dark-mode block right below (`--content-w` sets the chat column width, 920 px by default). Icons are inline SVG templates in `internal/web/templates/icons.html`; use one with `{{template "i-name"}}`. The app icon is `static/icons/favicon.svg` (a copy of `favicon.svg` in the repo root); it is the favicon, the logo in the UI (`.logo` in `style.css`) and the source of the PNGs for home screens and notifications (`icon-192/512`, `icon-512-maskable`, `apple-touch-icon`, `favicon-32`). To change the brand icon, replace that SVG and re-export the PNGs at those sizes. Static URLs are versioned automatically (`style.css?v=<build hash>`), so edited CSS/JS shows up on the next page load, including in installed apps.
 
----
+</details>
 
-## Extending: common recipes
+<details>
+<summary><b>🧪 Development and tests</b> — project layout, running tests</summary>
+
+```bash
+go test ./...              # engine end-to-end tests with fake LLM + MCP servers
+go vet ./...
+go build -o knitnox ./cmd/knitnox
+```
+
+- Templates, CSS and JS are embedded with `go:embed`, so **restart the server after editing them** (`go run` rebuilds).
+- `go test -race ./...` needs CGO (`CGO_ENABLED=1` and a C compiler). `.github/workflows/test.yml` runs it on Linux for every push.
+
+**Project layout**
+
+```
+cmd/
+  knitnox/       main: config, startup, graceful shutdown, CLI commands
+  mockllm/       dev-only fake OpenAI + MCP server
+internal/
+  store/         ALL SQL lives here (+ migrations/*.sql, embedded)
+  secret/        AES-256-GCM for API keys / MCP headers
+  llm/           streaming client for /chat/completions (tool calls, reasoning, Retry-After)
+  mcp/           MCP client (Streamable HTTP transport)
+  netguard/      which addresses the server may call for a user (SSRF check at connect time)
+  files/         upload classification + text extraction (PDF, text)
+  hub/           in-memory pub/sub per thread (feeds SSE)
+  engine/        thread workers, queue, slots, agent loop, tool approval, compaction, quotas,
+                 agents and their scheduler, memory, Plan Book, Feed
+  web/           router, auth/CSRF/login limiter, handlers, push, backups, templates/, static/ (all embedded)
+docs/            the guides (shown in the app under Help), ARCHITECTURE.md, and the website (index.html)
+.github/workflows/test.yml   vet, tests with the race detector and a build, on every push
+```
+
+Dependencies only point downward: `web → engine → (llm, mcp, hub, store) → secret`, `web → files → store`, and `llm`, `mcp → netguard`. Only `store` touches the database.
+
+**Tests** (all with in-process fake LLM / MCP servers, no network):
+- `internal/engine/engine_test.go`: a basic turn and usage, queue order and limit, the tool loop through MCP (JSON and SSE responses), group-chat name prefixes and tool hiding, compaction, quota blocking, stopping mid-stream, editing and regenerating, images as content parts.
+- `internal/engine/features_test.go`: tool approval (allow, deny, timeout, stop while waiting), the parallel-run cap, custom instructions (and that personal ones stay out of group chats), inline file text, reasoning capture, search and paging.
+- `internal/engine/reliability_test.go`, `safety_test.go`: a silent provider, the per-run time limit, a panic inside a run or a hook, a cut-off answer, and that a tool call which may have run is not repeated.
+- `internal/llm/llm_test.go`, `stall_test.go`: `Retry-After` handling; the idle watchdog before and during an answer.
+- `internal/web/web_test.go`: HTTP-level flows: CSRF, login lockout, uploads and their validation, permissions for non-members, rename/pin/archive/export/search, tool approval over HTTP, paging, admin settings and the audit log, PWA files.
+- `internal/web/accounts_test.go`, `hardening_test.go`: the password typed twice, changing a username, signing other devices out, the admin backup; sign-up closed by default and limited per address, the login limiter's keys, `X-Forwarded-For`, the health check.
+- `internal/store/backup_test.go`, `housekeeping_test.go`: a backup can be opened again, a failed one leaves nothing behind, only the newest are kept; old log rows and agent runs are removed and chats are not; exactly one first admin.
+- `internal/netguard`, `internal/mcp`, `internal/secret`, `internal/files`: the address rules, which failed tool calls are safe to repeat, sealing and opening secrets, file types decided by content.
+- Agents, memory, the Plan Book, the Feed and the help pages each have their own test files in `internal/engine` and `internal/web`; the Developer guide lists them.
+
+The mock server (`go run ./cmd/mockllm`) exercises every feature without an API key.
+
+</details>
+
+<details>
+<summary><b>🧩 Extending</b> — common recipes for changing the code</summary>
 
 ### Add an admin setting
 1. Add a field and default in `store/settings.go` (`Settings`, `DefaultSettings`, `LoadSettings`, `SaveSettings`).
@@ -384,9 +447,10 @@ Approval is decided per server (`mcp_servers.approval`) in `engine/tools.go → 
 ### Allow stdio MCP servers (admin-only)
 Deliberately not implemented, because a user-supplied command means remote code execution on the host. If you need it, add an admin-managed table and a stdio transport in `mcp/` (JSON-RPC over the process's stdin/stdout). Never let regular users configure the command.
 
----
+</details>
 
-## Security notes
+<details>
+<summary><b>🔒 Security notes</b> — how users, keys and the server are protected</summary>
 
 - **Passwords**: bcrypt. **Sessions**: random 256-bit tokens, only the SHA-256 is stored, HttpOnly + SameSite=Lax cookies.
 - **CSRF**: per-session token, required on every non-GET (`X-CSRF-Token` header or `_csrf` field).
@@ -403,7 +467,10 @@ Deliberately not implemented, because a user-supplied command means remote code 
 - **The key file**: `secret.key` lies next to the database and is copied into every backup, so the encryption of API keys protects against someone who gets only the database file, not the whole folder or a backup. To keep them apart, set `KNITNOX_SECRET` in the service's environment instead and delete `secret.key` (existing keys then have to be entered again unless the value is the file's content).
 - **Audit**: every admin action (providers, models, users, quotas, password resets, settings) is recorded with who did it, under Admin → Audit.
 
-## Known limitations
+</details>
+
+<details>
+<summary><b>⚠️ Known limitations</b></summary>
 
 - Single instance (in-memory workers, hub, slots and pending approvals).
 - MCP: Streamable HTTP transport only. The legacy HTTP+SSE transport (`GET /sse`), OAuth flows and stdio are not supported. Static auth headers work.
@@ -414,3 +481,13 @@ Deliberately not implemented, because a user-supplied command means remote code 
 - No e-mail: a forgotten password is reset by an admin, or on the server's command line.
 - Over plain `http://`, six or more open Knitnox tabs make further pages wait (see Deployment).
 - Backups are full copies. There is no incremental backup and no built-in copy to another machine.
+
+</details>
+
+---
+
+<div align="center">
+
+Made with care · self-hosted · your data stays on your machine
+
+</div>

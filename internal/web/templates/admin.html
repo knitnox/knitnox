@@ -95,7 +95,17 @@
           <div class="card">
             <h3 class="card-title">Access</h3>
             <label class="check"><input type="checkbox" name="allow_signup" value="1" {{if .S.AllowSignup}}checked{{end}}>
-              <span>Allow anyone to sign up<small>When off, only admins can create accounts.</small></span></label>
+              <span>Allow anyone to sign up<small>When off, only admins can create accounts (Admin → Users). Leave it off unless everyone who can open this address should be able to use it: each account can spend the shared AI providers.</small></span></label>
+            <div class="form-grid">
+              <label>Allowance for people who sign up (tokens) <small class="muted">how much of the shared models a new account may use · 0 = no limit</small><input name="signup_token_limit" type="number" min="0" value="{{.S.SignupTokenLimit}}"></label>
+              <label>Counted per
+                <select name="signup_period">
+                  <option value="monthly" {{if eq .S.SignupPeriod "monthly"}}selected{{end}}>month</option>
+                  <option value="daily" {{if eq .S.SignupPeriod "daily"}}selected{{end}}>day</option>
+                </select></label>
+            </div>
+            <label class="check"><input type="checkbox" name="block_private_urls" value="1" {{if .S.BlockPrivateURLs}}checked{{end}}>
+              <span>Keep users' own providers and tools away from this server's network<small>People can add their own AI providers and tool servers by address. When this is on, such an address may not point at this computer or its local network (for example another service on the same machine). Turn it on when not everyone with an account is fully trusted. Leave it off if people here run their own tool servers or Ollama on this machine or network. Shared providers that an admin adds always work.</small></span></label>
           </div>
           <div class="card" id="feed">
             <h3 class="card-title">Feed</h3>
@@ -122,7 +132,8 @@
               {{template "tip-open" "What is saved?"}}A backup is a folder with a checked copy of the database (every chat, account and setting), the key that unlocks saved API keys, and all uploaded files. To go back to one: stop Knitnox, copy the folder's contents over the data folder, start it again. Keep the backup folder on a <b>different disk</b> than the data, or copy it elsewhere, so one broken disk cannot take both.{{template "tip-close"}}
             </div>
             {{if not .Backup.Dir}}
-            <p class="muted">Automatic backups are off on this server (no backup folder is set).</p>
+            <p class="muted">Automatic backups are off on this server (it was started with <span class="mono">KNITNOX_BACKUP_DIR=off</span>).</p>
+            <input type="hidden" name="backup_every_hours" value="{{.S.BackupEveryHours}}"><input type="hidden" name="backup_keep" value="{{.S.BackupKeep}}">
             {{else}}
             <p class="muted">
               {{if not .Backup.At}}No backup has been made yet. The first one runs within the hour.
@@ -136,6 +147,16 @@
             </div>
             <div class="row wrap"><button type="button" class="btn" hx-post="/admin/backup">Back up now</button></div>
             {{end}}
+          </div>
+          <div class="card" id="housekeeping">
+            <div class="h-row"><h3 class="card-title">Housekeeping</h3>
+              {{template "tip-open" "Why delete anything?"}}Some records are added for ever and nobody reads the old ones: one line for every AI call, one for every admin action, and every past run of every agent. Over the years they make the database large and slow to back up. Once an hour, the ones older than these limits are removed. <b>Chats, memories, tasks and posts are never removed here.</b>{{template "tip-close"}}
+            </div>
+            <div class="form-grid">
+              <label>Keep the usage log for (days) <small class="muted">quotas only need the current month · 0 = for ever</small><input name="usage_keep_days" type="number" min="0" max="36500" value="{{.S.UsageKeepDays}}"></label>
+              <label>Keep the audit log for (days) <small class="muted">0 = for ever</small><input name="audit_keep_days" type="number" min="0" max="36500" value="{{.S.AuditKeepDays}}"></label>
+              <label>Past runs kept per agent <small class="muted">older runs and their messages are removed · at least 20 · 0 = keep all</small><input name="agent_runs_keep" type="number" min="0" max="100000" value="{{.S.AgentRunsKeep}}"></label>
+            </div>
           </div>
           <div class="card" id="memory">
             <div class="h-row"><h3 class="card-title">Long-term memory: smart search</h3>

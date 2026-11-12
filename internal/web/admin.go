@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"knitnox/internal/netguard"
 	"knitnox/internal/store"
 )
 
@@ -99,10 +100,19 @@ func (s *Server) adminUserCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if limit := formInt(r, "token_limit", 0); limit > 0 {
-		s.st.SetQuota(id, store.Quota{Period: periodOf(r), TokenLimit: limit})
+		if err := s.st.SetQuota(id, store.Quota{Period: periodOf(r), TokenLimit: limit}); err != nil {
+			s.log.Error("could not set the new user's allowance", "user", id, "err", err)
+		}
 	}
 	s.audit(r, "user.create", username, "role "+role)
 	s.renderUsers(w, r, false)
+}
+
+func periodOf2(v string) string {
+	if v == "daily" {
+		return "daily"
+	}
+	return "monthly"
 }
 
 func periodOf(r *http.Request) string {
@@ -150,7 +160,10 @@ func (s *Server) adminUserToggleDisabled(w http.ResponseWriter, r *http.Request)
 		s.errorPage(w, r, http.StatusNotFound, "User not found.")
 		return
 	}
-	s.st.SetUserDisabled(uid, !u.Disabled)
+	if err := s.st.SetUserDisabled(uid, !u.Disabled); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	action := "user.disable"
 	if u.Disabled {
 		action = "user.enable"
@@ -173,7 +186,10 @@ func (s *Server) adminUserToggleAdmin(w http.ResponseWriter, r *http.Request) {
 	if u.IsAdmin() {
 		role = "user"
 	}
-	s.st.SetUserRole(uid, role)
+	if err := s.st.SetUserRole(uid, role); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	s.audit(r, "user.role", u.Username, "now "+role)
 	s.renderUsers(w, r, false)
 }
@@ -198,7 +214,9 @@ func (s *Server) adminUserPassword(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	s.st.DeleteUserSessions(uid)
+	if err := s.st.DeleteUserSessions(uid); err != nil {
+		s.log.Error("could not sign the user out after a password reset", "user", uid, "err", err)
+	}
 	s.audit(r, "user.password_reset", s.userName(uid), "")
 	s.flash(w, r, "Password updated. The user has been logged out everywhere.")
 }
@@ -326,6 +344,12 @@ func (s *Server) adminSettingsSave(w http.ResponseWriter, r *http.Request) {
 		RunMaxMinutes:          clamp("run_max_minutes", int64(d.RunMaxMinutes), 0, 1440),
 		BackupEveryHours:       clamp("backup_every_hours", int64(d.BackupEveryHours), 0, 720),
 		BackupKeep:             clamp("backup_keep", int64(d.BackupKeep), 1, 365),
+		UsageKeepDays:          clamp("usage_keep_days", int64(d.UsageKeepDays), 0, 36500),
+		AuditKeepDays:          clamp("audit_keep_days", int64(d.AuditKeepDays), 0, 36500),
+		AgentRunsKeep:          clamp("agent_runs_keep", int64(d.AgentRunsKeep), 0, 100000),
+		SignupTokenLimit:       max(formInt(r, "signup_token_limit", 0), 0),
+		SignupPeriod:           periodOf2(r.FormValue("signup_period")),
+		BlockPrivateURLs:       r.FormValue("block_private_urls") == "1",
 		EmbedProviderID:        formInt(r, "embed_provider_id", 0),
 		EmbedModel:             strings.TrimSpace(r.FormValue("embed_model")),
 		EmbedDimensions:        clamp("embed_dimensions", 0, 0, 8192),
@@ -335,10 +359,14 @@ func (s *Server) adminSettingsSave(w http.ResponseWriter, r *http.Request) {
 	if p, err := s.st.ProviderByID(st.EmbedProviderID); err != nil || !p.IsGlobal() {
 		st.EmbedProviderID = 0 // only shared providers can serve everyone
 	}
+	if st.AgentRunsKeep > 0 && st.AgentRunsKeep < 20 {
+		st.AgentRunsKeep = 20 // an agent's daily limit and its digest of recent runs need some history
+	}
 	if err := s.st.SaveSettings(st); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
+	netguard.SetBlockPrivate(st.BlockPrivateURLs)
 	s.audit(r, "settings.save", "", fmt.Sprintf("signup=%v queue=%d steps=%d parallel=%d", st.AllowSignup, st.QueueMax, st.AgentMaxSteps, st.MaxParallelRuns))
 	http.Redirect(w, r, "/admin/settings?saved=1", http.StatusSeeOther)
 }

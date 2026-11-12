@@ -391,7 +391,7 @@ func testEmbedding(ctx context.Context, w http.ResponseWriter, p *store.Provider
 	}
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	em := &engine.Embedder{BaseURL: p.BaseURL, APIKey: p.APIKey, Model: model, Dimensions: dims}
+	em := &engine.Embedder{BaseURL: p.BaseURL, APIKey: p.APIKey, Model: model, Dimensions: dims, Personal: !p.IsGlobal()}
 	n, err := em.Test(ctx)
 	if err != nil {
 		fmt.Fprintf(w, "It did not work: %s", templateEscape(preview(err.Error(), 300)))

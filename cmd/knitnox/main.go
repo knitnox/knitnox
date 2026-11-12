@@ -13,6 +13,7 @@
 //	KNITNOX_DATA            data directory            (default "./data")
 //	KNITNOX_SECRET          encryption passphrase     (default: generated into DATA/secret.key)
 //	KNITNOX_SECURE_COOKIES  "1" when served over HTTPS
+//	KNITNOX_LOG_FILE        also write the log to this file (10 MB, one older file kept)
 //	KNITNOX_BACKUP_DIR      automatic backups         (default DATA/backups; "off" disables them)
 //	KNITNOX_LOG             "debug" | "info" | "warn"  (default "info")
 package main
@@ -21,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -90,7 +92,17 @@ func main() {
 	case "warn":
 		level = slog.LevelWarn
 	}
-	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level}))
+	var out io.Writer = os.Stderr
+	// Only the server writes the log file; the short commands print to the screen.
+	if path := env("KNITNOX_LOG_FILE", ""); path != "" && (len(os.Args) < 2 || os.Args[1] == "serve") {
+		lf, err := openLogFile(path, 10<<20)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "cannot open the log file:", err)
+			os.Exit(1)
+		}
+		out = io.MultiWriter(os.Stderr, lf)
+	}
+	log := slog.New(slog.NewTextHandler(out, &slog.HandlerOptions{Level: level}))
 	slog.SetDefault(log)
 
 	cmd := "serve"

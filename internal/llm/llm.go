@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"knitnox/internal/netguard"
 )
 
 type Message struct {
@@ -84,11 +86,18 @@ type Request struct {
 	// before the answer starts or in the middle of it. 0 = DefaultIdleTimeout,
 	// negative = never.
 	IdleTimeout time.Duration
+	// UserURL says a user typed BaseURL in (their own provider), so the
+	// addresses users may not reach are refused (see netguard).
+	UserURL bool
 }
 
 // DefaultIdleTimeout is how long a provider may stay silent before a call is
 // given up. Models that think before they answer can be quiet for minutes.
 const DefaultIdleTimeout = 5 * time.Minute
+
+// ErrTruncated is returned when the stream ended before the provider said it
+// was done: the connection closed in the middle of an answer.
+var ErrTruncated = errors.New("the answer was cut off: the connection to the provider closed before it finished")
 
 // ErrStalled is returned when the provider stopped sending data.
 var ErrStalled = errors.New("the provider stopped answering (no data for too long)")
@@ -155,7 +164,9 @@ func RetryDelay(err error, attempt int) time.Duration {
 	return min(wait, 60*time.Second)
 }
 
-var client = &http.Client{Timeout: 0} // streams can be long; cancellation via context
+// httpClient picks the client for an address. Neither has a timeout of its
+// own: streams can be long, and the context and the idle watchdog end them.
+func httpClient(userURL bool) *http.Client { return netguard.Client(userURL) }
 
 // Stream performs one streamed completion, calling onDelta for each content chunk.
 func Stream(ctx context.Context, req Request, onDelta func(string)) (*Result, error) {
@@ -200,7 +211,7 @@ func Stream(ctx context.Context, req Request, onDelta func(string)) (*Result, er
 	if req.APIKey != "" {
 		hreq.Header.Set("Authorization", "Bearer "+req.APIKey)
 	}
-	resp, err := client.Do(hreq)
+	resp, err := httpClient(req.UserURL).Do(hreq)
 	if err != nil {
 		return nil, stalled(err)
 	}
@@ -248,6 +259,7 @@ func parseStream(r io.Reader, onDelta func(string), onReasoning func(string)) (*
 	var content, reasoning strings.Builder
 	calls := map[int]*ToolCall{}
 	maxIdx := -1
+	finished := false // the provider said so: [DONE] or a finish_reason
 
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 64*1024), 4*1024*1024)
@@ -258,6 +270,7 @@ func parseStream(r io.Reader, onDelta func(string), onReasoning func(string)) (*
 		}
 		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
 		if data == "[DONE]" {
+			finished = true
 			break
 		}
 		var c chunk
@@ -298,13 +311,17 @@ func parseStream(r io.Reader, onDelta func(string), onReasoning func(string)) (*
 				}
 				call.Function.Arguments += tc.Function.Arguments
 			}
-			if ch.FinishReason != nil {
+			if ch.FinishReason != nil && *ch.FinishReason != "" {
 				res.FinishReason = *ch.FinishReason
+				finished = true
 			}
 		}
 	}
 	if err := sc.Err(); err != nil {
 		return nil, err
+	}
+	if !finished {
+		return nil, ErrTruncated
 	}
 	res.Content = content.String()
 	res.Reasoning = reasoning.String()
@@ -329,8 +346,8 @@ func Complete(ctx context.Context, req Request) (*Result, error) {
 
 // IsRetryable reports whether an error from Stream is worth retrying.
 func IsRetryable(err error) bool {
-	if err == nil || errors.Is(err, context.Canceled) || errors.Is(err, ErrStalled) {
-		return false // a provider that went silent is not asked again; the user can retry
+	if err == nil || errors.Is(err, context.Canceled) || errors.Is(err, ErrStalled) || errors.Is(err, ErrTruncated) {
+		return false // a provider that went silent or hung up is not asked again; the user can retry
 	}
 	var he *HTTPError
 	if errors.As(err, &he) {

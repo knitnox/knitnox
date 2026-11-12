@@ -980,7 +980,10 @@ func (s *Server) leaveThread(w http.ResponseWriter, r *http.Request) {
 		s.errorPage(w, r, http.StatusBadRequest, "The owner cannot leave; delete the chat instead.")
 		return
 	}
-	s.st.RemoveMember(t.ID, currentUser(r).ID)
+	if err := s.st.RemoveMember(t.ID, currentUser(r).ID); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	if isHX(r) {
 		w.Header().Set("HX-Redirect", "/")
 		return
@@ -1011,7 +1014,10 @@ func (s *Server) revokeInvite(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	s.st.RevokeInvite(t.ID, r.PathValue("tok"))
+	if err := s.st.RevokeInvite(t.ID, r.PathValue("tok")); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	s.renderPanel(w, r, t, "owner")
 }
 
@@ -1020,7 +1026,10 @@ func (s *Server) removeMember(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	s.st.RemoveMember(t.ID, pathID(r, "uid"))
+	if err := s.st.RemoveMember(t.ID, pathID(r, "uid")); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	s.hub.Publish(t.ID, engine.EvMessages, nil)
 	s.renderPanel(w, r, t, "owner")
 }

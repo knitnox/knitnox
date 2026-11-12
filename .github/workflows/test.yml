@@ -1,0 +1,26 @@
+# Runs on every push and pull request once the project is on GitHub.
+# The race detector needs a C compiler, which the Linux runner has; this is
+# the one check that cannot be run with a plain Go install on Windows.
+name: test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: gofmt -l . | tee /dev/stderr | (! grep .)
+      - run: go vet ./...
+      - run: go test -race -timeout 10m ./...
+        env:
+          CGO_ENABLED: "1"
+      - run: go build -trimpath -o /tmp/knitnox ./cmd/knitnox

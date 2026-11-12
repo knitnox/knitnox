@@ -67,6 +67,7 @@ All configuration is through environment variables. Everything else is set in th
 | `KNITNOX_SECRET` | *(generated)* | Passphrase that encrypts API keys and MCP headers at rest. If unset, a random key is written to `$KNITNOX_DATA/secret.key` |
 | `KNITNOX_SECURE_COOKIES` | off | Set to `1` when served over HTTPS |
 | `KNITNOX_LOG` | `info` | `debug`, `info` or `warn` |
+| `KNITNOX_LOG_FILE` | *(none)* | Also write the log to this file. It is turned over at 10 MB and one older file (`NAME.1`) is kept. Useful on Windows, where nothing collects what a program prints |
 | `KNITNOX_BACKUP_DIR` | `$KNITNOX_DATA/backups` | Where automatic backups are written. Point it at **another disk** if you can. `off` disables them |
 
 PowerShell: `$env:KNITNOX_ADDR=":3000"; go run ./cmd/knitnox`
@@ -76,7 +77,10 @@ Bash: `KNITNOX_ADDR=:3000 go run ./cmd/knitnox`
 
 | Setting | Default | |
 |---|---|---|
-| Allow public sign-up | on | Off means only admins create accounts |
+| Allow anyone to sign up | **off** | The first account can always be made. After that an admin creates accounts, or switches this on |
+| Allowance for people who sign up | 0 (no limit) | Token quota given to accounts made by signing up, per day or month |
+| Keep users' own providers and tools away from this server's network | off | See Security notes → SSRF |
+| Housekeeping | 730 days / 730 days / 300 | How long the usage log and the audit log are kept, and how many past runs per agent. `0` = for ever. Chats, memories, tasks and posts are never removed |
 | Queue limit per chat | 10 | Pending messages per chat |
 | Agent max steps per turn | 10 | LLM ↔ tool round trips per turn. At the limit, one final answer is forced without tools |
 | Tool call retries | 2 | For transport failures of a single MCP call |
@@ -127,7 +131,7 @@ go build -o knitnox ./cmd/knitnox
 ```
 
 - Templates, CSS and JS are embedded with `go:embed`, so **restart the server after editing them** (`go run` rebuilds).
-- `go test -race ./...` needs CGO (`CGO_ENABLED=1` and a C compiler). Run it in CI on Linux.
+- `go test -race ./...` needs CGO (`CGO_ENABLED=1` and a C compiler). `.github/workflows/test.yml` runs it on Linux for every push once the project is on GitHub.
 
 ---
 
@@ -289,18 +293,18 @@ The app was renamed from Parley to Knitnox. Existing installs keep working witho
 Migrations in `internal/store/migrations/NNN_name.sql` run automatically at startup, in order, each in a transaction, and are recorded in `schema_migrations`. **Never edit a migration that has shipped. Add a new file.** Back up before upgrading.
 
 ### Things that grow
-- `usage_log` gets one row per LLM call. Archive old rows if needed:
-  `DELETE FROM usage_log WHERE created_at < '2026-01-01';`
+- `usage_log` gets one row per LLM call, `audit_log` one per admin action, and every agent run stays as a run with its messages. The hourly clean-up removes the ones past the limits under **Admin → Settings → Housekeeping**, then runs `PRAGMA optimize` and folds the write-ahead log back into the database file.
 - `messages` grows forever (compaction never deletes). Deleting a chat removes its messages.
 - `uploads/` grows with images and documents. Deleting a chat deletes its files, and an hourly sweep removes files no row references any more (from deleted users, or queued messages that were cancelled). Uploads are capped at 6 files per message, 10 MB per image and 20 MB per document; browsers resize photos to ≤2048 px first, and extracted document text is capped at 120k characters per file.
 - `messages_fts` (the search index) is roughly the size of the message text. It is maintained by triggers; rebuild it after a manual bulk import with `INSERT INTO messages_fts(messages_fts) VALUES('rebuild');`.
-- `audit_log` gets one row per admin action; `tool_approvals` one per asked tool call. Both are small.
+- `tool_approvals` gets one row per asked tool call. It is small.
 - Expired sessions are purged hourly.
 
 ### Restarts
 A reply that is generating during a restart is marked **interrupted**, and its partial text is kept. Queued messages **resume automatically** on startup.
 
 ### When something goes wrong inside a run
+- An answer whose connection closes before the provider said it was finished is marked failed with the text so far, not saved as a complete answer.
 - A provider that stops sending data fails the reply after the idle time above; the text so far is kept and the user can press Retry. Stalled calls are not retried automatically.
 - A bug (panic) in one reply, agent run, media job or notification is caught: that run is marked failed, the error and stack go to the log (`panic while running a reply`, `panic in background work`), and the server keeps running.
 - Still run Knitnox under something that restarts it (systemd `Restart=on-failure`, Docker `--restart unless-stopped`, or a Windows service), for the cases no program can catch, like running out of memory.
@@ -363,11 +367,15 @@ Deliberately not implemented, because a user-supplied command means remote code 
 - **CSRF**: per-session token, required on every non-GET (`X-CSRF-Token` header or `_csrf` field).
 - **XSS**: templates auto-escape. Model output is rendered as Markdown and passed through DOMPurify (with `style` attributes stripped). The CSP is `default-src 'self'` with **no `unsafe-inline`** for scripts or styles, plus `frame-ancestors 'none'`, `base-uri 'self'` and `form-action 'self'`.
 - **Uploads**: types are decided by sniffing the bytes, never by the file name. Documents are served as downloads (`Content-Disposition: attachment`), and HTML/XML uploads are served as plain text, so an uploaded page can never run in Knitnox's origin.
-- **Login**: 10 failed attempts for a username, or 30 from one IP, within 15 minutes lock that username / IP out for 15 minutes. A successful login clears the counters. Admin password resets log the user out everywhere.
+- **Sign-up** is closed unless an admin opens it, is limited to 10 accounts per address in 15 minutes, and the first-account-is-admin rule is decided inside one database statement.
+- **Login**: within 15 minutes, 10 wrong passwords for one account from one address, 30 failures from one address, or 100 for one account from anywhere lock that out for 15 minutes. So a stranger cannot lock a known name out by failing on purpose. Whether a name exists, or is disabled, is told only to someone who knows its password. Behind a proxy on the same machine the caller's address is the **last** entry of `X-Forwarded-For`. Changing or resetting a password signs the other devices out.
+- **Pictures from other sites** in an answer are not loaded by themselves: a button stands in their place and the picture loads on a click. Otherwise text the AI was fed (a web page, a file, a tool result) could make it write a picture address that carries your data to someone else's server.
 - **Tool approval**: "Ask before running" is the safe default for anything with side effects. Only the chat owner or the person whose message triggered the call can decide, and "Always allow" (which switches the server to automatic) is owner-only.
 - **API keys / MCP headers**: AES-256-GCM at rest and never sent back to the browser (shown as `sk-…abcd`).
 - **Group chats**: members never get the owner's MCP tools or personal API key unless the owner opts in per chat. Personal custom instructions are never applied in group chats.
-- **SSRF**: users can make the server call any URL they enter (provider base URL, MCP URL). On a multi-tenant deployment, put Knitnox in a network segment without access to internal services or cloud metadata endpoints, or add an allow/deny list in `web/settings.go → validURL`.
+- **SSRF**: users can make the server call an address they enter (their own provider's base URL, a tool server, a picture link a provider returns). `internal/netguard` checks every such connection where it is opened, after the name was looked up, so redirects and names that change are covered. Link-local addresses (`169.254.0.0/16`, `fe80::/10`, where cloud hosts keep credentials) are always refused. With **Admin → Settings → Keep users' own providers and tools away from this server's network** on, this machine and private networks are refused too. It is off at first because a tool server or Ollama on the same machine is common; turn it on when not everyone with an account is fully trusted. Addresses an admin sets up (shared providers) are never checked.
+- **Tool calls are not repeated blindly**: a call is retried only when it cannot have reached the tool (connection refused, or the server answered 429/503). After a timeout or a lost answer the model is told the tool may have run.
+- **The key file**: `secret.key` lies next to the database and is copied into every backup, so the encryption of API keys protects against someone who gets only the database file, not the whole folder or a backup. To keep them apart, set `KNITNOX_SECRET` in the service's environment instead and delete `secret.key` (existing keys then have to be entered again unless the value is the file's content).
 - **Audit**: every admin action (providers, models, users, quotas, password resets, settings) is recorded with who did it, under Admin → Audit.
 
 ## Known limitations

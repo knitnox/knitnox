@@ -21,6 +21,15 @@ type Settings struct {
 	RunMaxMinutes          int // a reply or agent run is stopped after this long (0 = never)
 	BackupEveryHours       int // automatic backups (0 = off)
 	BackupKeep             int // how many automatic backups are kept
+	// Housekeeping: old rows the hourly clean-up removes (0 = keep for ever).
+	UsageKeepDays int // usage log
+	AuditKeepDays int // audit log
+	AgentRunsKeep int // finished runs kept per agent
+	// New accounts made by signing up get this allowance (0 = no limit).
+	SignupTokenLimit int64
+	SignupPeriod     string // daily | monthly
+	// Refuse this server's own machine and local network to users' own providers and tool servers.
+	BlockPrivateURLs bool
 	// Long-term memory: the embedding model that powers "smart search" for
 	// everyone who has not set their own. Provider 0 or an empty model = off.
 	EmbedProviderID int64
@@ -34,7 +43,7 @@ type Settings struct {
 
 func DefaultSettings() Settings {
 	return Settings{
-		AllowSignup:            true,
+		AllowSignup:            false, // the first account can always be made; after that an admin opens sign-up or creates accounts
 		QueueMax:               10,
 		AgentMaxSteps:          10,
 		ToolMaxRetries:         2,
@@ -49,6 +58,10 @@ func DefaultSettings() Settings {
 		RunMaxMinutes:          60,
 		BackupEveryHours:       24,
 		BackupKeep:             7,
+		UsageKeepDays:          730,
+		AuditKeepDays:          730,
+		AgentRunsKeep:          300,
+		SignupPeriod:           "monthly",
 		FeedPublic:             true,
 		FeedMediaDaily:         20,
 	}
@@ -107,6 +120,22 @@ func (s *Store) LoadSettings() (Settings, error) {
 			st.BackupEveryHours = atoi(st.BackupEveryHours)
 		case "backup_keep":
 			st.BackupKeep = atoi(st.BackupKeep)
+		case "usage_keep_days":
+			st.UsageKeepDays = atoi(st.UsageKeepDays)
+		case "audit_keep_days":
+			st.AuditKeepDays = atoi(st.AuditKeepDays)
+		case "agent_runs_keep":
+			st.AgentRunsKeep = atoi(st.AgentRunsKeep)
+		case "signup_token_limit":
+			if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+				st.SignupTokenLimit = n
+			}
+		case "signup_period":
+			if v == "daily" || v == "monthly" {
+				st.SignupPeriod = v
+			}
+		case "block_private_urls":
+			st.BlockPrivateURLs = v == "1"
 		case "embed_provider_id":
 			st.EmbedProviderID = int64(atoi(0))
 		case "embed_model":
@@ -140,6 +169,12 @@ func (s *Store) SaveSettings(st Settings) error {
 		"run_max_minutes":          strconv.Itoa(st.RunMaxMinutes),
 		"backup_every_hours":       strconv.Itoa(st.BackupEveryHours),
 		"backup_keep":              strconv.Itoa(st.BackupKeep),
+		"usage_keep_days":          strconv.Itoa(st.UsageKeepDays),
+		"audit_keep_days":          strconv.Itoa(st.AuditKeepDays),
+		"agent_runs_keep":          strconv.Itoa(st.AgentRunsKeep),
+		"signup_token_limit":       strconv.FormatInt(st.SignupTokenLimit, 10),
+		"signup_period":            st.SignupPeriod,
+		"block_private_urls":       strconv.Itoa(b2i(st.BlockPrivateURLs)),
 		"embed_provider_id":        strconv.FormatInt(st.EmbedProviderID, 10),
 		"embed_model":              st.EmbedModel,
 		"embed_dimensions":         strconv.Itoa(st.EmbedDimensions),

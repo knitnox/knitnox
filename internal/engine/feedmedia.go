@@ -196,7 +196,7 @@ func (e *Engine) makeFeedMedia(userID, postID int64, kind, prompt string, checkM
 		fail(errors.New("the model is not set up any more"))
 		return
 	}
-	req := llm.MediaRequest{BaseURL: p.BaseURL, APIKey: p.APIKey, Model: m.Name, Prompt: prompt}
+	req := llm.MediaRequest{BaseURL: p.BaseURL, APIKey: p.APIKey, Model: m.Name, Prompt: prompt, UserURL: !p.IsGlobal()}
 	make := func() (*llm.Media, error) {
 		switch kind {
 		case store.MediaImage:
@@ -267,7 +267,7 @@ func (e *Engine) reviewImage(ctx context.Context, userID, threadID, modelID int6
 	}
 	cctx, cancel := context.WithTimeout(ctx, 90*time.Second)
 	defer cancel()
-	res, err := llm.Complete(cctx, llm.Request{BaseURL: p.BaseURL, APIKey: p.APIKey, Model: m.Name, Messages: msgs})
+	res, err := llm.Complete(cctx, llm.Request{BaseURL: p.BaseURL, APIKey: p.APIKey, Model: m.Name, Messages: msgs, UserURL: !p.IsGlobal()})
 	if err != nil {
 		e.log.Warn("feed picture check failed", "err", err)
 		return ""

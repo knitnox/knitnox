@@ -19,6 +19,7 @@ type EmbedRequest struct {
 	Model      string
 	Dimensions int // 0 = the model's own size; only some models can shrink
 	Input      []string
+	UserURL    bool // a user's own provider: guarded addresses are refused
 }
 
 // Embed returns one vector per input, in input order.
@@ -42,7 +43,7 @@ func Embed(ctx context.Context, req EmbedRequest) ([][]float32, error) {
 	if req.APIKey != "" {
 		hreq.Header.Set("Authorization", "Bearer "+req.APIKey)
 	}
-	resp, err := client.Do(hreq)
+	resp, err := httpClient(req.UserURL).Do(hreq)
 	if err != nil {
 		return nil, err
 	}

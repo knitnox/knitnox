@@ -84,7 +84,7 @@ func (e *Engine) MemoryEmbedder(userID int64) *Embedder {
 // Embed turns texts into unit-length vectors.
 func (em *Embedder) Embed(ctx context.Context, texts []string) ([][]float32, error) {
 	vecs, err := llm.Embed(ctx, llm.EmbedRequest{BaseURL: em.BaseURL, APIKey: em.APIKey, Model: em.Model,
-		Dimensions: em.Dimensions, Input: texts})
+		Dimensions: em.Dimensions, Input: texts, UserURL: em.Personal})
 	if err != nil {
 		return nil, err
 	}

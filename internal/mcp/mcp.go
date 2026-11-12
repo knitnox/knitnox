@@ -13,10 +13,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"knitnox/internal/netguard"
 )
 
 const protocolVersion = "2025-06-18"
@@ -35,6 +38,38 @@ type Client struct {
 	http      *http.Client
 }
 
+// maxResponse caps how much of one answer is read, so a broken or hostile
+// server cannot fill the memory.
+const maxResponse = 16 << 20
+
+// StatusError is an HTTP answer that is not a success.
+type StatusError struct {
+	Status int
+	Body   string
+}
+
+func (e *StatusError) Error() string {
+	return fmt.Sprintf("mcp server returned %d: %s", e.Status, e.Body)
+}
+
+// NotSent reports whether a failed call certainly never reached the tool: the
+// connection could not be opened, or the server refused the request because it
+// is busy. Only such calls are safe to repeat. After a timeout or a dropped
+// connection the tool may have run, and running it again could send the
+// e-mail or place the order a second time.
+func NotSent(err error) bool {
+	var op *net.OpError
+	if errors.As(err, &op) && op.Op == "dial" {
+		return true
+	}
+	var dns *net.DNSError
+	if errors.As(err, &dns) {
+		return true
+	}
+	var se *StatusError
+	return errors.As(err, &se) && (se.Status == http.StatusTooManyRequests || se.Status == http.StatusServiceUnavailable)
+}
+
 // ParseHeaders turns "Key: Value" lines into a map.
 func ParseHeaders(lines string) map[string]string {
 	out := map[string]string{}
@@ -49,7 +84,7 @@ func ParseHeaders(lines string) map[string]string {
 
 // Connect performs the MCP initialize handshake.
 func Connect(ctx context.Context, url, headerLines string) (*Client, error) {
-	c := &Client{url: url, headers: ParseHeaders(headerLines), http: &http.Client{Timeout: 60 * time.Second}}
+	c := &Client{url: url, headers: ParseHeaders(headerLines), http: &http.Client{Timeout: 150 * time.Second, Transport: netguard.Transport}} // users add tool servers, so guarded addresses are refused; the caller's context sets the real limit
 	_, err := c.call(ctx, "initialize", map[string]any{
 		"protocolVersion": protocolVersion,
 		"capabilities":    map[string]any{},
@@ -188,7 +223,7 @@ func (c *Client) post(ctx context.Context, payload any) (*http.Response, error) 
 	if resp.StatusCode/100 != 2 {
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 1000))
 		resp.Body.Close()
-		return nil, fmt.Errorf("mcp server returned %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
+		return nil, &StatusError{Status: resp.StatusCode, Body: strings.TrimSpace(string(b))}
 	}
 	return resp, nil
 }
@@ -223,7 +258,7 @@ func (c *Client) call(ctx context.Context, method string, params any) (json.RawM
 
 	if strings.HasPrefix(resp.Header.Get("Content-Type"), "text/event-stream") {
 		// Server streams JSON-RPC messages as SSE events; find our response.
-		sc := bufio.NewScanner(resp.Body)
+		sc := bufio.NewScanner(io.LimitReader(resp.Body, maxResponse))
 		sc.Buffer(make([]byte, 64*1024), 8*1024*1024)
 		var data strings.Builder
 		for sc.Scan() {
@@ -257,7 +292,7 @@ func (c *Client) call(ctx context.Context, method string, params any) (json.RawM
 	}
 
 	var r rpcResponse
-	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxResponse)).Decode(&r); err != nil {
 		return nil, fmt.Errorf("mcp: bad response: %w", err)
 	}
 	res, _, err := match(r)

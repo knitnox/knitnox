@@ -17,6 +17,7 @@ import (
 	"unicode/utf16"
 
 	"knitnox/internal/hub"
+	"knitnox/internal/netguard"
 	"knitnox/internal/store"
 )
 
@@ -109,6 +110,9 @@ func New(st *store.Store, h *hub.Hub, log *slog.Logger) *Engine {
 
 // Start recovers from a previous crash and resumes queued work.
 func (e *Engine) Start() error {
+	if st, err := e.st.LoadSettings(); err == nil {
+		netguard.SetBlockPrivate(st.BlockPrivateURLs)
+	}
 	if err := e.st.RecoverAfterRestart(); err != nil {
 		return err
 	}
@@ -338,6 +342,21 @@ func (e *Engine) work(threadID int64) {
 	}
 }
 
+// finishRun records how a run ended. The write is tried a few times: if it
+// were lost, the run would look as if it was still going until the next restart.
+func (e *Engine) finishRun(runID int64, status, errMsg string, steps int) {
+	var err error
+	for attempt := 0; attempt < 4; attempt++ {
+		if attempt > 0 {
+			time.Sleep(time.Duration(attempt) * 500 * time.Millisecond)
+		}
+		if err = e.st.FinishRun(runID, status, errMsg, steps); err == nil {
+			return
+		}
+	}
+	e.log.Error("could not record how a run ended; it will be marked interrupted at the next restart", "run", runID, "status", status, "err", err)
+}
+
 // recoverPanic keeps one broken piece of background work from taking the
 // whole server down. Use it as: defer e.recoverPanic("what was running").
 func (e *Engine) recoverPanic(what string) {
@@ -356,10 +375,10 @@ func (e *Engine) safeProcess(run *store.Run) {
 		}
 		e.log.Error("panic while running a reply", "run", run.ID, "thread", run.ThreadID, "value", fmt.Sprint(v), "stack", string(debug.Stack()))
 		const msg = "something went wrong inside Knitnox; the details are in the server log"
-		e.st.FailStreamingMessages(run.ID)
-		if err := e.st.FinishRun(run.ID, store.RunFailed, msg, 0); err != nil {
-			e.log.Error("finish run after panic", "run", run.ID, "err", err)
+		if err := e.st.FailStreamingMessages(run.ID); err != nil {
+			e.log.Error("close messages after panic", "run", run.ID, "err", err)
 		}
+		e.finishRun(run.ID, store.RunFailed, msg, 0)
 		e.hub.Publish(run.ThreadID, EvRun, map[string]any{"run_id": run.ID, "status": store.RunFailed, "error": msg})
 		e.hub.Publish(run.ThreadID, EvMessages, nil)
 	}()
@@ -408,7 +427,7 @@ func (e *Engine) process(run *store.Run) {
 	e.hub.Publish(run.ThreadID, EvRun, map[string]any{"run_id": run.ID, "status": RunWaiting})
 	if _, err := e.slots.acquire(ctx, limit); err != nil {
 		if ar.stopped { // user cancelled while waiting
-			e.st.FinishRun(run.ID, store.RunCancelled, "stopped", 0)
+			e.finishRun(run.ID, store.RunCancelled, "stopped", 0)
 			e.hub.Publish(run.ThreadID, EvRun, map[string]any{"run_id": run.ID, "status": store.RunCancelled})
 			e.hub.Publish(run.ThreadID, EvMessages, nil)
 		}
@@ -463,9 +482,7 @@ func (e *Engine) process(run *store.Run) {
 			e.log.Warn("run failed", "run", run.ID, "thread", run.ThreadID, "err", err)
 		}
 	}
-	if err := e.st.FinishRun(run.ID, status, errMsg, steps); err != nil {
-		e.log.Error("finish run", "run", run.ID, "err", err)
-	}
+	e.finishRun(run.ID, status, errMsg, steps)
 	e.st.TouchThread(run.ThreadID)
 	e.hub.Publish(run.ThreadID, EvRun, map[string]any{"run_id": run.ID, "status": status, "error": errMsg})
 	e.hub.Publish(run.ThreadID, EvMessages, nil)

@@ -203,6 +203,12 @@ func (ts *toolset) call(ctx context.Context, call llm.ToolCall, retries int) str
 			if ctx.Err() != nil {
 				return "Error: cancelled"
 			}
+			if !mcp.NotSent(err) {
+				// The request left this server, so the tool may have run. Asking
+				// again could do the same thing twice; tell the model instead.
+				return fmt.Sprintf("Error: tool %q did not answer (%v). It may or may not have run. Do not call it again blindly: "+
+					"if it changes something (sends, books, pays, deletes), first check whether that already happened, or tell the user.", route.name, err)
+			}
 			continue
 		}
 		if r := []rune(text); len(r) > maxToolOutput {
@@ -216,7 +222,7 @@ func (ts *toolset) call(ctx context.Context, call llm.ToolCall, retries int) str
 		}
 		return text
 	}
-	return fmt.Sprintf("Error: tool %q failed after %d attempts: %v", route.name, retries+1, lastErr)
+	return fmt.Sprintf("Error: tool %q could not be reached after %d attempts, so it did not run: %v", route.name, retries+1, lastErr)
 }
 
 func (ts *toolset) close() {

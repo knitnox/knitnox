@@ -30,6 +30,7 @@ type MediaRequest struct {
 	Model   string
 	Prompt  string // what to draw or film, or the text to speak
 	Voice   string // voice name for speech; "" = "alloy"
+	UserURL bool   // a user's own provider: guarded addresses are refused
 }
 
 // Media is a finished file.
@@ -40,7 +41,7 @@ type Media struct {
 
 const mediaMaxBytes = 100 << 20
 
-func mediaCall(ctx context.Context, method, url, key string, body any) (*http.Response, error) {
+func mediaCall(ctx context.Context, userURL bool, method, url, key string, body any) (*http.Response, error) {
 	var rd io.Reader
 	if body != nil {
 		buf, err := json.Marshal(body)
@@ -59,7 +60,7 @@ func mediaCall(ctx context.Context, method, url, key string, body any) (*http.Re
 	if key != "" {
 		req.Header.Set("Authorization", "Bearer "+key)
 	}
-	resp, err := client.Do(req)
+	resp, err := httpClient(userURL).Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +97,7 @@ func readMedia(resp *http.Response, fallbackMime string) (*Media, error) {
 
 // GenerateImage asks an image model for one picture.
 func GenerateImage(ctx context.Context, req MediaRequest) (*Media, error) {
-	resp, err := mediaCall(ctx, http.MethodPost, req.BaseURL+"/images/generations", req.APIKey,
+	resp, err := mediaCall(ctx, req.UserURL, http.MethodPost, req.BaseURL+"/images/generations", req.APIKey,
 		map[string]any{"model": req.Model, "prompt": req.Prompt, "n": 1})
 	if err != nil {
 		return nil, err
@@ -134,7 +135,7 @@ func GenerateImage(ctx context.Context, req MediaRequest) (*Media, error) {
 	if !strings.HasPrefix(link, "https://") && !strings.HasPrefix(link, "http://") {
 		return nil, errors.New("the image endpoint returned neither a picture nor a link to one")
 	}
-	file, err := mediaCall(ctx, http.MethodGet, link, "", nil) // a signed link: no key is sent to it
+	file, err := mediaCall(ctx, req.UserURL, http.MethodGet, link, "", nil) // a signed link: no key is sent to it
 	if err != nil {
 		return nil, fmt.Errorf("could not fetch the picture: %w", err)
 	}
@@ -147,7 +148,7 @@ func Speak(ctx context.Context, req MediaRequest) (*Media, error) {
 	if voice == "" {
 		voice = "alloy"
 	}
-	resp, err := mediaCall(ctx, http.MethodPost, req.BaseURL+"/audio/speech", req.APIKey,
+	resp, err := mediaCall(ctx, req.UserURL, http.MethodPost, req.BaseURL+"/audio/speech", req.APIKey,
 		map[string]any{"model": req.Model, "input": req.Prompt, "voice": voice})
 	if err != nil {
 		return nil, err
@@ -177,7 +178,7 @@ func GenerateVideo(ctx context.Context, req MediaRequest, poll time.Duration) (*
 		}
 		return j, nil
 	}
-	resp, err := mediaCall(ctx, http.MethodPost, req.BaseURL+"/videos", req.APIKey, map[string]any{"model": req.Model, "prompt": req.Prompt})
+	resp, err := mediaCall(ctx, req.UserURL, http.MethodPost, req.BaseURL+"/videos", req.APIKey, map[string]any{"model": req.Model, "prompt": req.Prompt})
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +192,7 @@ func GenerateVideo(ctx context.Context, req MediaRequest, poll time.Duration) (*
 	for {
 		switch strings.ToLower(j.Status) {
 		case "completed", "succeeded", "done":
-			file, err := mediaCall(ctx, http.MethodGet, req.BaseURL+"/videos/"+j.ID+"/content", req.APIKey, nil)
+			file, err := mediaCall(ctx, req.UserURL, http.MethodGet, req.BaseURL+"/videos/"+j.ID+"/content", req.APIKey, nil)
 			if err != nil {
 				return nil, fmt.Errorf("could not fetch the video: %w", err)
 			}
@@ -207,7 +208,7 @@ func GenerateVideo(ctx context.Context, req MediaRequest, poll time.Duration) (*
 			return nil, errors.New("the video took too long to make")
 		case <-time.After(poll):
 		}
-		resp, err := mediaCall(ctx, http.MethodGet, req.BaseURL+"/videos/"+j.ID, req.APIKey, nil)
+		resp, err := mediaCall(ctx, req.UserURL, http.MethodGet, req.BaseURL+"/videos/"+j.ID, req.APIKey, nil)
 		if err != nil {
 			return nil, err
 		}

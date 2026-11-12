@@ -195,7 +195,16 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	static, _ := fs.Sub(staticFS, "static")
 	mux.Handle("GET /static/", http.StripPrefix("/static/", cacheStatic(http.FileServerFS(static))))
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("ok")) })
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { // "ok" only when the database answers
+		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		defer cancel()
+		if err := s.st.Ping(ctx); err != nil {
+			s.log.Error("health check: the database does not answer", "err", err)
+			http.Error(w, "database unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		w.Write([]byte("ok"))
+	})
 	// PWA files must live at the root so the service worker can control every page.
 	mux.HandleFunc("GET /sw.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
@@ -600,6 +609,32 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 	})
 }
 
+// housekeeping removes old rows by the limits in Admin → Settings and lets
+// SQLite tidy itself.
+func (s *Server) housekeeping() {
+	st, err := s.st.LoadSettings()
+	if err != nil {
+		s.log.Warn("housekeeping: cannot read the settings", "err", err)
+		return
+	}
+	report := func(what string, n int64, err error) {
+		if err != nil {
+			s.log.Warn("housekeeping failed", "what", what, "err", err)
+		} else if n > 0 {
+			s.log.Info("housekeeping removed old rows", "what", what, "count", n)
+		}
+	}
+	n, err := s.st.PruneUsage(st.UsageKeepDays)
+	report("usage log", n, err)
+	n, err = s.st.PruneAudit(st.AuditKeepDays)
+	report("audit log", n, err)
+	n, err = s.st.PruneAgentRuns(st.AgentRunsKeep)
+	report("old agent runs", n, err)
+	if err := s.st.Optimize(); err != nil {
+		s.log.Warn("housekeeping: optimize failed", "err", err)
+	}
+}
+
 // StartJanitor periodically removes expired sessions, orphaned uploads and
 // stale login-limiter entries.
 func (s *Server) StartJanitor(ctx context.Context) {
@@ -626,6 +661,7 @@ func (s *Server) StartJanitor(ctx context.Context) {
 		} else if n > 0 {
 			s.log.Info("removed orphaned uploads", "count", n)
 		}
+		s.housekeeping()
 		s.autoBackup() // last: it copies the folders the sweeps above just tidied
 	}
 	safeSweep := func() {

@@ -8,25 +8,33 @@ import (
 	"time"
 )
 
-// loginLimiter slows brute-force attacks: after too many failed logins for
-// one username (maxPerUser) or from one IP (maxPerIP, higher because many
-// people may share an office or carrier address) within the window, further
-// attempts are refused for the lockout period. Successful logins clear the
-// counters. Keys are prefixed "user:" or "ip:".
+// loginLimiter slows brute-force attacks. Failed logins are counted under
+// three kinds of key, each with its own limit inside the window; reaching a
+// limit refuses further attempts for the lockout period:
+//
+//	user:NAME|IP  one address guessing one account's password         (10)
+//	ip:IP         one address trying many accounts; higher, because an
+//	              office or a phone carrier shares one address         (30)
+//	name:NAME     many addresses guessing one account; high, so that a
+//	              stranger cannot lock a known name out by failing a
+//	              few times on purpose                                 (100)
+//
+// A successful login clears the first two for that person. The same type also
+// counts sign-ups per address ("signup:IP").
 type loginLimiter struct {
-	mu         sync.Mutex
-	failures   map[string]*failureInfo
-	maxPerUser int
-	maxPerIP   int
-	window     time.Duration
-	lockout    time.Duration
+	mu       sync.Mutex
+	failures map[string]*failureInfo
+	limits   map[string]int // key prefix -> limit
+	window   time.Duration
+	lockout  time.Duration
 }
 
 func (l *loginLimiter) limitFor(key string) int {
-	if strings.HasPrefix(key, "ip:") {
-		return l.maxPerIP
+	prefix, _, _ := strings.Cut(key, ":")
+	if n, ok := l.limits[prefix]; ok {
+		return n
 	}
-	return l.maxPerUser
+	return 10
 }
 
 type failureInfo struct {
@@ -36,7 +44,15 @@ type failureInfo struct {
 }
 
 func newLoginLimiter() *loginLimiter {
-	return &loginLimiter{failures: map[string]*failureInfo{}, maxPerUser: 10, maxPerIP: 30, window: 15 * time.Minute, lockout: 15 * time.Minute}
+	return &loginLimiter{failures: map[string]*failureInfo{},
+		limits: map[string]int{"user": 10, "ip": 30, "name": 100, "signup": 10},
+		window: 15 * time.Minute, lockout: 15 * time.Minute}
+}
+
+// loginKeys are the keys one login attempt counts under.
+func loginKeys(ip, username string) []string {
+	name := strings.ToLower(username)
+	return []string{"user:" + name + "|" + ip, "ip:" + ip, "name:" + name}
 }
 
 // blocked reports whether any of the keys is currently locked and for how long.
@@ -89,18 +105,19 @@ func (l *loginLimiter) sweep() {
 	}
 }
 
-// clientIP returns the caller's IP. X-Forwarded-For is trusted only when
-// the connection comes from loopback (i.e. a reverse proxy on the same host).
+// clientIP returns the caller's IP. X-Forwarded-For is trusted only when the
+// connection comes from loopback (a reverse proxy on the same host), and then
+// only its last entry: that is the one the proxy itself added. Anything before
+// it was sent by the caller and can say whatever the caller likes.
 func clientIP(r *http.Request) string {
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		host = r.RemoteAddr
 	}
 	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
-		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-			if first, _, _ := strings.Cut(xff, ","); strings.TrimSpace(first) != "" {
-				return strings.TrimSpace(first)
-			}
+		parts := strings.Split(r.Header.Get("X-Forwarded-For"), ",")
+		if last := strings.TrimSpace(parts[len(parts)-1]); net.ParseIP(last) != nil {
+			return last
 		}
 	}
 	return host

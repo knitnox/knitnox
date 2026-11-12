@@ -440,7 +440,7 @@ func (e *Engine) streamStep(ctx context.Context, tc *turnCtx, msgs []llm.Message
 	}
 
 	req := llm.Request{BaseURL: tc.provider.BaseURL, APIKey: tc.provider.APIKey, Model: tc.model.Name,
-		Messages: msgs, Tools: defs, OnReasoning: onReasoning, IdleTimeout: idleTimeout(tc.settings)}
+		Messages: msgs, Tools: defs, OnReasoning: onReasoning, IdleTimeout: idleTimeout(tc.settings), UserURL: !tc.provider.IsGlobal()}
 	var res *llm.Result
 	for attempt := 0; ; attempt++ {
 		res, err = llm.Stream(ctx, req, onDelta)
@@ -461,14 +461,18 @@ func (e *Engine) streamStep(ctx context.Context, tc *turnCtx, msgs []llm.Message
 
 	if err != nil {
 		partial, reasoning := lm.text()
+		var werr error
 		if partial == "" && reasoning == "" {
-			e.st.DeleteMessage(msgID)
+			werr = e.st.DeleteMessage(msgID)
 		} else {
 			status := store.MsgFailed
 			if ctx.Err() != nil {
 				status = store.MsgInterrupted
 			}
-			e.st.UpdateMessageFull(msgID, partial, reasoning, "", status)
+			werr = e.st.UpdateMessageFull(msgID, partial, reasoning, "", status)
+		}
+		if werr != nil {
+			e.log.Error("could not save the partial answer", "message", msgID, "err", werr)
 		}
 		e.hub.Publish(threadID, EvMessages, nil)
 		return nil, msgID, err

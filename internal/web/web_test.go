@@ -127,7 +127,15 @@ func newApp(t *testing.T) *app {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { eng.Shutdown(2 * time.Second) })
+	open := store.DefaultSettings() // most tests sign several people up
+	open.AllowSignup = true
+	if err := st.SaveSettings(open); err != nil {
+		t.Fatal(err)
+	}
 	s, err := New(st, eng, h, log, Options{})
+	if err == nil {
+		s.logins.limits["signup"] = 1000
+	}
 	if err != nil {
 		t.Fatal(err)
 	}

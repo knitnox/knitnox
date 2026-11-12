@@ -125,7 +125,7 @@ func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(r.FormValue("username"))
-	keys := []string{"ip:" + clientIP(r), "user:" + strings.ToLower(username)}
+	keys := loginKeys(clientIP(r), username)
 	st, _ := s.st.LoadSettings()
 	fail := func(code int, msg string) {
 		w.WriteHeader(code)
@@ -137,8 +137,16 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u, hash, err := s.st.UserAuth(username)
-	if err == nil && bcrypt.CompareHashAndPassword([]byte(hash), []byte(r.FormValue("password"))) == nil && !u.Disabled {
-		s.logins.reset(keys...)
+	if err != nil {
+		hash = dummyHash // spend the same time as for a real account, so a name cannot be tested by the clock
+	}
+	right := bcrypt.CompareHashAndPassword([]byte(hash), []byte(r.FormValue("password"))) == nil && err == nil
+	if right && u.Disabled { // said only to someone who knows the password
+		fail(http.StatusUnauthorized, "This account is disabled. Ask an administrator.")
+		return
+	}
+	if right {
+		s.logins.reset(keys[0], keys[2]) // this person's own counters; the address keeps its count
 		if err := s.setSession(w, u.ID); err != nil {
 			s.serverError(w, r, err)
 			return
@@ -147,12 +155,14 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.logins.fail(keys...)
-	if err == nil && u.Disabled {
-		fail(http.StatusUnauthorized, "This account is disabled.")
-		return
-	}
 	fail(http.StatusUnauthorized, "Wrong username or password.")
 }
+
+// dummyHash is compared against when the username does not exist.
+var dummyHash = func() string {
+	h, _ := bcrypt.GenerateFromPassword([]byte("no such account"), bcrypt.DefaultCost)
+	return string(h)
+}()
 
 // logoutEverywhere deletes every session of the user, including this one.
 func (s *Server) logoutEverywhere(w http.ResponseWriter, r *http.Request) {
@@ -227,14 +237,23 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 		fail(passwordProblem(err))
 		return
 	}
-	role := "user"
-	if n == 0 {
-		role = "admin" // first account administers the instance
+	// Sign-ups are counted per address, so an open sign-up page cannot be used
+	// to fill the server with accounts.
+	signupKey := "signup:" + clientIP(r)
+	if locked, left := s.logins.blocked(signupKey); locked {
+		fail(fmt.Sprintf("Too many accounts were made from your network. Try again in %d minutes.", int(left.Minutes())+1))
+		return
 	}
-	id, err := s.st.CreateUser(username, hash, role)
+	id, role, err := s.st.CreateSignupUser(username, hash) // the first account administers the instance
 	if err != nil {
 		fail("That username is taken.")
 		return
+	}
+	s.logins.fail(signupKey)
+	if role != "admin" && st.SignupTokenLimit > 0 { // the allowance the admin chose for people who sign up
+		if err := s.st.SetQuota(id, store.Quota{Period: st.SignupPeriod, TokenLimit: st.SignupTokenLimit}); err != nil {
+			s.log.Error("could not set the sign-up allowance", "user", id, "err", err)
+		}
 	}
 	if err := s.setSession(w, id); err != nil {
 		s.serverError(w, r, err)

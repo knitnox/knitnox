@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"knitnox/internal/mcp"
+	"knitnox/internal/netguard"
 	"knitnox/internal/store"
 )
 
@@ -179,7 +180,7 @@ func (s *Server) providerDiscover(w http.ResponseWriter, r *http.Request, sc sco
 	if p.APIKey != "" {
 		req.Header.Set("Authorization", "Bearer "+p.APIKey)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := netguard.Client(sc.owner != nil).Do(req) // a user's own provider: guarded addresses are refused
 	if err != nil {
 		fail("Could not reach the provider: " + err.Error())
 		return
@@ -352,12 +353,18 @@ func (s *Server) mcpCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) mcpDelete(w http.ResponseWriter, r *http.Request) {
-	s.st.DeleteMCPServer(currentUser(r).ID, pathID(r, "sid"))
+	if err := s.st.DeleteMCPServer(currentUser(r).ID, pathID(r, "sid")); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	s.renderMCP(w, r)
 }
 
 func (s *Server) mcpToggle(w http.ResponseWriter, r *http.Request) {
-	s.st.ToggleMCPServer(currentUser(r).ID, pathID(r, "sid"))
+	if err := s.st.ToggleMCPServer(currentUser(r).ID, pathID(r, "sid")); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	s.renderMCP(w, r)
 }
 
@@ -376,7 +383,10 @@ func (s *Server) mcpApproval(w http.ResponseWriter, r *http.Request) {
 	if v := r.FormValue("mode"); v == store.ApprovalAsk || v == store.ApprovalAuto {
 		mode = v
 	}
-	s.st.SetMCPApproval(u.ID, srv.ID, mode)
+	if err := s.st.SetMCPApproval(u.ID, srv.ID, mode); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	s.renderMCP(w, r)
 }
 

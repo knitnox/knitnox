@@ -289,6 +289,11 @@
     };
     listen();
     document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); }); // catch up after the tab was away
+    // A browser allows only six connections to one server, and a live stream
+    // holds one for as long as it is open. Give it back the moment the page is
+    // left, so the next page never waits for it; take it again if the page comes back.
+    window.addEventListener("pagehide", () => { feedEvents?.close(); feedEvents = null; });
+    window.addEventListener("pageshow", (e) => { if (e.persisted && !feedEvents) { listen(); check(); } });
   }
 
   document.addEventListener("htmx:beforeRequest", (e) => { // panel button toggles
@@ -1098,4 +1103,8 @@
       if (es.readyState === EventSource.CLOSED) connect();
     }
   });
+  // Give the connection back the moment the chat is left (a browser allows only
+  // six per server), and take it again if the page is shown again from memory.
+  window.addEventListener("pagehide", () => es.close());
+  window.addEventListener("pageshow", (e) => { if (e.persisted && es.readyState === EventSource.CLOSED) connect(); });
 })();

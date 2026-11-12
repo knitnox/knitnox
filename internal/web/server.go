@@ -393,6 +393,11 @@ func cacheStatic(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("v") != "" {
 			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		} else if strings.HasPrefix(r.URL.Path, "fonts/") {
+			// style.css names the fonts without a version, so every page used to
+			// ask the server about them again before text could be drawn in its
+			// real font. They change next to never: keep them for a week.
+			w.Header().Set("Cache-Control", "public, max-age=604800")
 		} else {
 			w.Header().Set("Cache-Control", "no-cache") // unversioned (e.g. images referenced from CSS): always revalidate
 		}

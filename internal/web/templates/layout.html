@@ -14,7 +14,7 @@
   <link rel="icon" href="{{asset "icons/favicon.svg"}}" type="image/svg+xml">
   <link rel="icon" href="{{asset "icons/favicon-32.png"}}" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="{{asset "icons/apple-touch-icon.png"}}">
-  <link rel="preload" href="{{asset "fonts/inter.woff2"}}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/static/fonts/inter.woff2" as="font" type="font/woff2" crossorigin>{{/* the same address style.css uses, so the font is fetched once */}}
   <link rel="stylesheet" href="{{asset "style.css"}}">
   <script src="{{asset "vendor/htmx.min.js"}}" defer></script>
   <script src="{{asset "vendor/marked.min.js"}}" defer></script>

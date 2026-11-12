@@ -163,6 +163,37 @@ nav.top .btn { padding: 8px 16px; font-size: 14px; }
 .facts div { border-top: 1px solid var(--invert-line); padding-top: 14px; font-size: 14.5px; color: var(--invert-muted); }
 .facts b { display: block; color: var(--invert-fg); font-size: 15.5px; font-weight: 600; margin-bottom: 2px; }
 
+/* ---- download ---- */
+.dl { padding: 110px 0; border-bottom: 1px solid var(--line); }
+.os-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: start; }
+.os { min-width: 0; border: 1px solid var(--line); border-radius: 18px; padding: 28px; background: var(--bg); }
+.os h3 { font-size: 22px; letter-spacing: -.02em; }
+.os .for { color: var(--muted); font-size: 14px; margin-top: 6px; }
+.os .btn { width: 100%; justify-content: center; margin-top: 20px; }
+.os .alt { display: block; text-align: center; margin-top: 12px; font-size: 13.5px; color: var(--muted); }
+.os .alt:hover { color: var(--fg); }
+.os ol { margin: 24px 0 0; padding: 22px 0 0 20px; border-top: 1px solid var(--line); color: var(--fg-2); font-size: 14.5px; display: grid; gap: 10px; }
+.os ol b { color: var(--fg); font-weight: 600; }
+.os pre { margin: 24px 0 0; padding: 14px 16px; background: var(--chip); border-radius: 12px; font: 12.5px/1.75 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.os .hint { margin-top: 14px; font-size: 13.5px; color: var(--muted); }
+.os .hint b { color: var(--fg-2); font-weight: 600; }
+.after { margin-top: 22px; color: var(--muted); font-size: 15.5px; }
+.after a { color: var(--fg); text-underline-offset: 3px; }
+.why { margin-top: 56px; border: 1px solid var(--line); border-radius: 18px; background: var(--canvas); padding: 44px; display: grid; grid-template-columns: 1.15fr 1fr; gap: 52px; align-items: start; }
+.why > div { min-width: 0; }
+.why h3 { font-size: clamp(22px, 2.6vw, 30px); letter-spacing: -.025em; margin-bottom: 16px; }
+.why h4 { margin: 0 0 12px; font-size: 13px; font-weight: 500; font-family: var(--mono); color: var(--muted); letter-spacing: .04em; }
+.why p { color: var(--muted); font-size: 15.5px; }
+.why p + p { margin-top: 12px; }
+.why p strong { color: var(--fg); font-weight: 600; }
+.bill { list-style: none; margin: 0 0 28px; padding: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--bg); overflow: hidden; }
+.bill li { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 18px; font-size: 14.5px; color: var(--fg-2); }
+.bill li + li { border-top: 1px solid var(--line); }
+.bill li span:last-child { font: 500 13.5px var(--mono); white-space: nowrap; color: var(--fg); }
+.bill li.sum { font-weight: 600; color: var(--fg); background: var(--chip); }
+.why .points { margin-top: 0; }
+.why .points li { font-size: 14.5px; }
+
 /* ---- start ---- */
 .start { padding: 120px 0; }
 .start .wrap { display: grid; grid-template-columns: 1fr 1.1fr; gap: 64px; align-items: start; }
@@ -205,7 +236,9 @@ footer a:hover { color: var(--fg); }
   nav.top .btn { margin-left: auto; }
   .phone { right: 8px; width: 170px; bottom: -28px; }
   .shot-pair .phone { right: 8px; width: 150px; bottom: -28px; }
-  .feature, .also, .private, .start { padding: 80px 0; }
+  .feature, .also, .private, .start, .dl { padding: 80px 0; }
+  .os-grid, .why { grid-template-columns: 1fr; }
+  .why { padding: 28px 22px; gap: 32px; }
   .quote { padding: 88px 0 24px; }
 }
 @media (max-width: 600px) {
@@ -240,7 +273,7 @@ footer a:hover { color: var(--fg); }
       <a href="#feed">Feed</a>
       <a href="#plan">Plan Book</a>
       <a href="#memory">Memory</a>
-      <a href="#start">Get started</a>
+      <a href="#download">Download</a>
     </div>
     <a class="btn btn-line" href="https://github.com/knitnox/knitnox">
       <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.4-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
@@ -256,7 +289,7 @@ footer a:hover { color: var(--fg); }
     <h1>Decide together.<br><span class="soft">With AI in the room.</span></h1>
     <p class="lead">Knitnox is a calm, private AI for <strong>you and your people</strong>. Chat alone or as a group, keep a feed of what matters, plan your week and let it remember what you tell it.</p>
     <div class="cta">
-      <a class="btn btn-solid" href="#start">Get started
+      <a class="btn btn-solid" href="#download">Download
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
       <a class="btn btn-line" href="https://github.com/knitnox/knitnox">View on GitHub</a>
     </div>
@@ -452,13 +485,91 @@ footer a:hover { color: var(--fg); }
   </div>
 </section>
 
+<!-- Download -->
+<section class="dl" id="download">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="num"><b>06</b> / Download</span>
+      <h2>Download and run.</h2>
+      <p>One file for your system. No installer and nothing else to set up: unpack it, start it, and open <code>http://localhost:8080</code>.</p>
+    </div>
+
+    <div class="os-grid reveal">
+      <article class="os">
+        <h3>Windows</h3>
+        <p class="for">Windows 10 and 11</p>
+        <a class="btn btn-solid" href="https://github.com/knitnox/knitnox/releases/latest/download/knitnox-windows-amd64.zip">Download for Windows</a>
+        <a class="alt" href="https://github.com/knitnox/knitnox/releases/latest/download/knitnox-windows-arm64.zip">ARM64 version (Snapdragon laptops)</a>
+        <ol>
+          <li>Unpack the zip: right-click → <b>Extract All</b>.</li>
+          <li>Double-click <b>knitnox.exe</b>.</li>
+          <li>A blue box says “Windows protected your PC”. Click <b>More info</b>, then <b>Run anyway</b>.</li>
+          <li>Keep the black window open. It is Knitnox.</li>
+        </ol>
+      </article>
+
+      <article class="os">
+        <h3>macOS</h3>
+        <p class="for">Apple Silicon and Intel</p>
+        <a class="btn btn-solid" href="https://github.com/knitnox/knitnox/releases/latest/download/knitnox-macos-arm64.tar.gz">Download for Mac (Apple Silicon)</a>
+        <a class="alt" href="https://github.com/knitnox/knitnox/releases/latest/download/knitnox-macos-amd64.tar.gz">Intel Mac version</a>
+<pre># easiest: paste into Terminal
+curl -LO https://github.com/knitnox/knitnox/releases/latest/download/knitnox-macos-arm64.tar.gz
+tar -xzf knitnox-macos-arm64.tar.gz
+cd knitnox-macos-arm64
+./knitnox</pre>
+        <p class="hint"><b>Used the button instead?</b> macOS says it could not verify “knitnox”. Open System Settings → Privacy &amp; Security and click <b>Open Anyway</b>.</p>
+      </article>
+
+      <article class="os">
+        <h3>Linux</h3>
+        <p class="for">PCs, servers and Raspberry Pi</p>
+        <a class="btn btn-solid" href="https://github.com/knitnox/knitnox/releases/latest/download/knitnox-linux-amd64.tar.gz">Download for Linux (x64)</a>
+        <a class="alt" href="https://github.com/knitnox/knitnox/releases/latest/download/knitnox-linux-arm64.tar.gz">ARM64 version (Raspberry Pi 4/5)</a>
+<pre># or paste into a terminal
+curl -LO https://github.com/knitnox/knitnox/releases/latest/download/knitnox-linux-amd64.tar.gz
+tar -xzf knitnox-linux-amd64.tar.gz
+cd knitnox-linux-amd64
+./knitnox</pre>
+        <p class="hint">Linux shows no warning.</p>
+      </article>
+    </div>
+
+    <p class="after reveal">Then open <code>http://localhost:8080</code> and create your account; the first one becomes the admin. The <a href="https://github.com/knitnox/knitnox/blob/main/docs/INSTALL.md">install guide</a> has every step, how to connect an AI, how to update, and <a href="https://github.com/knitnox/knitnox/releases/latest">all downloads with checksums</a> are on GitHub.</p>
+
+    <div class="why reveal" id="warning">
+      <div>
+        <h3>Why does my computer show a warning?</h3>
+        <p>The first time you open Knitnox, Windows and macOS say they cannot verify it. <strong>Nothing was found in the file.</strong> The warning only means the file has no paid signature.</p>
+        <p>To make it go away, a developer pays Apple and a certificate company every year to put a verified name on the program. Even then, a newly signed Windows program keeps the warning until enough people have downloaded it.</p>
+        <p><strong>Knitnox is a free hobby project and earns nothing</strong>, so we chose not to spend several hundred dollars a year on this. That money buys a name on a certificate. It does not make the program any safer.</p>
+      </div>
+      <div>
+        <h4>WHAT SIGNING WOULD COST</h4>
+        <ul class="bill">
+          <li><span>Apple Developer Program, for macOS</span><span>US$99 / year</span></li>
+          <li><span>Code-signing certificate, for Windows</span><span>≈ US$200–400 / year</span></li>
+          <li class="sum"><span>Together, every year</span><span>US$300 or more</span></li>
+        </ul>
+        <h4>WHAT YOU GET INSTEAD</h4>
+        <ul class="points">
+          <li>The source is public. Anyone can read every line.</li>
+          <li>Each download is built by GitHub from that source, not on someone's own computer.</li>
+          <li>Every release lists checksums, so you can check your file is the one that was built.</li>
+          <li>You can build it yourself with one command.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- Start -->
 <section class="start" id="start">
   <div class="wrap">
     <div class="reveal">
-      <span class="num"><b>06</b> / Get started</span>
-      <h2 style="font-size:clamp(32px,4.4vw,52px);margin:16px 0 18px">Running in two minutes.</h2>
-      <p style="color:var(--muted);font-size:18px">A built-in practice AI lets you try everything before connecting a real one. All you need is Go 1.26 or newer.</p>
+      <span class="num"><b>07</b> / From source</span>
+      <h2 style="font-size:clamp(32px,4.4vw,52px);margin:16px 0 18px">Or build it yourself.</h2>
+      <p style="color:var(--muted);font-size:18px">Prefer to run the code directly? All you need is Go 1.26 or newer. A built-in practice AI lets you try everything before connecting a real one.</p>
       <ol class="steps">
         <li><div><b>Create your account</b><p>The first account on a new server becomes the admin.</p></div></li>
         <li><div><b>Add the practice AI</b><p>Admin → Providers → Add, with base URL <code>http://localhost:9090/v1</code> and any key.</p></div></li>
@@ -487,7 +598,7 @@ footer a:hover { color: var(--fg); }
     <h2>Talk it through.<br>Together.</h2>
     <p>Private by default. Simple enough for everyone you invite.</p>
     <div class="cta">
-      <a class="btn btn-solid" href="https://github.com/knitnox/knitnox">Get Knitnox</a>
+      <a class="btn btn-solid" href="#download">Download Knitnox</a>
       <a class="btn btn-line" href="https://github.com/knitnox/knitnox/blob/main/docs/USER_GUIDE.md">Read the guide</a>
     </div>
   </div>
@@ -498,6 +609,7 @@ footer a:hover { color: var(--fg); }
   <div class="wrap">
     <span>Knitnox · made with care, runs on your machine</span>
     <div class="links">
+      <a href="https://github.com/knitnox/knitnox/blob/main/docs/INSTALL.md">Install guide</a>
       <a href="https://github.com/knitnox/knitnox/blob/main/docs/USER_GUIDE.md">User guide</a>
       <a href="https://github.com/knitnox/knitnox/blob/main/docs/FEATURES.md">Features</a>
       <a href="https://github.com/knitnox/knitnox/blob/main/docs/DEVELOPER_GUIDE.md">Developers</a>

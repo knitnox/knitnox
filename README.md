@@ -14,7 +14,7 @@ in one small program you run yourself.
 ![SQLite](https://img.shields.io/badge/SQLite-one%20file-black?logo=sqlite&logoColor=white)
 ![Self-hosted](https://img.shields.io/badge/self--hosted-Linux%20·%20macOS%20·%20Windows-black)
 
-[**Website**](https://knitnox.github.io/) · [Quick start](#quick-start-no-api-key-needed) · [User guide](docs/USER_GUIDE.md) · [Features](docs/FEATURES.md) · [Developer guide](docs/DEVELOPER_GUIDE.md)
+[**Website**](https://knitnox.github.io/) · [**Download**](#download) · [Quick start](#quick-start-from-source-no-api-key-needed) · [User guide](docs/USER_GUIDE.md) · [Features](docs/FEATURES.md) · [Developer guide](docs/DEVELOPER_GUIDE.md)
 
 <br>
 
@@ -111,7 +111,27 @@ Help is built in: the user guide, feature list and developer guide are inside th
 
 ---
 
-## Quick start (no API key needed)
+## Download
+
+Ready-to-run files for every system are on the [**releases page**](https://github.com/knitnox/knitnox/releases/latest). No Go, no Docker, no installer: unpack, start, open `http://localhost:8080`.
+
+| System | Download |
+|---|---|
+| **Windows** | [x64](https://github.com/knitnox/knitnox/releases/latest/download/knitnox-windows-amd64.zip) · [ARM64](https://github.com/knitnox/knitnox/releases/latest/download/knitnox-windows-arm64.zip) |
+| **macOS** | [Apple Silicon](https://github.com/knitnox/knitnox/releases/latest/download/knitnox-macos-arm64.tar.gz) · [Intel](https://github.com/knitnox/knitnox/releases/latest/download/knitnox-macos-amd64.tar.gz) |
+| **Linux** | [x64](https://github.com/knitnox/knitnox/releases/latest/download/knitnox-linux-amd64.tar.gz) · [ARM64 / Raspberry Pi](https://github.com/knitnox/knitnox/releases/latest/download/knitnox-linux-arm64.tar.gz) |
+
+```bash
+# Linux and macOS, in one go (pick your file name from the table)
+curl -LO https://github.com/knitnox/knitnox/releases/latest/download/knitnox-linux-amd64.tar.gz
+tar -xzf knitnox-linux-amd64.tar.gz && cd knitnox-linux-amd64 && ./knitnox
+```
+
+> **Windows and macOS show a warning on first start.** The downloads are not signed: that costs US$99 a year for Apple plus about US$200–400 a year for a Windows certificate, which a free hobby project does not spend. On Windows click **More info → Run anyway**; on a Mac use **System Settings → Privacy & Security → Open Anyway**. Every download is built by GitHub from this public source and comes with checksums. The [**Install guide**](docs/INSTALL.md) has the steps for each system and the full explanation.
+
+---
+
+## Quick start from source (no API key needed)
 
 You need **Go 1.26+**. No C compiler is needed: SQLite is the pure-Go `modernc.org/sqlite`.
 
@@ -142,7 +162,8 @@ go run ./cmd/knitnox                 # http://localhost:8080
 |---|---|
 | [User guide](docs/USER_GUIDE.md) | Everyone using Knitnox |
 | [Features](docs/FEATURES.md) | The complete feature list |
-| [Build guide](docs/BUILD_GUIDE.md) | Building and running on each OS |
+| [Install guide](docs/INSTALL.md) | Downloading and starting Knitnox, and why the first start shows a warning |
+| [Build guide](docs/BUILD_GUIDE.md) | Building on each OS, and releasing a new version |
 | [Developer guide](docs/DEVELOPER_GUIDE.md) | Changing the code |
 | [Architecture](docs/ARCHITECTURE.md) | How it works inside, in depth |
 
@@ -231,7 +252,9 @@ scripts/build-all.sh 1.0.0               # Linux / macOS / Git Bash
 .\scripts\build-all.ps1 -Version 1.0.0   # Windows PowerShell
 ```
 
-Produces `dist/knitnox-1.0.0-<os>-<arch>.tar.gz` (`.zip` for Windows) and `dist/SHA256SUMS.txt`.
+Produces `dist/knitnox-<os>-<arch>.tar.gz` (`.zip` for Windows) and `dist/SHA256SUMS.txt`. The version is built in (`knitnox version`), not part of the file name.
+
+**Releasing:** push a tag (`git tag v1.0.0`, `git push origin v1.0.0`) and `.github/workflows/release.yml` runs the same script on GitHub and publishes the files as a GitHub Release. See [Build guide → Release a new version](docs/BUILD_GUIDE.md#release-a-new-version).
 
 **Running the binary on the target machine:**
 
@@ -245,7 +268,7 @@ chmod +x knitnox
 .\knitnox.exe
 ```
 
-On macOS, a binary you built yourself runs without complaint; one downloaded from the internet is quarantined by Gatekeeper and needs `xattr -d com.apple.quarantine ./knitnox` once (or code-signing/notarisation if you distribute it).
+On macOS, a binary you built yourself runs without complaint; one downloaded from the internet is quarantined by Gatekeeper and needs `xattr -d com.apple.quarantine ./knitnox` once. The released downloads are not signed; the [Install guide](docs/INSTALL.md) tells users why and what to click.
 
 Notes:
 - `go test -race` and the `go:embed` of fonts work the same on every OS. Windows builds also run fine under WSL.
@@ -424,6 +447,7 @@ internal/
   web/           router, auth/CSRF/login limiter, handlers, push, backups, templates/, static/ (all embedded)
 docs/            the guides (shown in the app under Help), ARCHITECTURE.md, and the website (index.html)
 .github/workflows/test.yml   vet, tests with the race detector and a build, on every push
+.github/workflows/release.yml   builds every download and publishes a GitHub Release, on every v* tag
 ```
 
 Dependencies only point downward: `web → engine → (llm, mcp, hub, store) → secret`, `web → files → store`, and `llm`, `mcp → netguard`. Only `store` touches the database.

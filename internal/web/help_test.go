@@ -20,6 +20,7 @@ func TestHelpGuides(t *testing.T) {
 	for path, want := range map[string]string{
 		"/help/guide":      "Start in three steps",
 		"/help/features":   "Known limits",
+		"/help/install":    "Why your computer shows a warning",
 		"/help/developers": "Run it in two minutes",
 		"/help/build":      "Cross-compilation: build for another system",
 	} {

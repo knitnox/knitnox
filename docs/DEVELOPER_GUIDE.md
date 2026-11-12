@@ -233,9 +233,11 @@ The result is one file with everything inside. Configuration is seven environmen
 | `KNITNOX_LOG_FILE` | none | Also write the log to this file (10 MB, one older file kept) |
 | `KNITNOX_BACKUP_DIR` | `DATA/backups` | Where automatic backups go; `off` disables them |
 
-Commands besides starting the server: `knitnox list-users`, `create-admin USER PASS`, `reset-password USER PASS`, `rename-user OLD NEW`, `backup DIR`.
+Commands besides starting the server: `knitnox version`, `knitnox list-users`, `create-admin USER PASS`, `reset-password USER PASS`, `rename-user OLD NEW`, `backup DIR`.
 
-Run **one instance only**. The [Build guide](/help/build) has step-by-step builds for Windows, Linux and macOS, and cross-compilation. The README covers systemd, the reverse proxy, backups, forgotten passwords and what to watch in the log.
+Run **one instance only**. The [Build guide](/help/build) has step-by-step builds for Windows, Linux and macOS, and cross-compilation.
+
+**Releasing:** push a tag like `v1.0.0` and GitHub builds every download and publishes the release (`.github/workflows/release.yml`). The steps are in the Build guide under "Release a new version". What users do with a download is in the [Install guide](/help/install). The README covers systemd, the reverse proxy, backups, forgotten passwords and what to watch in the log.
 
 ## Reporting and fixing issues
 

@@ -48,7 +48,9 @@ func TestClientRefusesAtConnect(t *testing.T) {
 	defer local.Close()
 
 	get := func(c *http.Client, url string) error {
-		resp, err := c.Get(url)
+		req, _ := http.NewRequest(http.MethodGet, url, nil)
+		req.Close = true // never keep the connection: a kept one would skip the check at connect
+		resp, err := c.Do(req)
 		if err == nil {
 			resp.Body.Close()
 		}

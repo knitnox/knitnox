@@ -5,5 +5,5 @@ package docs
 
 import "embed"
 
-//go:embed USER_GUIDE.md FEATURES.md DEVELOPER_GUIDE.md BUILD_GUIDE.md
+//go:embed USER_GUIDE.md FEATURES.md INSTALL.md DEVELOPER_GUIDE.md BUILD_GUIDE.md
 var FS embed.FS

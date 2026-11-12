@@ -84,7 +84,15 @@ func dbPath(dataDir string, log *slog.Logger) string {
 	return newPath
 }
 
+// version is set by the release build (-ldflags "-X main.version=1.2.0");
+// a plain `go build` or `go run` leaves it as "dev".
+var version = "dev"
+
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "version" || os.Args[1] == "--version") {
+		fmt.Println("knitnox", version)
+		return
+	}
 	level := slog.LevelInfo
 	switch env("KNITNOX_LOG", "info") {
 	case "debug":
@@ -134,7 +142,7 @@ func main() {
 		}
 		err = backup(os.Args[2])
 	default:
-		fmt.Fprintln(os.Stderr, "usage: knitnox [serve | list-users | create-admin USER PASS | reset-password USER PASS | rename-user OLD NEW | backup DIR]")
+		fmt.Fprintln(os.Stderr, "usage: knitnox [serve | version | list-users | create-admin USER PASS | reset-password USER PASS | rename-user OLD NEW | backup DIR]")
 		os.Exit(2)
 	}
 	if err != nil {

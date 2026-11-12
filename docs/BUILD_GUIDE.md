@@ -176,7 +176,42 @@ One script builds all six targets into the `dist` folder, packs each one, and wr
 | Linux, macOS, Git Bash | `scripts/build-all.sh 1.0.0` | `.tar.gz` for Linux and macOS, `.zip` for Windows |
 | Windows PowerShell | `.\scripts\build-all.ps1 -Version 1.0.0` | `.zip` for every target |
 
-The files are named `knitnox-1.0.0-<os>-<arch>`, and `dist/SHA256SUMS.txt` lists their checksums. Leave the version out to get `dev`.
+The files are named `knitnox-<os>-<arch>` (`macos` stands for Go's `darwin`), and `dist/SHA256SUMS.txt` lists their checksums. The names carry no version on purpose, so a download link never changes. The version is built into the program: `knitnox version` prints it. Leave the version out to get `dev`.
+
+The `dist` folder is not kept in Git. Public downloads come from GitHub Releases, described next.
+
+## Release a new version
+
+Downloads for users are made by GitHub, not on your computer. Pushing a version tag starts `.github/workflows/release.yml`. It runs the checks, builds all six targets with `scripts/build-all.sh`, and publishes a **GitHub Release** with the six archives and `SHA256SUMS.txt`.
+
+1. Make sure `main` is what you want to ship and its **test** run on GitHub is green.
+2. Pick the version number: `v` plus three numbers.
+
+   | Change | Example |
+   |---|---|
+   | Fixes only | `v1.0.0` → `v1.0.1` |
+   | New features, nothing breaks | `v1.0.1` → `v1.1.0` |
+   | Admins must do something by hand to upgrade | `v1.1.0` → `v2.0.0` |
+
+3. Tag and push:
+
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+
+4. Watch the **release** run under the repository's **Actions** tab. It takes a few minutes.
+5. Open **Releases**, read the notes GitHub wrote from the commits, and edit them into a few plain sentences: what is new, and anything an admin must know before upgrading.
+
+That is all. The website and the [Install guide](/help/install) link to `https://github.com/knitnox/knitnox/releases/latest/download/<file>`, which always serves the newest release, so they need no change.
+
+Good to know:
+
+- **Try it first.** A tag with a hyphen, like `v1.1.0-rc1`, becomes a *pre-release*. It gets its own page and downloads, but "latest" keeps pointing at the last real release.
+- **A release went wrong?** Delete the release and its tag on GitHub (`gh release delete v1.0.0 --cleanup-tag`), fix the problem, and tag again. If people may already have downloaded it, publish a new number instead.
+- **Do not rename the files.** The website, the Install guide and the README link to them by name. If you add a target, add it to both build scripts and to those three places.
+- **Downloads are not signed**, so Windows and macOS warn on first start. The Install guide explains this to users, with the prices: US$99 a year for Apple, about US$200–400 a year for a Windows certificate. To start signing one day, add the certificate as a repository secret and a signing step after the build in `release.yml`; nothing else changes.
+- **First release only:** if the run fails with a permission error, check under **Settings → Actions → General → Workflow permissions** that the organisation lets workflows write. The workflow asks for `contents: write` itself, which is normally enough.
 
 ## Move the build to another machine
 
@@ -219,7 +254,7 @@ go vet ./...      # should print nothing
 go test ./...     # every package should say "ok"
 ```
 
-`go test -race ./...` needs a C compiler. It is the one command here that does. The file `.github/workflows/test.yml` runs it on Linux for every push once the project is on GitHub.
+`go test -race ./...` needs a C compiler. It is the one command here that does. The file `.github/workflows/test.yml` runs it on Linux for every push.
 
 ## When the build fails
 

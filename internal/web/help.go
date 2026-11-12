@@ -20,6 +20,7 @@ type helpDoc struct {
 var helpDocs = []helpDoc{
 	{"guide", "User guide", "USER_GUIDE.md"},
 	{"features", "Features", "FEATURES.md"},
+	{"install", "Install guide", "INSTALL.md"},
 	{"developers", "Developer guide", "DEVELOPER_GUIDE.md"},
 	{"build", "Build guide", "BUILD_GUIDE.md"},
 }

@@ -71,6 +71,8 @@ Dependencies point one way: `web → engine → (llm, mcp, hub, store) → secre
 | The date and time the AI is told | `engine/clock.go` (a time stamp on each user message; nothing in the system prompt, to keep prompt caching working) |
 | The LLM ⇄ tool loop | `engine/run.go → execute` |
 | Which tools a run gets | `engine/tools.go → openTools` |
+| The Tools menu next to Attach (per-chat switches) | `web/tools.go`, `store/threadtools.go`, the `tools-body` template in `templates/chat.html`, `migrations/013_thread_tools.sql` |
+| Which picture, voice or video model a user gets by default | `store/feedmedia.go → FeedMediaModel` |
 | Built-in agent tools | `engine/agents.go → addAgentTools` and `addManagerTools` |
 | When agents run | `engine/agents.go → RunDueAgents` and `triggerAgent` |
 | Who pays, quotas | `engine/run.go → prepare`, `checkQuota`, `recordUsage` |
@@ -185,6 +187,7 @@ gofmt -l .           # should print nothing
 | `internal/web/feedmedia_test.go` | Feed settings, model kinds, adding an own model in Feed and Memory settings, who may load media, picture sizes |
 | `internal/engine/feedmedia_test.go` | Pictures, voice and video against a fake provider: the redraw after a check, failures, the daily limit, own models |
 | `internal/engine/chatmedia_test.go`, `internal/web/chatmedia_test.go` | Pictures made in a chat, Read aloud, the shared daily limit, who may listen |
+| `internal/engine/threadtools_test.go`, `internal/web/tools_test.go` | The Tools menu: what is switched off is not offered, only the owner may switch, the choice before the first message; default media models |
 | `internal/web/memory_test.go` | Memory pages, permissions, search settings, agent access |
 | `internal/web/help_test.go` | The guides and the issue tracker |
 | `internal/web/ui_test.go` | Theme and accent cookies, the getting-started list and other page details |

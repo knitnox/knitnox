@@ -114,8 +114,13 @@ func (s *Store) SaveFeedModels(userID int64, m FeedModels) error {
 }
 
 // FeedMediaModel returns the model that makes media of one kind for a user,
-// with its provider: the one they chose, or else the server's first shared
-// model of that kind. nil, nil, nil = none (turned off, or nothing set up).
+// with its provider. Nobody has to choose anything first:
+//
+//	the model they picked on the Feed settings page, if it still exists;
+//	else the first model of that kind the admin shares with everyone;
+//	else the first one on their own providers.
+//
+// nil, nil, nil = none (they turned that kind off, or nothing is set up).
 func (s *Store) FeedMediaModel(userID int64, kind string) (*Model, *Provider, error) {
 	fm := s.FeedModelsFor(userID)
 	choice := map[string]int64{MediaImage: fm.Image, MediaVoice: fm.Voice, MediaVideo: fm.Video}[kind]
@@ -126,7 +131,7 @@ func (s *Store) FeedMediaModel(userID int64, kind string) (*Model, *Provider, er
 	if err != nil {
 		return nil, nil, err
 	}
-	var id int64
+	var id, own int64
 	for _, o := range opts {
 		if o.ModelID == choice {
 			id = o.ModelID
@@ -135,6 +140,12 @@ func (s *Store) FeedMediaModel(userID int64, kind string) (*Model, *Provider, er
 		if id == 0 && !o.Personal {
 			id = o.ModelID // the server's model, unless the chosen one turns up
 		}
+		if own == 0 && o.Personal {
+			own = o.ModelID
+		}
+	}
+	if id == 0 {
+		id = own // nothing shared: a model on their own provider works without being picked
 	}
 	if id == 0 {
 		return nil, nil, nil

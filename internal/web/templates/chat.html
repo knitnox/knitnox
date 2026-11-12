@@ -91,6 +91,12 @@
             <div class="composer-bar">
               <button type="button" class="tool-pill" data-attach aria-label="Attach images or files" title="Attach images, PDFs or text files">{{template "i-paperclip"}}<span class="hide-sm">Attach</span></button>
               <input type="file" class="file-input" accept="image/png,image/jpeg,image/webp,image/gif,.pdf,.txt,.md,.markdown,.csv,.json,.xml,.html,.yaml,.yml,.toml,.log,.go,.py,.js,.ts,.tsx,.jsx,.java,.c,.h,.cpp,.cs,.rs,.rb,.php,.sh,.sql,.css,.swift,.kt" multiple hidden>
+              {{if and (eq .Role "owner") (not .Agent)}}
+              <details class="row-menu tools-pick opens-up">
+                <summary class="tool-pill" title="Choose what the AI may use in this chat">{{template "i-wrench"}}<span class="hide-sm">Tools</span><span class="badge" id="tools-count"{{if not .ToolsOff}} hidden{{end}}>{{.ToolsOff}} off</span></summary>
+                <div class="menu" id="tools-body" role="menu" aria-label="Tools for this chat">{{template "tools-body" .}}</div>
+              </details>
+              {{end}}
               <span class="queue-info" id="queue-info" aria-live="polite"></span>
               <span class="grow"></span>
               <button type="button" id="stop" class="send-btn stop" hidden aria-label="Stop generating" title="Stop">{{template "i-stop"}}</button>
@@ -136,6 +142,23 @@
                 </select>
                 {{template "i-chevron-down"}}
               </label>
+              <details class="row-menu tools-pick">
+                <summary class="tool-pill" title="Choose what the AI may use in this chat">{{template "i-wrench"}}<span class="hide-sm">Tools</span><span class="badge" data-tools-count hidden></span></summary>
+                <div class="menu" role="group" aria-label="Tools for this chat">
+                  <input type="hidden" name="tools_menu" value="1">
+                  <p class="menu-note">What the AI may use <b>in this chat</b>. Untick what you do not need: answers get cheaper and stay on the point. You can change it later next to Attach.</p>
+                  {{range .Tools}}
+                  {{if .Ready}}
+                  <label class="tool-row"><input type="checkbox" class="switch-input" name="tool_on" value="{{.Key}}" checked><span class="switch is-on" aria-hidden="true"></span><span class="grow"><span>{{.Name}}</span><small>{{.Hint}}</small></span></label>
+                  {{else}}
+                  <div class="tool-row is-off"><span class="switch" aria-hidden="true"></span><span class="grow"><span>{{.Name}}</span><small>{{.Hint}}{{if .Setup}} · <a href="{{.Setup}}">Open</a>{{end}}</small></span></div>
+                  {{end}}
+                  {{end}}
+                  {{if not .ToolServers}}<p class="menu-note">No tool servers yet. They let the AI search, read mail or use your own services.</p>{{end}}
+                  <div class="menu-sep"></div>
+                  <a href="/settings#mcp" role="menuitem">{{template "i-plug"}}Add or manage tool servers</a>
+                </div>
+              </details>
               {{if .Agents}}
               <details class="row-menu agent-pick">
                 <summary class="tool-pill" title="Connect your background agents to this chat">{{template "i-bot"}}<span class="hide-sm">Agents</span><span class="badge" data-agent-count hidden></span></summary>
@@ -250,6 +273,25 @@
   {{end}}
   {{if .Waiting}}<div class="run-note is-wait" id="wait-note">{{template "i-clock"}}<span>Waiting for a free slot — other chats are being answered first.</span></div>{{end}}
 </div>
+{{end}}
+
+{{/* The inside of the Tools menu of a chat. Needs .Tools, .ToolsOff, .ToolServers, .Thread; .ToolsMidChat for the note about cost. */}}
+{{define "tools-body"}}
+{{if .Changed}}<span class="badge" id="tools-count" hx-swap-oob="true"{{if not .ToolsOff}} hidden{{end}}>{{.ToolsOff}} off</span>{{end}}
+<p class="menu-note">What the AI may use <b>in this chat</b>. Switch off what you do not need: answers get cheaper and stay on the point.</p>
+{{if .ToolsMidChat}}<p class="menu-note tools-cost{{if .Changed}} is-fresh{{end}}">{{template "i-clock"}}<span>{{if .Changed}}<b>Changed.</b> {{end}}Changing tools in the middle of a chat makes the <b>next</b> reply a little slower and a little dearer, once: the AI provider has to read the conversation again from the start.</span></p>{{end}}
+{{range .Tools}}
+{{if .Ready}}
+<button type="button" role="menuitemcheckbox" aria-checked="{{.On}}" class="tool-row" hx-post="/t/{{$.Thread.ID}}/tools" hx-vals='{"key":"{{.Key}}","on":"{{if .On}}0{{else}}1{{end}}"}' hx-target="#tools-body" hx-swap="innerHTML">
+  <span class="switch{{if .On}} is-on{{end}}" aria-hidden="true"></span><span class="grow"><span>{{.Name}}</span><small>{{.Hint}}</small></span>
+</button>
+{{else}}
+<div class="tool-row is-off"><span class="switch" aria-hidden="true"></span><span class="grow"><span>{{.Name}}</span><small>{{.Hint}}{{if .Setup}} · <a href="{{.Setup}}">Open</a>{{end}}</small></span></div>
+{{end}}
+{{end}}
+{{if not .ToolServers}}<p class="menu-note">{{if .Group}}No tool servers are shared with this group chat. Tick them under <b>Share → Chat settings</b>.{{else}}No tool servers yet. They let the AI search, read mail or use your own services.{{end}}</p>{{end}}
+<div class="menu-sep"></div>
+<a href="/settings#mcp" role="menuitem">{{template "i-plug"}}Add or manage tool servers</a>
 {{end}}
 
 {{/* an older page of messages, prepended by app.js */}}

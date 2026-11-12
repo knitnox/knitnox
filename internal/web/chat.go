@@ -164,10 +164,14 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 	if c, err := r.Cookie("kn_start"); err == nil && c.Value == "off" {
 		hidden = true
 	}
-	s.render(w, r, "chat", map[string]any{
+	data := s.toolsData(u, nil, false) // the Tools menu for a chat that does not exist yet
+	for k, v := range map[string]any{
 		"ModelOptions": opts, "DefaultModel": s.defaultModel(u.ID, opts), "MaxFiles": maxAttachments, "Agents": agents,
 		"HasTools": len(servers) > 0, "StartHidden": hidden,
-	})
+	} {
+		data[k] = v
+	}
+	s.render(w, r, "chat", data)
 }
 
 func (s *Server) newThread(w http.ResponseWriter, r *http.Request) {
@@ -217,6 +221,7 @@ func (s *Server) newThread(w http.ResponseWriter, r *http.Request) {
 			s.log.Warn("could not connect agents to the new chat", "thread", id, "err", err)
 		}
 	}
+	s.newThreadTools(r, u, id) // before the first message runs, so that turn already honours the choice
 	content := strings.TrimSpace(r.FormValue("content"))
 	if len(content) > maxMessageLen {
 		content = content[:maxMessageLen]
@@ -252,6 +257,13 @@ func (s *Server) threadPage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	data["Pinned"], data["Archived"] = s.st.ThreadFlags(t.ID, u.ID)
+	if role == "owner" { // the Tools menu next to Attach
+		for k, v := range s.toolsData(u, t, s.st.MemberCount(t.ID) > 1) {
+			if k != "Thread" && k != "Group" {
+				data[k] = v
+			}
+		}
+	}
 	data["MaxFiles"] = maxAttachments
 	if a, _ := s.st.AgentByThread(t.ID); a != nil { // an agent's page: same chat view, agent panel
 		data["Agent"] = a

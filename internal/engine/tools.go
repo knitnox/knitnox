@@ -75,30 +75,40 @@ func (e *Engine) openTools(ctx context.Context, tc *turnCtx) (*toolset, error) {
 		}
 		return ts, nil
 	}
-	servers, err := e.st.ThreadMCPServers(tc.thread, tc.group)
+	// What the owner switched off for this chat in the Tools menu (web/tools.go).
+	off := e.st.ThreadToolsOff(tc.thread.ID)
+	all, err := e.st.ThreadMCPServers(tc.thread, tc.group)
 	if err != nil {
 		return ts, err
 	}
+	var servers []store.MCPServer
+	for _, srv := range all {
+		if !off[store.ToolServerKey(srv.ID)] {
+			servers = append(servers, srv)
+		}
+	}
 	e.connectServers(ctx, ts, servers, nil)
-	tc.connected = e.addManagerTools(ts, tc)
+	if !off[store.ToolAgents] {
+		tc.connected = e.addManagerTools(ts, tc)
+	}
 	// Long-term memory is personal, so it stays out of group chats.
-	if !tc.group && e.st.MemoryEnabled(tc.thread.OwnerUserID) {
+	if !tc.group && !off[store.ToolMemory] && e.st.MemoryEnabled(tc.thread.OwnerUserID) {
 		tc.memoryUser, tc.memoryWrite = tc.thread.OwnerUserID, true
 		e.addMemoryTools(ts, tc.memoryUser, tc.thread.ID, true)
 	}
 	// So is the Plan Book.
-	if !tc.group && e.st.PlanEnabled(tc.thread.OwnerUserID) {
+	if !tc.group && !off[store.ToolPlan] && e.st.PlanEnabled(tc.thread.OwnerUserID) {
 		tc.planOn, tc.planWrite = true, true
 		e.addPlanTools(ts, tc.thread.OwnerUserID, store.PlanActor{Kind: store.PlanByAI, ThreadID: tc.thread.ID}, true, tc.loc)
 	}
 	// And the feed: the AI posts there only in the owner's own chats.
-	if !tc.group && e.st.FeedEnabled(tc.thread.OwnerUserID) {
+	if !tc.group && !off[store.ToolFeed] && e.st.FeedEnabled(tc.thread.OwnerUserID) {
 		tc.feedOn, tc.feedMedia = true, e.feedMediaNote(tc.thread.OwnerUserID)
 		e.addFeedTools(ts, tc.thread.OwnerUserID, store.FeedActor{Kind: store.FeedByAI, ThreadID: tc.thread.ID}, 0, true, tc.loc, tc.checkModel())
 	}
 	// Pictures are made with the owner's model and count toward the owner's
 	// daily limit, so the tool is offered only in the owner's own chats.
-	if !tc.group {
+	if !tc.group && !off[store.ToolPictures] {
 		tc.pictureOn = e.addPictureTool(ts, tc)
 	}
 	return ts, nil

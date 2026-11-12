@@ -64,6 +64,7 @@ Everything Knitnox does today, grouped by area. Limits are listed at the end so 
 | Remote MCP servers | Give the AI tools over HTTP |
 | Two modes per server | Run automatically, or ask a person first |
 | Approval cards | Allow once, Deny, or Always allow, with push notification |
+| Tools menu in every chat | The **Tools** button next to Attach shows what the AI may use in this chat and lets you switch off memory, the Plan Book, the Feed, pictures, connected agents or any tool server, for this chat only |
 | Step limit and retries | A turn cannot loop forever. A call that could not be delivered is tried again; one that may already have run is not, so nothing is sent or booked twice |
 
 ## Agents
@@ -200,6 +201,7 @@ Everything Knitnox does today, grouped by area. Limits are listed at the end so 
 - **Approval waits.** A tool call waiting for approval holds that chat's queue until someone decides.
 - **Plan Book.** Due dates are days, not times; there are no reminders, subtasks, repeating tasks or shared projects yet.
 - **Feed.** No likes, comments or follows. One picture, recording or video per post; you cannot upload your own files to a post. Video uses the OpenAI video format only, which few providers offer. The read count is the number of other people who were shown a shared post.
+- **Tools menu.** It switches whole groups and whole tool servers, not single tools, and it can only switch off what is already set up. Changing it in the middle of a chat makes the next reply cost a little more once.
 - **Pictures and voice in chats.** Pictures are made only in your own chats, not in group chats or by agents, and the AI cannot see the picture it made. Read aloud reads the first 4,000 characters of an answer and leaves code out. Videos are made only for Feed posts.
 - **Model kinds.** What a model is for is guessed from its name when it is added and can be changed in the providers list. Pictures, recordings and videos are not counted in token quotas; the admin sets a number per person per day instead.
 - **Memory search.** Smart search needs an embedding model; without one, only shared words match. Embedding calls are not counted in token quotas.

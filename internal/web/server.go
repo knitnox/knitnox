@@ -243,6 +243,7 @@ func (s *Server) Handler() http.Handler {
 	u("POST /t/{id}/messages/{mid}/speak", s.speakMessage)
 	u("GET /t/{id}/panel", s.threadPanel)
 	u("POST /t/{id}/settings", s.threadSettings)
+	u("POST /t/{id}/tools", s.threadToolSet)
 	u("POST /t/{id}/delete", s.deleteThread)
 	u("POST /t/{id}/leave", s.leaveThread)
 	u("POST /t/{id}/invites", s.createInvite)

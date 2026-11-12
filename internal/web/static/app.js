@@ -815,6 +815,14 @@
         } catch { flash("Network error — please try again."); }
       },
     });
+    // tools unticked before the first message: the switch follows the box, and the pill says how many are off
+    const toolsCount = $("[data-tools-count]", homeForm);
+    if (toolsCount) homeForm.addEventListener("change", (e) => {
+      if (!e.target.matches("input[name=tool_on]")) return;
+      e.target.nextElementSibling?.classList.toggle("is-on", e.target.checked);
+      const n = $$("input[name=tool_on]:not(:checked)", homeForm).length;
+      toolsCount.textContent = `${n} off`; toolsCount.hidden = n === 0;
+    });
     // agents picked before the first message: show how many are ticked
     const agentCount = $("[data-agent-count]", homeForm);
     if (agentCount) homeForm.addEventListener("change", (e) => {

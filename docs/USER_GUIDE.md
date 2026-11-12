@@ -43,7 +43,7 @@ To change how Knitnox looks, open **Settings → Appearance**: choose **Auto**, 
 
 On a phone, **Enter** adds a new line and the arrow button sends.
 
-**Pictures and voice need a model.** If the speaker button is missing, or the AI says it cannot make pictures, no model of that kind is set up for you. Choose one, or add your own, under **Feed → Settings → Pictures, voice and video**; your admin can also share one with everyone. Pictures are made in your own chats only, not in group chats. With the server's models there is a daily limit, shared with the Feed.
+**Pictures and voice need a model.** If your admin shares a picture or voice model, both work for you with nothing to set up. If you added your own model of that kind, it is used when the admin shares none. To choose between them, or to turn one off, open **Feed → Settings → Pictures, voice and video**. If the speaker button is missing, or the AI says it cannot make pictures, no such model exists yet. Pictures are made in your own chats only, not in group chats. With the server's models there is a daily limit, shared with the Feed.
 
 ## Attach images and files
 
@@ -89,7 +89,27 @@ Tools let the AI do things outside the chat, such as search your mail or read a 
    - **Ask me before running**: best for tools that change things. The chat shows a card with **Allow once**, **Deny** and **Always allow**.
 4. Click **Test** to see the server's tools.
 
-Your own chats use all of your enabled servers.
+Your own chats use all of your enabled servers, unless you switch one off for a chat (next section).
+
+## Choose the tools for one chat
+
+Click **Tools** next to **Attach**, on the home screen before you start or in any chat you own.
+
+| Row | What it switches |
+|---|---|
+| **Memory** | Saving facts about you and looking them up |
+| **Plan Book** | Adding, listing and finishing your tasks |
+| **Feed** | Posting to your feed and reading your posts |
+| **Pictures** | Making a picture in the chat |
+| **Agents** | Handing work to the agents connected to this chat |
+| Each tool server | Every tool of that server |
+
+- A switch changes **this chat only**. Other chats, and the setting itself, stay as they are.
+- A greyed-out row is something you have not turned on yet; **Open** takes you to where that is done.
+- The button shows how many things are off, for example **Tools · 2 off**.
+- Fewer tools make answers cheaper and keep the AI on the point. Switching Memory off is also the way to have one chat the AI remembers nothing from.
+- **In the middle of a chat** the menu shows a note: after a change, the next reply is a little slower and costs a little more, once, because the AI provider has to read the conversation again from the start. Choosing before the first message costs nothing.
+- In a group chat only the owner sees the button, and the personal rows (Memory, Plan Book, Feed, Pictures) are off for everyone.
 
 ## Agents: workers that run in the background
 

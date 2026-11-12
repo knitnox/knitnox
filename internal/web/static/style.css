@@ -1016,6 +1016,32 @@ pre, code { tab-size: 4; -moz-tab-size: 4; }
 .menu-tick .i { color: var(--accent-text); }
 .agent-tool.is-off { opacity: .6; }
 .own-name { font-size: 14px; overflow-wrap: anywhere; }
+.tools-pick summary.tool-pill { list-style: none; }
+.tools-pick summary.tool-pill::-webkit-details-marker { display: none; }
+.tools-pick .menu { min-width: 310px; max-width: min(360px, calc(100vw - 32px)); left: 0; right: auto; max-height: min(460px, 70vh); overflow-y: auto; }
+.tools-pick.opens-up .menu { top: auto; bottom: calc(100% + 6px); }
+/* Rows of the Tools menu. The selectors are this long on purpose: they must win over the general rules for
+   labels (a column) and for links, buttons and small text inside a menu. */
+.tools-pick .menu .tool-row { display: flex; flex-direction: row; align-items: center; gap: 12px; width: 100%; padding: 8px 10px; border: 0;
+  border-radius: var(--r-xs); background: none; color: var(--fg); font: inherit; font-size: 14px; font-weight: 400; text-align: left; cursor: pointer; }
+.tools-pick .menu .tool-row .grow { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.tools-pick .menu .tool-row small { margin: 0; padding: 0; color: var(--muted); font-size: 12px; font-weight: 400; line-height: 1.4; }
+.tools-pick .menu .tool-row.is-off { cursor: default; }
+.tools-pick .menu .tool-row.is-off > .grow > span { color: var(--muted); }
+.tools-pick .menu .tool-row small a { display: inline; width: auto; padding: 0; color: var(--accent-text); text-decoration: underline; text-underline-offset: 2px; }
+.tools-pick .menu .tool-row small a:hover { background: none; }
+@media (hover: hover) { button.tool-row:hover, label.tool-row:hover { background: var(--bg-subtle); } }
+.switch { position: relative; flex-shrink: 0; width: 32px; height: 18px; border-radius: 9px; background: var(--border-2); transition: background .15s; }
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--bg); box-shadow: 0 1px 2px rgba(0, 0, 0, .25); transition: transform .15s; }
+.switch.is-on { background: var(--accent); }
+.switch.is-on::after { transform: translateX(14px); }
+.tool-row.is-off .switch { opacity: .45; }
+.switch-input { position: absolute; opacity: 0; pointer-events: none; }
+.switch-input:focus-visible + .switch { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tools-cost { display: flex; gap: 8px; align-items: flex-start; margin: 0 6px 6px; padding: 8px 10px; border-radius: var(--r-xs); background: var(--warn-soft); color: var(--fg); max-width: none; }
+.tools-cost .i { width: 15px; height: 15px; flex-shrink: 0; margin-top: 2px; color: var(--warn); }
+.tools-cost.is-fresh { outline: 1px solid var(--warn); }
+@media (prefers-reduced-motion: reduce) { .switch, .switch::after { transition: none; } }
 .agent-pick summary.tool-pill { list-style: none; }
 .agent-pick .menu { min-width: 290px; left: 0; right: auto; }
 .agent-pick .menu label.check { padding: 8px 10px; border-radius: var(--r-xs); }

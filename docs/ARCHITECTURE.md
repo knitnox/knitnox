@@ -748,3 +748,21 @@ attachments.kind   image | file | audio
 - **What is read.** `speakable` drops code blocks, link addresses and Markdown signs, and cuts at 4,000 characters on a sentence end.
 - **One player.** The `<audio>` element sits above the message box, outside `#messages`, so it keeps playing when the list is re-rendered.
 - Recordings are the only audio type `SaveUpload` accepts, and only with `KindAudio`; people still cannot upload audio.
+
+- **Defaults.** `FeedMediaModel` needs no choice from the user: the model they picked, else the first one the admin shares, else the first on their own providers. So a shared picture or voice model works for every account at once.
+
+## 22. The Tools menu: switches per chat
+
+Until a chat says otherwise it gets everything its owner set up. `thread_tools_off(thread_id, key)` holds what the owner switched **off** for one chat; `key` is a built-in group (`memory`, `plan`, `feed`, `pictures`, `agents`) or one server (`mcp:<id>`). Storing the exceptions, not the choices, means a tool added later works in old chats without touching them.
+
+| Step | Where |
+|---|---|
+| The menu's rows | `web/tools.go → toolRows`: each group with whether it is set up for the owner, each tool server of the chat. A group that is not set up is shown greyed out with a link; in a group chat the personal groups say so |
+| Switching | `POST /t/{id}/tools` (`key`, `on`), owner only. The key must be a row that is set up, so nothing can be stored for a server that is not the owner's or not shared with the chat. The answer is the menu drawn again plus the pill's count as an out-of-band swap |
+| Before the chat exists | The home form sends `tools_menu=1` and one `tool_on` per ticked row; `newThreadTools` stores the unticked ones before `Submit`, so the first turn already honours them |
+| Applying | `engine.openTools` reads `ThreadToolsOff` at the start of every run and leaves those groups and servers out; the notes in the system prompt follow, because they are added only for tools that were added |
+
+- **It can only narrow.** Turning Memory on is still done on the Memory page; the menu never grants a chat something its owner has not enabled.
+- **Cost of a change mid-chat.** Tool definitions and the tool notes sit at the very start of what the provider reads. Changing them changes the prompt prefix, so provider-side caching starts over for one turn (§15, "Keep the prompt prefix stable"). The menu says so whenever the chat already has a run, and marks the note after a change. Choosing on the home screen costs nothing.
+- **Whole servers, not single tools.** Listing a server's tools needs a live connection, which is slow and fails when the server is down. Agents keep their typed allowlist (§16).
+- Agent threads have no Tools menu: an agent's tools are part of its settings.

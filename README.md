@@ -19,9 +19,9 @@ A small, self-hosted AI chat with **turn-based group chats**. It's one Go binary
 - **Edit and regenerate**: edit your latest (or any queued) message, regenerate the last answer, or retry a failed one. The old answer is replaced.
 - **Find things again**: full-text search across every chat you belong to (SQLite FTS5), "Load earlier messages" for long chats, pin and archive, rename and delete from the sidebar, export as Markdown or JSON.
 - **Install it as an app** (PWA) and get **push notifications** when a reply finishes while you're away or a tool needs your approval.
-- **Operations**: a global cap on simultaneous generations (protects your provider from 429s, honours `Retry-After`), login brute-force protection, an audit log of admin actions, a context-window meter in every chat, and a `knitnox backup` command.
+- **Operations**: a global cap on simultaneous generations (protects your provider from 429s, honours `Retry-After`), time limits so a silent provider can never hold a chat, automatic checked backups, hourly housekeeping of old log rows, login brute-force protection, an audit log of admin actions and a context-window meter in every chat.
 - **Markdown + code highlighting**: GitHub-style Markdown (tables, task lists, quotes), monochrome syntax highlighting for 30+ common languages, and a Copy button on every code block.
-- **A calm monochrome UI** (neutral greys, dark mode follows the OS) in an app shell like the familiar chat apps: a sidebar with pinned and date-grouped chats, a "⋯" menu on every chat, keyboard shortcuts, a full-screen image viewer and copy buttons on messages. It is built for phones too, with a slide-out drawer, bottom-sheet menus, safe-area handling and no iOS zoom on inputs. htmx powers the forms and about 700 lines of vanilla JS run the chat. The CSP allows no inline scripts or styles at all.
+- **A calm UI** (warm neutrals plus one accent colour of six to choose from; light, dark or following the device) in an app shell like the familiar chat apps: a sidebar with pinned and date-grouped chats, a "⋯" menu on every chat, a `Ctrl+K` search-and-jump box, keyboard shortcuts, a full-screen image viewer and copy buttons on messages. It is built for phones too, with a slide-out drawer, bottom-sheet menus, safe-area handling and no iOS zoom on inputs. htmx powers the forms and about 1,150 lines of vanilla JS run the rest. The CSP allows no inline scripts or styles at all.
 
 - **Help built in**: a user guide, a feature list and a developer guide under **Help**, plus an **Issues** page where anyone can report a bug, idea or question and admins reply.
 
@@ -41,7 +41,7 @@ go run ./cmd/mockllm                # http://localhost:9090
 go run ./cmd/knitnox                 # http://localhost:8080
 ```
 
-1. Open http://localhost:8080. The **first account you create becomes the admin**.
+1. Open http://localhost:8080. The **first account you create becomes the admin**. After that sign-up is closed: make more accounts under **Admin → Users**, or open sign-up under **Admin → Settings**.
 2. **Admin → Providers → Add provider**
    - Name: `Mock`, Base URL: `http://localhost:9090/v1`, API key: anything. Then click **Fetch models from provider** and tick `mock` (or type `mock` in the Models box).
 3. **Settings → MCP servers → Add**
@@ -63,7 +63,7 @@ All configuration is through environment variables. Everything else is set in th
 | Variable | Default | Meaning |
 |---|---|---|
 | `KNITNOX_ADDR` | `:8080` | Listen address |
-| `KNITNOX_DATA` | `./data` | Directory for `knitnox.db` (+ WAL files) and `secret.key` |
+| `KNITNOX_DATA` | `./data` | Directory for `knitnox.db` (+ WAL files), `secret.key`, `uploads/`, `feedmedia/` and, unless moved, `backups/` |
 | `KNITNOX_SECRET` | *(generated)* | Passphrase that encrypts API keys and MCP headers at rest. If unset, a random key is written to `$KNITNOX_DATA/secret.key` |
 | `KNITNOX_SECURE_COOKIES` | off | Set to `1` when served over HTTPS |
 | `KNITNOX_LOG` | `info` | `debug`, `info` or `warn` |
@@ -111,14 +111,17 @@ internal/
   secret/        AES-256-GCM for API keys / MCP headers
   llm/           streaming client for /chat/completions (tool calls, reasoning, Retry-After)
   mcp/           MCP client (Streamable HTTP transport)
+  netguard/      which addresses the server may call for a user (SSRF check at connect time)
   files/         upload classification + text extraction (PDF, text)
   hub/           in-memory pub/sub per thread (feeds SSE)
-  engine/        thread workers, queue, slots, agent loop, tool approval, compaction, quotas
-  web/           router, auth/CSRF/login limiter, handlers, push, templates/, static/ (all embedded)
-docs/ARCHITECTURE.md
+  engine/        thread workers, queue, slots, agent loop, tool approval, compaction, quotas,
+                 agents and their scheduler, memory, Plan Book, Feed
+  web/           router, auth/CSRF/login limiter, handlers, push, backups, templates/, static/ (all embedded)
+docs/            the guides (USER_GUIDE, FEATURES, DEVELOPER_GUIDE, BUILD_GUIDE are shown in the app), ARCHITECTURE.md
+.github/workflows/test.yml   vet, tests with the race detector and a build, on every push
 ```
 
-Dependencies only point downward: `web → engine → (llm, mcp, hub, store) → secret`, and `web → files → store`. Only `store` touches the database.
+Dependencies only point downward: `web → engine → (llm, mcp, hub, store) → secret`, `web → files → store`, and `llm`, `mcp → netguard`. Only `store` touches the database.
 
 ---
 
@@ -192,10 +195,15 @@ Notes:
 Tests (all with in-process fake LLM / MCP servers, no network):
 - `internal/engine/engine_test.go`: a basic turn and usage, queue order and limit, the tool loop through MCP (JSON and SSE responses), group-chat name prefixes and tool hiding, compaction, quota blocking, stopping mid-stream, editing and regenerating, images as content parts.
 - `internal/engine/features_test.go`: tool approval (allow, deny, timeout, stop while waiting), the parallel-run cap, custom instructions (and that personal ones stay out of group chats), inline file text, reasoning capture, search and paging.
-- `internal/llm/llm_test.go`: `Retry-After` handling.
+- `internal/engine/reliability_test.go`, `safety_test.go`: a silent provider, the per-run time limit, a panic inside a run or a hook, a cut-off answer, and that a tool call which may have run is not repeated.
+- `internal/llm/llm_test.go`, `stall_test.go`: `Retry-After` handling; the idle watchdog before and during an answer.
 - `internal/web/web_test.go`: HTTP-level flows: CSRF, login lockout, uploads and their validation, permissions for non-members, rename/pin/archive/export/search, tool approval over HTTP, paging, admin settings and the audit log, PWA files.
+- `internal/web/accounts_test.go`, `hardening_test.go`: the password typed twice, changing a username, signing other devices out, the admin backup; sign-up closed by default and limited per address, the login limiter's keys, `X-Forwarded-For`, the health check.
+- `internal/store/backup_test.go`, `housekeeping_test.go`: a backup can be opened again, a failed one leaves nothing behind, only the newest are kept; old log rows and agent runs are removed and chats are not; exactly one first admin.
+- `internal/netguard`, `internal/mcp`, `internal/secret`, `internal/files`: the address rules, which failed tool calls are safe to repeat, sealing and opening secrets, file types decided by content.
+- Agents, memory, the Plan Book, the Feed and the help pages each have their own test files in `internal/engine` and `internal/web`; the Developer guide lists them.
 
-There is also a curl smoke-test flow in the session notes; the mock server exercises every feature without an API key.
+The mock server (`go run ./cmd/mockllm`) exercises every feature without an API key.
 
 ---
 
@@ -212,6 +220,7 @@ Environment=KNITNOX_SECRET=change-me-to-a-long-random-string
 Environment=KNITNOX_SECURE_COOKIES=1
 ExecStart=/usr/local/bin/knitnox
 Restart=on-failure
+RestartSec=5
 User=knitnox
 [Install]
 WantedBy=multi-user.target
@@ -242,6 +251,12 @@ docker run -p 8080:8080 -v knitnox-data:/data -e KNITNOX_SECRET=... knitnox
 
 Run **one instance only**. Workers and the event hub live in process memory (see Architecture → Scaling).
 
+**On Windows**, a console window that is closed takes Knitnox with it and nothing keeps its log. Start it from Task Scheduler ("At startup", "Restart on failure") or wrap it as a service, and set `KNITNOX_LOG_FILE` (for example `C:\knitnox\knitnox.log`).
+
+**Health check:** `GET /healthz` answers `ok` with 200 while the database answers, and 503 when it does not. Point your monitor or Docker `HEALTHCHECK` at it.
+
+**Many tabs over plain `http://`:** a browser opens at most six connections to one server, and every open chat or Feed page holds one for live updates. With six or more Knitnox tabs open, further pages wait. Over HTTPS (Caddy, nginx with HTTP/2) all tabs share one connection and the limit is gone.
+
 ---
 
 ## Maintenance
@@ -253,16 +268,17 @@ The default folder is on the same disk as the data, which protects against a bad
 
 **By hand:** one command, safe to run while the server is up:
 ```bash
-knitnox backup /backups            # → /backups/knitnox-20261109-150405/{knitnox.db, secret.key, uploads/}
+knitnox backup /backups            # → /backups/knitnox-20261109-150405/{knitnox.db, secret.key, uploads/, feedmedia/}
 ```
-It uses `VACUUM INTO` for a consistent database copy (plain `cp` of `knitnox.db` can miss data still in `knitnox.db-wal`), copies `secret.key` if one exists, and copies the `uploads/` folder. Put it in cron and rotate old folders. The command reads the same `KNITNOX_DATA` / `KNITNOX_SECRET` as the server.
+It uses `VACUUM INTO` for a consistent database copy (plain `cp` of `knitnox.db` can miss data still in `knitnox.db-wal`), checks the copy, copies `secret.key` if one exists, and copies the `uploads/` and `feedmedia/` folders. The command reads the same `KNITNOX_DATA` / `KNITNOX_SECRET` as the server.
 
 What the backup contains and why:
 1. **The database**: everything except files.
 2. **`secret.key`, or your `KNITNOX_SECRET`.** Without it, stored API keys and MCP headers cannot be decrypted. Users would have to re-enter them; chats are unaffected. The VAPID keys for push notifications are in the database.
 3. **`uploads/`**: images and documents (random file names, referenced from the `attachments` table).
+4. **`feedmedia/`**: pictures, recordings and videos made for Feed posts.
 
-To restore: stop the server, put `knitnox.db`, `secret.key` and `uploads/` back into `KNITNOX_DATA`, start it.
+To restore: stop the server, put `knitnox.db`, `secret.key`, `uploads/` and `feedmedia/` from one backup folder back into `KNITNOX_DATA` (delete the old `knitnox.db-wal` and `knitnox.db-shm` there first), start it.
 
 ### Forgotten passwords and usernames
 Knitnox has no e-mail, so nothing is recovered by a link. Instead:
@@ -290,11 +306,18 @@ The app was renamed from Parley to Knitnox. Existing installs keep working witho
 - The binary is now `knitnox` / `knitnox.exe` and the systemd unit, Docker image and backup folders use the new name; update your scripts.
 
 ### Upgrades and migrations
-Migrations in `internal/store/migrations/NNN_name.sql` run automatically at startup, in order, each in a transaction, and are recorded in `schema_migrations`. **Never edit a migration that has shipped. Add a new file.** Back up before upgrading.
+Migrations in `internal/store/migrations/NNN_name.sql` run automatically at startup, in order, each in a transaction, and are recorded in `schema_migrations`. **Never edit a migration that has shipped. Add a new file.** Back up before upgrading (**Admin → Settings → Backups → Back up now**).
+
+Changed defaults to know about when upgrading from a version before November 2026:
+- **Sign-up is closed** unless the settings were saved with it on. Open it again under **Admin → Settings** if you want it.
+- **Old log rows are removed**: usage and audit rows older than 730 days, and agent runs beyond the newest 300 per agent. Set the limits to `0` to keep everything.
+- **Replies have time limits** (5 minutes of silence, 60 minutes in total). Raise them for very slow local models.
 
 ### Things that grow
 - `usage_log` gets one row per LLM call, `audit_log` one per admin action, and every agent run stays as a run with its messages. The hourly clean-up removes the ones past the limits under **Admin → Settings → Housekeeping**, then runs `PRAGMA optimize` and folds the write-ahead log back into the database file.
 - `messages` grows forever (compaction never deletes). Deleting a chat removes its messages.
+- `backups/` holds the newest backups (7 unless changed), each a full copy including uploads.
+- `feedmedia/` grows with the pictures, recordings and videos of Feed posts; an hourly sweep removes files no post points to.
 - `uploads/` grows with images and documents. Deleting a chat deletes its files, and an hourly sweep removes files no row references any more (from deleted users, or queued messages that were cancelled). Uploads are capped at 6 files per message, 10 MB per image and 20 MB per document; browsers resize photos to ≤2048 px first, and extracted document text is capped at 120k characters per file.
 - `messages_fts` (the search index) is roughly the size of the message text. It is maintained by triggers; rebuild it after a manual bulk import with `INSERT INTO messages_fts(messages_fts) VALUES('rebuild');`.
 - `tool_approvals` gets one row per asked tool call. It is small.
@@ -329,7 +352,7 @@ All colours, radii and shadows are CSS variables at the top of `internal/web/sta
 3. Read it in the engine through `tc.settings` (loaded once per run).
 
 ### Add a column or table
-1. Create `internal/store/migrations/002_whatever.sql` (`ALTER TABLE …` / `CREATE TABLE …`).
+1. Create `internal/store/migrations/NNN_whatever.sql` with the next free number (`ALTER TABLE …` / `CREATE TABLE …`).
 2. Add the query functions in the relevant `store/*.go` file. Keep SQL out of other packages.
 
 ### Add a page or endpoint
@@ -386,3 +409,6 @@ Deliberately not implemented, because a user-supplied command means remote code 
 - Search matches the beginnings of words (prefix queries) in message text, not inside attached files.
 - A tool call waiting for approval blocks that chat's queue until someone decides or the timeout passes.
 - The sidebar doesn't live-update when someone invites you; reload to see new chats.
+- No e-mail: a forgotten password is reset by an admin, or on the server's command line.
+- Over plain `http://`, six or more open Knitnox tabs make further pages wait (see Deployment).
+- Backups are full copies. There is no incremental backup and no built-in copy to another machine.

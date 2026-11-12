@@ -43,6 +43,14 @@ To use another port:
 $env:KNITNOX_ADDR = ":3000"; .\knitnox.exe
 ```
 
+Closing the PowerShell window stops Knitnox, and nothing keeps what it printed. To keep a log, set a log file before starting:
+
+```powershell
+$env:KNITNOX_LOG_FILE = "knitnox.log"; .\knitnox.exe
+```
+
+To have it start with Windows and come back after a failure, add it to **Task Scheduler** ("At startup", and under Settings "If the task fails, restart every 1 minute").
+
 ## Build on Linux
 
 Open a terminal in the project folder.
@@ -188,7 +196,7 @@ The files are named `knitnox-1.0.0-<os>-<arch>`, and `dist/SHA256SUMS.txt` lists
 
 4. Open `http://<that-machine>:8080` and create the first account.
 
-Data is stored in a `data` folder next to where you start it. Set `KNITNOX_DATA` to choose another place.
+Data is stored in a `data` folder next to where you start it. Set `KNITNOX_DATA` to choose another place. Automatic backups go to `data/backups`; set `KNITNOX_BACKUP_DIR` to a folder on another disk.
 
 ## Build with Docker
 
@@ -211,7 +219,7 @@ go vet ./...      # should print nothing
 go test ./...     # every package should say "ok"
 ```
 
-`go test -race ./...` needs a C compiler. It is the one command here that does; run it on Linux in CI if you want it.
+`go test -race ./...` needs a C compiler. It is the one command here that does. The file `.github/workflows/test.yml` runs it on Linux for every push once the project is on GitHub.
 
 ## When the build fails
 
@@ -229,4 +237,4 @@ go test ./...     # every package should say "ok"
 
 ## Where to go next
 
-The README covers running Knitnox as a service, the reverse proxy, backups and upgrades.
+The README covers running Knitnox as a service, the reverse proxy, backups, forgotten passwords and upgrades.

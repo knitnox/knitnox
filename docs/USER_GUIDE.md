@@ -6,7 +6,7 @@ Knitnox is a private AI chat for you and your team. This guide shows how to use 
 
 ## Start in three steps
 
-1. **Sign in.** Open Knitnox in your browser and create an account, or use the one your admin gave you.
+1. **Sign in.** Open Knitnox in your browser and log in with the account your admin gave you. If the login page offers **Create an account**, you can make one yourself; you type the password twice.
 2. **Type a message** in the box on the home screen and press **Enter**.
 3. **Read the answer.** It appears word by word. You can close the tab; the answer keeps being written and is there when you return.
 
@@ -20,7 +20,7 @@ New accounts see a **Getting started** list on the home screen. It ticks off eac
 |---|---|
 | **Sidebar, top** | **New chat** and **Search or jump to…** (`Ctrl+K`) |
 | **Sidebar, middle** | **Agents**, **Feed**, **Plan Book**, **Memory**, **Settings**, **Help & guides**, then your agents and your chats |
-| **Sidebar, bottom** | Your name: switch between light and dark, report an issue, log out |
+| **Sidebar, bottom** | Your name: switch between light and dark, open Settings, report an issue, log out |
 | **A small "?"** | Click it for a plain-words explanation of the thing next to it |
 
 To change how Knitnox looks, open **Settings → Appearance**: choose **Auto**, **Light** or **Dark**, and pick an accent colour. The choice is saved in the browser you are using.
@@ -37,6 +37,7 @@ To change how Knitnox looks, open **Settings → Appearance**: choose **Auto**, 
 | Fix my last message | Hover it and click the pencil. The old answer is replaced |
 | Get a different answer | Click the circular arrow under the latest answer |
 | Copy an answer or a code block | Click the copy icon under the message, or **Copy** on the code block |
+| See a picture from another website | Click the **Show picture from …** button. Pictures from other sites are not loaded by themselves, so an answer cannot quietly send anything to another site |
 
 On a phone, **Enter** adds a new line and the arrow button sends.
 
@@ -77,7 +78,7 @@ Everyone's messages go into one queue and the AI answers them one at a time. The
 
 Tools let the AI do things outside the chat, such as search your mail or read a calendar. Tools come from **MCP servers**.
 
-1. Go to **Settings → MCP servers → Add an MCP server**.
+1. Go to **Settings → Tools → Add an MCP server**.
 2. Enter a name and the server's URL. Add headers if the server needs a key.
 3. Choose what happens when the AI wants to use a tool:
    - **Run it automatically**: fine for tools that only read.
@@ -317,7 +318,7 @@ Both need the site to be served over `https://`.
 
 ## Your account
 
-Under **Settings** you can change your username and your password, see how much of your token allowance you have used, add your own API keys, and **Log out everywhere**. Changing your password signs you out on your other devices.
+Under **Settings** you can change your username and your password (the current password is asked for, and a new password is typed twice), see how much of your token allowance you have used, add your own API keys, and **Log out everywhere**. Changing your password signs you out on your other devices.
 
 **Forgot your password or username?** Ask an administrator of your Knitnox: they can tell you your username and set a new password for you under **Admin → Users**. There is no e-mail reset.
 
@@ -327,15 +328,21 @@ Only shared models count toward your allowance. Your own keys are never limited.
 
 ## For admins
 
-The first account created is the admin. Admins see **Admin panel** in the user menu.
+The first account created is the admin. Admins see **Admin panel** in the sidebar. After the first account, nobody else can sign up until you allow it: create accounts under **Users**, or tick **Allow anyone to sign up** under **Settings**.
 
 | Tab | What you do there |
 |---|---|
 | **Providers** | Add shared AI providers and choose their models |
-| **Users** | Create accounts, set token limits, disable or delete users |
+| **Users** | Create accounts, set token limits, rename, set a new password, disable or delete users |
 | **Usage** | See tokens and cost per user and model |
 | **Audit** | See who changed what in the admin panel |
-| **Settings** | Sign-up on or off, queue size, step limits, the system prompt and more |
+| **Settings** | Sign-up, queue size, step and time limits, backups, housekeeping, the system prompt and more |
+
+**Backups.** Knitnox makes a backup every day and keeps the newest seven. **Admin panel → Settings → Backups** shows when the last one ran and warns if it failed; **Back up now** makes one at once. Ask whoever runs the server to keep the backup folder on another disk.
+
+**Someone forgot their password or username.** Open **Users**, click **⋯** next to the person, and type a new password or a new username. If you forgot your own, it is reset on the computer where Knitnox runs (`knitnox list-users`, `knitnox reset-password NAME NEW-PASSWORD`).
+
+**Housekeeping.** Old usage and audit lines and old agent runs are removed after the limits under **Settings → Housekeeping**. Chats, memories, tasks and posts are never removed this way.
 
 **Memory for everyone.** Under **Admin panel → Settings → Long-term memory**, pick a shared provider and type the name of its embedding model to give every user smart search. Click **Test it** before saving. Without it, memory still works with word search.
 
@@ -350,6 +357,11 @@ The first account created is the admin. Admins see **Admin panel** in the user m
 | A tool card is waiting | Click **Allow once** or **Deny**. Unanswered cards are denied after a while |
 | An agent does nothing | Check that it is **Active**, has a model, and has tools ticked |
 | An answer stopped half way | Click **Retry** under it |
+| "The provider stopped answering" or "the answer was cut off" | The AI provider went silent or hung up. What was written is kept. Click **Retry** |
+| "Stopped after … minutes" | The answer took longer than the server allows. Try a shorter request, or ask an admin to raise the limit |
+| "Sign-up is closed" | Ask an admin for an account |
+| "Too many failed attempts" | Wait 15 minutes, or ask an admin to set a new password |
+| Pages take very long to open | If you have many Knitnox tabs open, close some |
 
 ## Report a problem or an idea
 

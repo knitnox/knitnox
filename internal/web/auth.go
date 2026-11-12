@@ -19,7 +19,7 @@ const (
 	sessionCookie   = "knitnox_session"
 	oldCookie       = "parley_session" // accepted from before the rename
 	sessionTTL      = 30 * 24 * time.Hour
-	maxRequestBytes = 48 << 20 // up to 4 images × 10 MB + text
+	maxRequestBytes = 48 << 20 // one message with its attachments (up to 6 files; documents may be 20 MB each)
 )
 
 type ctxKey int

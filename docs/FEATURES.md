@@ -14,6 +14,8 @@ Everything Knitnox does today, grouped by area. Limits are listed at the end so 
 | Markdown and code | Tables, lists, quotes, syntax highlighting, a Copy button on code |
 | Long-chat memory | Older messages are summarised automatically; originals are kept |
 | Context meter | Shows how full the model's memory is for this chat |
+| Never stuck | If the AI provider goes silent or hangs up, the answer stops with what it has and you can retry |
+| Pictures from other sites wait | A picture hosted elsewhere shows as a button and loads only when you click it |
 
 ## Files
 
@@ -60,7 +62,7 @@ Everything Knitnox does today, grouped by area. Limits are listed at the end so 
 | Remote MCP servers | Give the AI tools over HTTP |
 | Two modes per server | Run automatically, or ask a person first |
 | Approval cards | Allow once, Deny, or Always allow, with push notification |
-| Step limit and retries | A turn cannot loop forever; failed calls are retried |
+| Step limit and retries | A turn cannot loop forever. A call that could not be delivered is tried again; one that may already have run is not, so nothing is sent or booked twice |
 
 ## Agents
 
@@ -152,12 +154,16 @@ Everything Knitnox does today, grouped by area. Limits are listed at the end so 
 
 | Feature | What it means |
 |---|---|
-| Users | Create, disable, delete, make admin, reset password |
+| Users | Create, rename, disable, delete, make admin, reset password |
+| Sign-up | Closed unless the admin opens it; new accounts can get a token allowance |
 | Quotas | Token limits per user, per day or per month |
 | Usage and cost | Per user and per model |
 | Audit log | Who changed what in the admin panel |
-| Global settings | Sign-up, queue size, step limits, system prompt, parallel answers |
-| Backup command | One command copies the database, the key and uploads |
+| Global settings | Sign-up, queue size, step limits, time limits, system prompt, parallel answers |
+| Automatic backups | A checked copy of the database, the key and all files every day; the newest seven are kept; **Back up now** and the last result are on the settings page |
+| Housekeeping | Old usage and audit rows and old agent runs are removed by limits the admin sets; chats are never removed |
+| Command-line tools | List accounts, reset a password, rename a user, create an admin, make a backup |
+| Health check and log file | An address that says whether the server is well; an optional log file that cannot grow without end |
 
 ## Help
 
@@ -173,13 +179,19 @@ Everything Knitnox does today, grouped by area. Limits are listed at the end so 
 | Feature | What it means |
 |---|---|
 | Encrypted secrets | API keys and MCP headers are encrypted at rest |
-| Login protection | Too many wrong passwords lock the account for a while |
+| Login protection | Too many wrong passwords from one place lock that place out for a while, without locking out the real owner |
+| Account changes | Change your username or password in Settings; a new password signs your other devices out |
+| Network guard | A user's own provider or tool address cannot point at cloud credential addresses, and the admin can also close the server's own network |
+| Keeps running | A fault in one answer or agent run ends only that run |
 | Strict browser policy | No inline scripts or styles; model output is sanitised |
 | Safe uploads | File types are checked by content, not by name |
 
 ## Known limits
 
 - **One server process.** Knitnox runs as a single instance.
+- **No e-mail.** A forgotten password is reset by an admin, not by a link.
+- **Many tabs without HTTPS.** Over plain `http://`, six or more open Knitnox tabs make further pages wait. Over HTTPS there is no such limit.
+- **Backups are full copies** on a folder you choose; copying them to another machine is up to you.
 - **MCP over HTTP only.** No stdio servers, no OAuth sign-in flow; static headers work.
 - **Files.** No OCR for scanned PDFs; Word, Excel and PowerPoint are not read.
 - **Search.** Matches the beginnings of words in message text, not inside attached files.

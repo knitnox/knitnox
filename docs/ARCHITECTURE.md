@@ -29,9 +29,10 @@ Sending a message only *stores* it and puts it in a queue. A per-thread worker g
 ## 2. Packages
 
 ```
-cmd/knitnox ──► web ──► engine ──► llm      (HTTP client, no DB)
-                 │        ├─────► mcp      (HTTP client, no DB)
+cmd/knitnox ──► web ──► engine ──► llm ──┐   (HTTP client, no DB)
+                 │        ├─────► mcp ──┴─► netguard   (which addresses may be called)
                  │        ├─────► hub      (in-memory pub/sub)
+                 ├──► files (upload checks, text extraction)
                  └────────┴─────► store ──► secret
 ```
 
@@ -39,8 +40,10 @@ cmd/knitnox ──► web ──► engine ──► llm      (HTTP client, no D
 |---|---|---|
 | `store` | Every SQL statement, migrations, encryption of secrets on write and read | know about HTTP or LLMs |
 | `secret` | AES-256-GCM seal/open, key file | — |
-| `llm` | One streamed `/chat/completions` call → `Result` (content, tool calls, usage) | retry, bill, or touch the DB |
-| `mcp` | Streamable HTTP MCP client: `initialize`, `tools/list`, `tools/call` | launch processes |
+| `llm` | One streamed `/chat/completions` call → `Result` (content, tool calls, usage), with an idle watchdog; embeddings; pictures, voice and video | retry, bill, or touch the DB |
+| `mcp` | Streamable HTTP MCP client: `initialize`, `tools/list`, `tools/call`; says whether a failed call can have reached the tool (`NotSent`) | launch processes |
+| `netguard` | The HTTP client for addresses a user typed in; refuses link-local and, when the admin says so, local addresses, at connect time | know who the user is |
+| `files` | Decides what an upload is from its bytes; extracts text from PDFs and text files | trust the file name |
 | `hub` | `Subscribe(thread)` / `Publish(thread, event)`, non-blocking | buffer forever |
 | `engine` | Workers, queue processing, agent loop, retries, compaction, quotas, billing | render HTML |
 | `web` | Routing, sessions, CSRF, permissions, templates, SSE endpoint | run LLM calls itself (except the MCP "Test" button) |
@@ -60,8 +63,12 @@ users ─┬─< sessions
                                                           ├─< thread_invites
                                                           └─< thread_mcp >─ mcp_servers
 messages_fts (FTS5 index over messages.content, trigger-maintained)
+agents, agent_tasks, agent_mcp, thread_agents, store_agents, … (agents, see §16)
 memories, memory_entities, memory_relations, … (long-term memory, see §17)
-settings (key/value, incl. VAPID keys)
+plan_projects, plan_tasks, plan_log, plan_settings (Plan Book, see §18)
+feed_posts, feed_reads, feed_settings (Feed, see §19; files in DATA/feedmedia)
+issues (Help → Issues)
+settings (key/value, incl. VAPID keys and the state of the last backup)
 schema_migrations
 ```
 
@@ -172,10 +179,12 @@ for step = 1..∞:
     final = step > AgentMaxSteps
     quota check (billable, step > 1)
     streamStep(msgs, tools unless final)   ← retries 429/5xx/network ≤ LLMMaxRetries,
-                                             only if no token was received yet
+                                             only if no token was received yet;
+                                             given up after LLMIdleSeconds of silence
     no tool calls or final → done
     for each tool call: if the server is in "ask" mode → awaitApproval (see §15)
-                        allowed → call MCP (≤ ToolMaxRetries on transport errors)
+                        allowed → call MCP (repeated ≤ ToolMaxRetries, but only when
+                                  the call cannot have reached the tool, see §20)
                         denied / expired → a fixed explanation becomes the tool result
                         store tool message, append to msgs
 ```
@@ -239,8 +248,13 @@ threads.summary = new_summary; threads.compacted_until_run = cut
 | All slots busy | The run stays `pending` and the chat shows "Waiting for a free slot…" until another run finishes |
 | Nobody answers a tool approval | After `ApprovalTimeoutMin` the call is treated as denied and the model is told so; the run continues |
 | Provider fails mid-stream | Run `failed`; partial text kept (status `failed`) |
+| Provider goes silent (before or during an answer) | After `LLMIdleSeconds` (300) the call ends with `llm.ErrStalled`; run `failed`, partial text kept, slot given back. Not retried automatically |
+| Connection closes before the provider said it was done | `llm.ErrTruncated`; run `failed`, partial text kept. A half answer is never stored as a whole one |
+| A run goes on for too long | After `RunMaxMinutes` (60), counted from when it got its slot, the run is cancelled and marked `failed` |
+| A panic inside a run, a hook, the scheduler or a background job | Caught (§20): the run is marked `failed`, the stack is logged, the server keeps running |
 | MCP server down at turn start | Skipped (logged); chat continues without its tools |
-| MCP call fails | Retried `ToolMaxRetries` times, then the error text goes to the model |
+| MCP call could not be delivered (connection refused, 429, 503) | Retried `ToolMaxRetries` times, then the error text goes to the model |
+| MCP call was sent but no answer came (timeout, dropped connection, 5xx) | **Not** retried: the tool may have run. The model is told so and asked to check before repeating anything with side effects |
 | User presses Stop | Run `cancelled`, partial text kept |
 | Graceful shutdown (SIGINT/SIGTERM) | Running runs are cancelled and become `interrupted`; HTTP drains (10s) |
 | Crash / kill -9 | On startup `RecoverAfterRestart` marks `running` runs `interrupted`, streaming messages `interrupted` and pending tool approvals `expired`, then **restarts workers for every thread with pending runs** |
@@ -254,7 +268,7 @@ Interrupted turns are not re-run automatically, because tools may have side effe
 - **`app.js`** (vanilla) handles the chat view (SSE, token appending for content and reasoning, coalesced list refresh, "load earlier" paging, the composer with image/file attachments, Stop, Cancel, edit, approvals), the chat-list menus (rename inline, pin, archive, delete, leave), keyboard shortcuts, service-worker registration and push subscription.
 - **Paging**: the first render shows the newest 200 messages. "Load earlier" fetches `?before=<oldest run>` and prepends it, keeping the scroll position. After that, every refresh asks for `?from=<oldest loaded run>` so loaded history is never lost (capped at 3000 messages).
 - **No inline styles** (CSP `style-src 'self'`): meters carry `data-pct` and get their width from JS; markdown output has `style` attributes stripped.
-- **Markdown**: the server outputs the raw text HTML-escaped, and the client renders it with `marked` and sanitises it with `DOMPurify`. Each `<pre>` is then wrapped with a language label and a Copy button, and highlighted by `highlight.js` (labelled fences only; the colours are monochrome CSS in `style.css`). User messages are shown as plain text.
+- **Markdown**: the server outputs the raw text HTML-escaped, and the client renders it with `marked` and sanitises it with `DOMPurify`. A picture whose address is on another site is not loaded: a DOMPurify hook moves its `src` aside and `renderMD` puts a "Show picture from …" button in its place (§20). Each `<pre>` is then wrapped with a language label and a Copy button, and highlighted by `highlight.js` (labelled fences only; the colours are monochrome CSS in `style.css`). User messages are shown as plain text.
 - **Mobile**: below 760px the sidebar becomes an off-canvas drawer (`body.sidebar-open`) and the panel becomes a full-screen sheet. On touch devices Enter inserts a new line and messages are sent with the button.
 - No inline scripts (CSP `script-src 'self'`). The CSRF token comes from `<body data-csrf>` and htmx sends it through `hx-headers`.
 
@@ -264,10 +278,10 @@ Interrupted turns are not re-run automatically, because tools may have side effe
 |---|---|---|
 | SQLite (WAL, `busy_timeout`, `_txlock=immediate`) | zero ops, one file, plenty for hundreds of users | very high write rates → Postgres (only `store` changes) |
 | In-memory hub and workers | simple, no broker | **single instance**. For several instances: a per-thread lease in the DB (claim runs with `UPDATE … WHERE status='pending'`) and Redis or Postgres `LISTEN/NOTIFY` for the hub |
-| Re-fetch the message list on structural events | trivially correct | very long chats re-render 400 messages; switch to per-message fragments if needed |
+| Re-fetch the message list on structural events | trivially correct | long chats re-render the loaded messages (200 at first); switch to per-message fragments if needed |
 | Own MCP and LLM clients (~300 lines each) | no SDK churn, easy to read | new MCP features (resources, prompts, OAuth) must be added by hand |
 | Partial saves every ~1s | reload shows progress without a write per token | up to 1s of text is recovered from the live snapshot instead of the DB |
-| Interrupted runs are not auto-retried | tools may have side effects | add a "Retry" button if wanted |
+| Interrupted runs are not auto-retried | tools may have side effects | the author presses **Retry** under the turn |
 
 ## 14. Edits, regeneration and images
 
@@ -286,7 +300,7 @@ Only the run's author can edit it. Tokens already spent stay in `usage_log`. In 
 
 ```
 browser: pick / paste / drop → resize to ≤2048px (canvas) → FormData(images[])
-server:  MaxBytesReader(48MB) → ≤4 files, ≤10MB each → sniff bytes (png/jpeg/webp/gif)
+server:  MaxBytesReader(48MB) → ≤6 files, ≤10MB each → sniff bytes (png/jpeg/webp/gif)
          → DATA/uploads/<random>.<ext> → attachments row linked to the user message
 engine:  buildContext loads attachments; for vision models, images of the current
          turn and the previous 3 are inlined as data: URLs (OpenAI content parts);
@@ -295,7 +309,7 @@ engine:  buildContext loads attachments; for vision models, images of the curren
 
 - `llm.Message.MarshalJSON` switches `content` from a string to `[{type:text},{type:image_url}]` only when images are present, so text-only requests are unchanged.
 - `GET /files/{id}` serves a file only to members of its chat (`Cache-Control: private, immutable`). The stored MIME type comes from sniffing, never from the client.
-- Each model has a `vision` flag (default on). The paperclip is disabled for text-only models, and the server rejects images sent to them anyway.
+- Each model has a `vision` flag, guessed from the model's name when it is added (`GuessVision`) and changeable in the providers list. Documents can be attached to every model; images sent to a text-only model are rejected by the server.
 - File cleanup: deleting a chat removes its files immediately. Anything else (deleted users, cancelled queued messages) is caught by the hourly orphan sweep (`SweepOrphanUploads`, files older than 1 hour that no row references).
 
 ## 15. Tool approval, capacity, files and the rest
@@ -319,7 +333,7 @@ Why block the thread's queue? Because the next queued message may depend on the 
 
 ### Custom instructions
 
-`SystemPrompt(global, thread, ownerInstr, members)` in `engine/run.go` builds the system message: global prompt → date → the **thread owner's personal instructions (solo chats only)** → the **thread's instructions** → group guidance. Personal instructions are left out of group chats on purpose: they are private, and mixing several people's instructions would make the AI inconsistent. The same function powers the context meter so the estimate matches what is sent.
+`SystemPrompt(global, thread, ownerInstr, members, loc)` in `engine/run.go` builds the system message: global prompt → how to read the time stamps (no date or time itself, see below) → the **thread owner's personal instructions (solo chats only)** → the **thread's instructions** → group guidance. Personal instructions are left out of group chats on purpose: they are private, and mixing several people's instructions would make the AI inconsistent. The same function powers the context meter so the estimate matches what is sent.
 
 ### Date and time
 
@@ -356,7 +370,17 @@ Documents are served with `Content-Disposition: attachment`, and HTML/XML as `te
 
 ### Login limiter and audit
 
-`web/limiter.go` counts failures per `user:<name>` (limit 10) and per `ip:<addr>` (limit 30) in a 15-minute window and locks for 15 minutes; a successful login resets both keys. `X-Forwarded-For` is honoured only from loopback. `store.Audit` is called from every admin mutation with actor, action, target and details; failures to write an audit row never block the action.
+`web/limiter.go` counts failed logins under three keys in a 15-minute window and locks a key for 15 minutes when its limit is reached:
+
+| Key | Limit | Stops |
+|---|---|---|
+| `user:<name>\|<addr>` | 10 | one address guessing one account |
+| `ip:<addr>` | 30 | one address trying many accounts |
+| `name:<name>` | 100 | many addresses guessing one account |
+
+Counting per name *and* address is what keeps a stranger from locking a known account out by failing on purpose. A successful login resets the first and third key. An unknown name is compared against a dummy hash, so it takes as long as a wrong password, and "this account is disabled" is said only after the right password. Sign-ups are counted the same way (`signup:<addr>`, 10). `X-Forwarded-For` is honoured only from loopback, and then only its **last** entry, the one the local proxy added.
+
+`store.Audit` is called from every admin mutation with actor, action, target and details; failures to write an audit row never block the action.
 
 ### Organising chats
 
@@ -429,7 +453,7 @@ Publishing copies the name, instructions, schedule and limits into `store_agents
 
 | Decision | Why | Cost / when to revisit |
 |---|---|---|
-| Agent = thread | reuses the whole engine and chat UI | an agent's log is one long thread; old runs are only paged, never pruned |
+| Agent = thread | reuses the whole engine and chat UI | an agent's log is one long thread; housekeeping keeps the newest 300 runs per agent (§20) |
 | No history between runs | cost stays flat and behaviour is predictable | the agent must use tasks and memory to remember things |
 | Hub-and-spoke only | no loops, no chain depth, no privilege hand-offs between agents | no multi-agent pipelines; add them with a depth limit if ever needed |
 | Result posted as an AI message in the asking chat | the user and the chat's model both see it without a new turn | the asking chat's latest turn can no longer be edited or regenerated once a result arrives after it |
@@ -604,7 +628,7 @@ settings.feed_public                             may people share posts on this 
 
 `/feed` renders one row of controls and the newest 20 posts; the box that writes a post is hidden until "New post" is pressed, and who may post, the models and the explanations are on `/feed/settings`. The marker at the end of the list (`feed-more`) asks `/feed/more?before=ID` for the next 10 when it comes into view (htmx `intersect`), or when its button is clicked. Paging is by post id, so new posts never shift a page.
 
-Live updates use the hub with two extra channels: `hub.FeedUser(userID)` for the person's own feed and `hub.FeedPublic` for shared posts. `/feed/events` (SSE) forwards one small event per new post. The page then asks `/feed/count?after=ID` and shows a "N new posts" button; `/feed/new?after=ID` brings the cards. The posts are put in by themselves only when the reader is at the very top of the page.
+Live updates use the hub with two extra channels: `hub.FeedUser(userID)` for the person's own feed and `hub.FeedPublic` for shared posts. `/feed/events` (SSE) forwards one small event per new post. Like the chat's stream, it is closed on `pagehide` and reopened on `pageshow`, so a page that was left never keeps one of the browser's six connections. The page then asks `/feed/count?after=ID` and shows a "N new posts" button; `/feed/new?after=ID` brings the cards. The posts are put in by themselves only when the reader is at the very top of the page.
 
 ### Trade-offs
 
@@ -646,3 +670,54 @@ The tools only offer `image`, `voice` and `video` on `feed_post` when a model of
 The "add my own model" form on the Feed settings and Memory settings pages (`quickAddModel`) writes to the same `providers` and `models` tables as Settings → Your API keys. A key is stored once and is listed there.
 
 A drawn picture (`svg`) is shown at its own size: the server reads `width`, `height` or `viewBox` from the root element (`svgSize`), adds a `viewBox` when there is none (`fitSVG`), and the page sets the image's width and height so it is made smaller to fit but never larger.
+
+## 20. Staying up for months
+
+Knitnox is meant to run unattended. These are the parts that exist only for that.
+
+### Nothing may hold a slot for ever
+
+| Guard | Where | What it does |
+|---|---|---|
+| Idle watchdog | `llm.Stream` (`idleBody`) | A timer is reset by every byte from the provider. When it fires (`LLMIdleSeconds`, 300 by default) the request is cancelled with the cause `ErrStalled`. It covers the wait for the first byte too |
+| Run time limit | `engine.process` | The run's context gets a deadline of `RunMaxMinutes` (60), started after the slot was acquired, so waiting in the queue does not count |
+| Cut-off detection | `llm.parseStream` | A stream that ends without `[DONE]` or a `finish_reason` returns `ErrTruncated` |
+| Approval timeout | `engine.awaitApproval` | See §15 |
+
+`ErrStalled` and `ErrTruncated` are not retried automatically (`llm.IsRetryable`): the text so far is kept and the author can press Retry.
+
+### A bug in one place stays in that place
+
+Every goroutine the engine starts is shielded. `safeProcess` wraps a run: on a panic it logs the stack, closes half-written messages (`FailStreamingMessages`), marks the run `failed` and lets the worker take the next one. The deferred calls inside `process` still run while the panic unwinds, so the slot and the `active` entry are released. `recoverPanic` does the same for the scheduler tick, MCP connects, memory indexing and the hooks (`Engine.hook`); the feed media job also marks its post failed. The web layer has its own `recoverer` middleware and a shielded hourly sweep.
+
+A run's final status is written by `finishRun`, which tries four times: a lost write would leave the run looking as if it were still going.
+
+### Tool calls are not repeated blindly
+
+`mcp.NotSent(err)` is true only when the request cannot have reached the tool: the connection could not be opened (dial or DNS error) or the server answered 429 or 503. Only then does `toolset.call` try again. After a timeout, a dropped connection or any other status, the model gets a tool result saying the tool may or may not have run.
+
+### Backups
+
+`store.Backup` writes `knitnox-<UTC time>/` with the database (`VACUUM INTO`), `secret.key`, `uploads/` and `feedmedia/`. `CheckDatabaseFile` then opens the copy read-only and runs `PRAGMA integrity_check`; a backup that fails at any step is removed. `web/backup.go` runs it from the hourly sweep when the last attempt is older than `BackupEveryHours` (a failed attempt is tried again after an hour), keeps the newest `BackupKeep` folders (`store.PruneBackups` only touches folders named like a backup), and stores the time and outcome in `settings` for the admin page. `KNITNOX_BACKUP_DIR` chooses the folder; `off` disables it.
+
+### Housekeeping
+
+The same sweep calls `Server.housekeeping`: `PruneUsage`, `PruneAudit` and `PruneAgentRuns` remove rows past the admin's limits (0 = keep), then `store.Optimize` runs `PRAGMA optimize` and `PRAGMA wal_checkpoint(TRUNCATE)`. Only an agent's *finished* runs count toward the number kept, and chats are never touched. The sweep also removes expired sessions, old bin entries, files nothing points to, and stale limiter entries.
+
+### Addresses users may not reach
+
+`netguard.Client(userSupplied)` returns the HTTP client for a request. For an address a user typed in (their own provider, any MCP server, a picture link a provider returned) it is one whose dialer checks the IP **after** the name was resolved, so redirects and names that resolve differently the second time are covered. Link-local addresses are always refused; loopback, private and CGNAT ranges are refused when `settings.block_private_urls` is on. `llm.Request.UserURL`, `EmbedRequest.UserURL` and `MediaRequest.UserURL` carry the decision; the engine sets them from `provider.IsGlobal()`.
+
+### Pictures from other sites
+
+Model output can be steered by text the model was fed. A picture address like `https://elsewhere/?q=<something the model knows>` would send that something to another server the moment the answer is shown. So `app.js` never lets such a picture load by itself: the sanitiser hook strips `src` from every `<img>` that is not same-origin, `data:image/` or `blob:`, and the reader gets a button that names the host. `srcset`, `background` and `poster` are dropped for the same reason.
+
+### Accounts without e-mail
+
+There is no mail, so nothing is recovered by a link. A user's password is reset by an admin (which signs that user out everywhere); the admin's own by `knitnox reset-password` on the server. `knitnox list-users` and `rename-user` cover forgotten and unwanted usernames, and Settings has a form for each. Sign-up is closed by default (`AllowSignup` false); `store.CreateSignupUser` decides "first account is the admin" inside one `INSERT`, so two simultaneous sign-ups cannot both win.
+
+### Operations
+
+- `GET /healthz` runs `SELECT 1` with a 3-second limit and answers 503 when the database does not.
+- `KNITNOX_LOG_FILE` adds a log file that is turned over at 10 MB (`cmd/knitnox/logfile.go`).
+- `.github/workflows/test.yml` runs `go vet`, the tests with the race detector, and a build.

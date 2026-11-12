@@ -14,16 +14,16 @@ go run ./cmd/mockllm          # http://localhost:9090
 go run ./cmd/knitnox          # http://localhost:8080
 ```
 
-1. Open `http://localhost:8080` and create an account. **The first account is the admin.**
+1. Open `http://localhost:8080` and create an account. **The first account is the admin.** Sign-up is closed after that; to try something with a second person, create the account under **Admin panel → Users**.
 2. Go to **Admin panel → Providers → Add a provider**. Base URL `http://localhost:9090/v1`, any key, model `mock`.
-3. Go to **Settings → MCP servers** and add `http://localhost:9090/mcp`.
+3. Go to **Settings → Tools** and add the MCP server `http://localhost:9090/mcp`.
 4. Send a message. Try "what time is it?" to see a tool call.
 5. To try the Plan Book: turn it on under **Plan Book**, then send "todo buy milk" and "plan".
    To try the Feed: open **Feed**, the settings button, **Let the AI post**, then send "post the weekly numbers are in" or "draw how a report gets made".
    For pictures, voice and video add the models `mock-image`, `mock-voice` and `mock-video` to the mock provider (their kind is guessed from the name), then send "picture a loaf of bread", "say good morning" or "film a bakery counter".
 6. To try memory: turn it on under **Memory**, then send "remember that I like tea" and "recall tea". For smart search, set the embedding model `mock-embed` under **Admin panel → Settings**.
 
-Data lives in `./data` (the database, the secret key and uploads). Delete that folder to start clean.
+Data lives in `./data` (the database, the secret key, uploads, feed media and automatic backups). Delete that folder to start clean.
 
 ## The one idea to understand
 
@@ -48,13 +48,14 @@ internal/
   llm/           streaming client for /chat/completions
   mcp/           MCP client (HTTP)
   hub/           in-memory live events per chat
+  netguard/      which addresses the server may call for a user
   files/         upload checks and text extraction
   secret/        encryption for stored keys
   web/           routes, handlers, templates/, static/
 docs/            these guides (shown in the app under Help)
 ```
 
-Dependencies point one way: `web → engine → (llm, mcp, hub, store) → secret`.
+Dependencies point one way: `web → engine → (llm, mcp, hub, store) → secret`, with `llm` and `mcp` using `netguard`.
 
 ## "I want to change…" lookup
 
@@ -88,6 +89,15 @@ Dependencies point one way: `web → engine → (llm, mcp, hub, store) → secre
 | The Memory page and its map | `web/memory.go`, `templates/memory.html`, `static/memory.js` |
 | The embeddings call | `llm/embed.go` |
 | An admin setting | `store/settings.go`, then `templates/admin.html` and `web/admin.go` |
+| How long a silent provider or a whole run may take | `llm/llm.go` (`idleBody`, `ErrStalled`), `engine/engine.go → process` (run limit) |
+| What happens when code inside a run panics | `engine/engine.go → safeProcess`, `recoverPanic`, `hook` |
+| Which failed tool calls are repeated | `mcp/mcp.go → NotSent`, `engine/tools.go → toolset.call` |
+| Automatic backups | `store/backup.go`, `web/backup.go` |
+| What the hourly clean-up removes | `web/server.go → StartJanitor`, `housekeeping`; `store/housekeeping.go` |
+| Which addresses users' providers and tools may reach | `internal/netguard` |
+| Login and sign-up limits | `web/limiter.go`, `web/auth.go` |
+| Changing usernames and passwords; the command-line account tools | `web/auth.go`, `web/admin.go`, `cmd/knitnox/main.go` |
+| Pictures from other sites in answers | `static/app.js` (the DOMPurify hook and `renderMD`) |
 | A table or column | A new file in `internal/store/migrations/`, then `store/*.go` |
 | The guides | The Markdown files in `docs/` |
 
@@ -175,8 +185,23 @@ gofmt -l .           # should print nothing
 | `internal/engine/feedmedia_test.go` | Pictures, voice and video against a fake provider: the redraw after a check, failures, the daily limit, own models |
 | `internal/web/memory_test.go` | Memory pages, permissions, search settings, agent access |
 | `internal/web/help_test.go` | The guides and the issue tracker |
+| `internal/web/ui_test.go` | Theme and accent cookies, the getting-started list and other page details |
+| `internal/engine/reliability_test.go` | A silent provider, the run time limit, panics in a run and in a hook |
+| `internal/engine/safety_test.go` | Cut-off answers; tool calls that may have run are not repeated |
+| `internal/llm/llm_test.go`, `stall_test.go` | `Retry-After`; the idle watchdog |
+| `internal/mcp/mcp_test.go` | Which failed calls count as "not sent" |
+| `internal/netguard/netguard_test.go` | The address rules, applied at connect time |
+| `internal/store/backup_test.go` | Backups open again, failed ones leave nothing, old ones are removed; renaming users |
+| `internal/store/housekeeping_test.go` | Old rows and agent runs go, chats stay; exactly one first admin |
+| `internal/secret/secret_test.go`, `internal/files/files_test.go` | Sealing secrets; file types decided by content |
+| `internal/web/accounts_test.go` | Password typed twice, changing a username, signing other devices out, the admin backup |
+| `internal/web/hardening_test.go` | Sign-up closed by default and limited, login limiter keys, `X-Forwarded-For`, health check |
 
 Write a test for every permission rule you add: one user must not be able to read or change another user's data.
+
+In the web tests, `newApp` opens sign-up so `a.register("name")` works for several people; `c.post` sends a form like `app.js` does and `c.hxPost` like htmx does (answers come back as a message instead of a redirect).
+
+`go test -race ./...` needs a C compiler. `.github/workflows/test.yml` runs it on Linux for every push once the project is on GitHub.
 
 ## Checking how a page looks
 
@@ -191,7 +216,7 @@ Templates fail quietly: a mistake is logged, not shown. After changing a templat
 go build -trimpath -ldflags="-s -w" -o knitnox ./cmd/knitnox
 ```
 
-The result is one file with everything inside. Configuration is five environment variables:
+The result is one file with everything inside. Configuration is seven environment variables:
 
 | Variable | Default | Meaning |
 |---|---|---|
@@ -200,8 +225,12 @@ The result is one file with everything inside. Configuration is five environment
 | `KNITNOX_SECRET` | generated | Passphrase that encrypts stored keys |
 | `KNITNOX_SECURE_COOKIES` | off | Set to `1` behind HTTPS |
 | `KNITNOX_LOG` | `info` | `debug`, `info` or `warn` |
+| `KNITNOX_LOG_FILE` | none | Also write the log to this file (10 MB, one older file kept) |
+| `KNITNOX_BACKUP_DIR` | `DATA/backups` | Where automatic backups go; `off` disables them |
 
-Run **one instance only**. The [Build guide](/help/build) has step-by-step builds for Windows, Linux and macOS, and cross-compilation. The README covers systemd, the reverse proxy and backups.
+Commands besides starting the server: `knitnox list-users`, `create-admin USER PASS`, `reset-password USER PASS`, `rename-user OLD NEW`, `backup DIR`.
+
+Run **one instance only**. The [Build guide](/help/build) has step-by-step builds for Windows, Linux and macOS, and cross-compilation. The README covers systemd, the reverse proxy, backups, forgotten passwords and what to watch in the log.
 
 ## Reporting and fixing issues
 

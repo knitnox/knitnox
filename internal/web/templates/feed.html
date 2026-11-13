@@ -6,7 +6,7 @@
   <main class="main" id="main" tabindex="-1">
     {{template "page-top" "Feed"}}
     <div class="page-scroll">
-      <div class="page feed-page">
+      <div class="page">
         {{if eq .Tab "settings"}}{{template "feed-settings" .}}{{else}}{{template "feed-main" .}}{{end}}
       </div>
     </div>

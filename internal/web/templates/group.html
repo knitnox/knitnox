@@ -6,7 +6,7 @@
   <main class="main" id="main" tabindex="-1">
     {{if eq .Tab "memory"}}{{template "page-top" "Group memory"}}{{else}}{{template "page-top" "New group"}}{{end}}
     <div class="page-scroll">
-      <div class="page narrow">
+      <div class="page">
 
         {{if eq .Tab "new"}}
         <a class="back-link" href="/">{{template "i-chevron-left"}}Back</a>

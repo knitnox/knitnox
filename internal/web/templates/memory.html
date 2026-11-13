@@ -19,8 +19,8 @@
         {{end}}
 
         <nav class="tabs" aria-label="Memory sections">
-          <a href="/memory" class="{{if eq .Tab "list"}}is-active{{end}}"{{if eq .Tab "list"}} aria-current="page"{{end}}>{{template "i-brain"}}Memories{{if .Stats.Memories}} <span class="badge">{{.Stats.Memories}}</span>{{end}}</a>
-          <a href="/memory/things" class="{{if or (eq .Tab "things") (eq .Tab "thing")}}is-active{{end}}"{{if eq .Tab "things"}} aria-current="page"{{end}}>{{template "i-graph"}}Things &amp; connections{{if .Stats.Entities}} <span class="badge">{{.Stats.Entities}}</span>{{end}}</a>
+          <a href="/memory" class="{{if eq .Tab "list"}}is-active{{end}}"{{if eq .Tab "list"}} aria-current="page"{{end}}>{{template "i-brain"}}Memories{{if .Stats.Memories}} <span class="badge hide-phone">{{.Stats.Memories}}</span>{{end}}</a>
+          <a href="/memory/things" class="{{if or (eq .Tab "things") (eq .Tab "thing")}}is-active{{end}}"{{if eq .Tab "things"}} aria-current="page"{{end}}>{{template "i-graph"}}<span>Things<span class="hide-phone"> &amp; connections</span></span>{{if .Stats.Entities}} <span class="badge hide-phone">{{.Stats.Entities}}</span>{{end}}</a>
           <a href="/memory/settings" class="{{if eq .Tab "settings"}}is-active{{end}}"{{if eq .Tab "settings"}} aria-current="page"{{end}}>{{template "i-settings"}}Settings</a>
         </nav>
 

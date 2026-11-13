@@ -6,7 +6,7 @@
   <main class="main" id="main" tabindex="-1">
     {{template "page-top" .PageTitle}}
     <div class="page-scroll">
-      <div class="page{{if eq .View "new"}} narrow{{end}}">
+      <div class="page">
         {{if eq .View "new"}}
         <a class="back-link" href="/agents">{{template "i-chevron-left"}}All agents</a>
         <form class="agent-new" method="post" action="/agents">

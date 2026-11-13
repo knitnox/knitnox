@@ -6,7 +6,7 @@
   <main class="main" id="main" tabindex="-1">
     {{template "page-top" "Admin panel"}}
     <div class="page-scroll">
-      <div class="page">
+      <div class="page wide">
         <nav class="tabs" aria-label="Admin sections">
           <a href="/admin/providers" class="{{if eq .Tab "providers"}}is-active{{end}}">{{template "i-server"}}Providers</a>
           <a href="/admin/users" class="{{if eq .Tab "users"}}is-active{{end}}">{{template "i-users"}}Users</a>

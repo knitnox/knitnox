@@ -420,7 +420,7 @@ Why block the thread's queue? Because the next queued message may depend on the 
 
 ### Custom instructions
 
-`SystemPrompt(global, thread, ownerInstr, members, loc)` in `engine/run.go` builds the system message: global prompt → how to read the time stamps (no date or time itself, see below) → the **thread owner's personal instructions (solo chats only)** → the **thread's instructions** → group guidance. Personal instructions are left out of group chats on purpose: they are private, and mixing several people's instructions would make the AI inconsistent. The same function powers the context meter so the estimate matches what is sent.
+`SystemPrompt(global, thread, ownerInstr, members, loc)` in `engine/run.go` builds the system message: global prompt → how to read the time stamps (no date or time itself, see below) → the **thread owner's personal instructions (personal chats only)** → the **thread's instructions** → group guidance (for a group, `threads.kind`, §10). Personal instructions are left out of groups on purpose: they are private, and mixing several people's instructions would make the AI inconsistent. The same function powers the context meter so the estimate matches what is sent.
 
 ### Date and time
 
@@ -428,7 +428,7 @@ Models have no clock, so every run is told the date and time of the person it wo
 
 - **Every user message is stamped.** Its text for the model starts with a line like `[Wed, 11 Nov 2026, 19:05]`: the time it was sent. Earlier messages use their stored `created_at`; the turn being answered uses the time right now. The newest stamp is "now".
 - **The system prompt holds no date or time.** It only explains the stamps and names the zone. Together with stamps that never change, this keeps the start of the prompt byte-for-byte identical from turn to turn, which is what provider-side prompt caching needs. A clock in the system prompt would discard the cache every minute.
-- **Group chats use the server's clock** (`time.Local`), because members may be in different zones.
+- **Groups use the server's clock** (`time.Local`), because members may be in different zones.
 - **Agents:** date and time in the agent prompt, in the owner's zone. Agent runs start fresh, so there is no cache to protect.
 
 > **Keep the prompt prefix stable.** Anything added to the system prompt or to earlier messages must not change between turns. The known exception is attachments: an image is sent in full for 3 turns and a file for 6, then replaced by a short note, which changes that message once.

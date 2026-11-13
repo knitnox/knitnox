@@ -43,6 +43,7 @@
         <details class="row-menu top-menu agent-menu">
           <summary class="btn ghost" title="Connect your background agents to this chat">{{template "i-bot"}}<span class="hide-sm">Agents</span>{{if .ConnectedCount}}<span class="badge">{{.ConnectedCount}}</span>{{end}}</summary>
           <div class="menu" role="menu">
+            <div class="menu-head"><b>Agents</b><button type="button" class="menu-close" data-close-menu aria-label="Close">{{template "i-x"}}</button></div>
             <p class="menu-note">Tick an agent to connect it. The AI in this chat can then give it tasks, start it and read its results. Just ask, e.g. “ask Inbox helper to reply to Sam”.</p>
             {{range .Agents}}
             <button type="button" role="menuitemcheckbox" aria-checked="{{.Connected}}" hx-post="/t/{{$.Thread.ID}}/agents/{{.ID}}" hx-swap="none">
@@ -157,6 +158,7 @@
                 <summary class="tool-pill" title="Choose what the AI may use in this chat">{{template "i-wrench"}}<span class="hide-sm">Tools</span><span class="badge" data-tools-count hidden></span>{{if .GroupsOn}}<span class="badge">{{.GroupsOn}} group{{if ne .GroupsOn 1}}s{{end}}</span>{{end}}</summary>
                 <div class="menu" role="group" aria-label="Tools for this chat">
                   <input type="hidden" name="tools_menu" value="1">
+                  <div class="menu-head"><b>Tools</b><button type="button" class="menu-close" data-close-menu aria-label="Close">{{template "i-x"}}</button></div>
                   <p class="menu-note">What the AI may use <b>in this chat</b>. Untick what you do not need: answers get cheaper and stay on the point. You can change it later next to Attach.</p>
                   {{range .Tools}}
                   {{if .Ready}}
@@ -182,6 +184,7 @@
               <details class="row-menu agent-pick">
                 <summary class="tool-pill" title="Connect your background agents to this chat">{{template "i-bot"}}<span class="hide-sm">Agents</span><span class="badge" data-agent-count hidden></span></summary>
                 <div class="menu" role="group" aria-label="Agents to connect">
+                  <div class="menu-head"><b>Agents</b><button type="button" class="menu-close" data-close-menu aria-label="Close">{{template "i-x"}}</button></div>
                   <p class="menu-note">Tick the agents this chat should work with. The AI can then give them tasks, start them and read their results.</p>
                   {{range .Agents}}
                   <label class="check"><input type="checkbox" name="agent" value="{{.ID}}"><span>{{.Name}}{{if not .Enabled}} <small>paused</small>{{end}}{{if .Description}}<small>{{.Description}}</small>{{end}}</span></label>
@@ -325,6 +328,7 @@
 {{/* The inside of the Tools menu of a chat. Needs .Tools, .ToolGroups, .ToolsOff, .ToolServers, .Group, .Thread; .ToolsMidChat for the note about cost. */}}
 {{define "tools-body"}}
 {{if .Changed}}<span class="badge" id="tools-count" hx-swap-oob="true"{{if not .ToolsOff}} hidden{{end}}>{{.ToolsOff}} off</span>{{end}}
+<div class="menu-head"><b>Tools</b><button type="button" class="menu-close" data-close-menu aria-label="Close">{{template "i-x"}}</button></div>
 {{if .Group}}<p class="menu-note">What the AI may use <b>in this group</b>. A group uses only what belongs to it: its own memory and its own tool servers. Nobody's personal tools are used here.</p>
 {{else}}<p class="menu-note">What the AI may use <b>in this chat</b>. Switch off what you do not need: answers get cheaper and stay on the point.</p>{{end}}
 {{if .ToolsMidChat}}<p class="menu-note tools-cost{{if .Changed}} is-fresh{{end}}">{{template "i-clock"}}<span>{{if .Changed}}<b>Changed.</b> {{end}}Changing tools in the middle of a chat makes the <b>next</b> reply a little slower and a little dearer, once: the AI provider has to read the conversation again from the start.</span></p>{{end}}

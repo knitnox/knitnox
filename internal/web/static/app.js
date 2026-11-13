@@ -252,6 +252,14 @@
   const MENUS = "details.user-menu, details.row-menu, details.sb-menu, details.tip";
   const closeMenus = (except) => { for (const d of $$(MENUS)) if (d.open && d !== except) d.open = false; };
   const lightbox = $("#lightbox");
+  // On a phone a menu is a sheet over the page; its bar has a cross to close it.
+  document.addEventListener("click", (e) => {
+    const x = e.target.closest("[data-close-menu]");
+    if (!x) return;
+    e.preventDefault();
+    const menu = x.closest("details");
+    if (menu) { menu.open = false; menu.querySelector("summary")?.focus(); }
+  });
 
   document.addEventListener("htmx:afterSwap", (e) => {
     renderAll(e.target);

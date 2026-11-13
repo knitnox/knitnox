@@ -17,7 +17,7 @@ go run ./cmd/knitnox          # http://localhost:8080
 1. Open `http://localhost:8080` and create an account. **The first account is the admin.** Sign-up is closed after that; to try something with a second person, create the account under **Admin panel → Users**.
 2. Go to **Admin panel → Providers → Add a provider**. Base URL `http://localhost:9090/v1`, any key, model `mock`.
 3. Go to **Settings → Tools** and add the MCP server `http://localhost:9090/mcp`.
-4. Send a message. Try "what time is it?" to see a tool call.
+4. Send a message. Try "what time is it?" to see a tool being used: a line "Used 1 tool" appears, which opens on a click. To see every call as its own row, turn on **Settings → Appearance → Show tool details**.
 5. To try the Plan Book: turn it on under **Plan Book**, then send "todo buy milk" and "plan".
    To try the Feed: open **Feed**, the settings button, **Let the AI post**, then send "post the weekly numbers are in" or "draw how a report gets made".
    For pictures, voice and video add the models `mock-image`, `mock-voice` and `mock-video` to the mock provider (their kind is guessed from the name), then send "picture a loaf of bread", "say good morning" or "film a bakery counter". With `mock-image` in place, "paint a red bicycle" makes a picture inside the chat, and with `mock-voice` every answer gets a speaker button.

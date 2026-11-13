@@ -30,7 +30,7 @@ To change how Knitnox looks, open **Settings → Appearance**: choose **Auto**, 
 | I want to… | Do this |
 |---|---|
 | Start a new chat | Click **New chat** in the sidebar, or press `Ctrl+Shift+O` |
-| Choose the AI model | Use the model picker under the message box on the home screen. Change it later under **Share → Chat settings** |
+| Choose the AI model | Use the model picker under the message box on the home screen. Change it later by clicking the model name at the top of the chat. In a group only its admin can |
 | Write several lines | Press `Shift+Enter` for a new line. `Enter` sends |
 | Send while the AI is still answering | Just send. Your message waits in a queue (up to 10) and is answered in order |
 | Stop an answer | Click the square **Stop** button. What was written so far is kept |
@@ -147,7 +147,7 @@ Your own chats use all of your enabled servers, unless you switch one off for a 
 
 ## Choose the tools for one chat
 
-Click **Tools** next to **Attach**, on the home screen before you start or in any chat you own.
+Click **Tools** next to **Attach**, on the home screen before you start or in any chat you own. On a phone the menu opens as a sheet at the bottom of the screen; the cross at its top closes it.
 
 | Row | What it switches |
 |---|---|
@@ -446,7 +446,7 @@ The first account created is the admin. Admins see **Admin panel** in the sideba
 
 | What you see | What to do |
 |---|---|
-| "No model selected" or "model is disabled" | Pick another model under **Share → Chat settings** |
+| "No model selected" or "model is disabled" | Click the model name at the top of the chat and pick another one. In a group, ask its admin |
 | "Token quota exceeded" | Wait for the next period, ask an admin, or use your own API key |
 | "Waiting for a free slot…" | Other chats are being answered first. It starts by itself |
 | "Queue is full" | Wait for the AI to catch up, or remove a queued message |

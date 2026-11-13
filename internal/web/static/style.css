@@ -1822,7 +1822,16 @@ a.act { text-decoration: none; }
 .shared-about b { color: var(--fg-2); }
 .shared-foot { margin-top: 40px; text-align: center; font-size: 12.5px; color: var(--faint); }
 
+/* the bar of a menu that is a sheet on a phone: what it is, and a cross to close it */
+.menu-head { display: none; }
 @media (max-width: 640px) {
+  .menu .menu-head { position: sticky; top: -6px; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    margin: -6px -6px 4px; padding: 8px 6px 6px 16px; background: var(--bg); border-bottom: 1px solid var(--border); border-radius: var(--r) var(--r) 0 0; }
+  .menu .menu-head b { font-size: 15px; }
+  .menu .menu-head .menu-close { display: inline-grid; place-items: center; flex: none; width: 44px; height: 44px; padding: 0; border: 0; border-radius: var(--r-sm);
+    background: none; color: var(--muted); cursor: pointer; }
+  .menu .menu-head .menu-close:active { background: var(--bg-hover); color: var(--fg); }
+  .menu .menu-head .menu-close .i { width: 20px; height: 20px; }
   .kind-compare { grid-template-columns: 1fr; }
   .new-foot .btn { flex: 1; }
   .shared-top { padding: 10px 14px; }

@@ -38,7 +38,8 @@ Think things through on your own, or invite family, friends or your team with a 
 
 - Answers keep coming after you close the tab; up to 10 messages wait in line
 - Attach PDFs, photos, code and notes; the AI can draw pictures and read answers aloud
-- Thinking models show their reasoning in a fold-away block
+- Thinking models show their reasoning in a fold-away block; tool use stays out of the way as one line you can open
+- Show one of your own chats to anyone with a read-only link, no account needed
 - Your own API keys and tools stay yours: a group has a memory and tools of its own
 
 <p align="center">
@@ -147,9 +148,10 @@ go run ./cmd/knitnox                 # http://localhost:8080
 2. **Admin → Providers → Add provider**: name `Mock`, base URL `http://localhost:9090/v1`, any API key. Click **Fetch models from provider** and tick `mock`.
 3. **Settings → MCP servers → Add**: name `clock`, URL `http://localhost:9090/mcp`, mode **Ask me before running**, then **Test**.
 4. Go to **Chats** and try:
-   - *"what time is it?"* → the AI asks to use the clock tool. Click **Allow once**.
+   - *"what time is it?"* → the AI asks to use the clock tool. Click **Allow once**. Afterwards the call is one line, **Used 1 tool**, which opens on a click.
    - *"please think about cats"* → a streamed **Thinking** block appears.
    - attach a PDF or `.txt` → the mock echoes its text back.
+   - click **New group**, create one and send *"remember that we chose Go"* → the fact lands in the group's own memory (**Memory** at the top of the group).
 
 **Using a real model:** add `https://api.openai.com/v1` with your key and model `gpt-4o-mini`.
 **Fully local with Ollama:** `http://localhost:11434/v1`, any key, model `llama3.2`.
@@ -461,6 +463,8 @@ Dependencies only point downward: `web → engine → (llm, mcp, hub, store) →
 - `internal/web/accounts_test.go`, `hardening_test.go`: the password typed twice, changing a username, signing other devices out, the admin backup; sign-up closed by default and limited per address, the login limiter's keys, `X-Forwarded-For`, the health check.
 - `internal/store/backup_test.go`, `housekeeping_test.go`: a backup can be opened again, a failed one leaves nothing behind, only the newest are kept; old log rows and agent runs are removed and chats are not; exactly one first admin.
 - `internal/netguard`, `internal/mcp`, `internal/secret`, `internal/files`: the address rules, which failed tool calls are safe to repeat, sealing and opening secrets, file types decided by content.
+- `internal/engine/groups_test.go`, `internal/web/groups_test.go`, `internal/store/groups_test.go`: a group's own memory and tool servers, that the kind of a chat never changes, looking into a group from a personal chat, the read-only link (no account, a copy in time, tools hidden, stopping), and the migration of older shared chats.
+- `internal/web/display_test.go`: tool calls as one line or as rows, thinking on and off, and what stays visible either way.
 - Agents, memory, the Plan Book, the Feed and the help pages each have their own test files in `internal/engine` and `internal/web`; the Developer guide lists them.
 
 The mock server (`go run ./cmd/mockllm`) exercises every feature without an API key.

@@ -11,7 +11,7 @@ import (
 // Long-term memory. A memory is one short fact. It can be "about" things
 // (entities: people, places, projects) and can state connections between
 // them (relations: Sam -works at-> Acme Bakery). Every row belongs to one
-// user and every query here filters by that user.
+// owner, a person or a group (MemOwner), and every query here filters by it.
 
 // Limits applied wherever a memory is created or edited.
 const (
@@ -69,10 +69,31 @@ func (s *Store) MemoryEnabled(userID int64) bool {
 	return err == nil && ms.Enabled
 }
 
+// MemOwner says whose memory is meant. Every person has one (GroupID 0) and
+// every group has one of its own. A group's rows carry the id of the group's
+// owner in user_id, so every query can filter on both columns alike.
+type MemOwner struct {
+	UserID  int64
+	GroupID int64 // 0 = the person's own memory
+}
+
+// UserMemory is a person's own memory.
+func UserMemory(userID int64) MemOwner { return MemOwner{UserID: userID} }
+
+// GroupMemory is the memory of a group. It belongs to the group, not to any
+// member: only the AI writes to it, in that group's chat.
+func GroupMemory(t *Thread) MemOwner { return MemOwner{UserID: t.OwnerUserID, GroupID: t.ID} }
+
+// Owner is the memory this row belongs to.
+func (m *Memory) Owner() MemOwner { return MemOwner{UserID: m.UserID, GroupID: m.GroupID} }
+
 // Memory is one remembered fact with the things it is about.
 type Memory struct {
 	ID             int64
 	UserID         int64
+	GroupID        int64 // 0 = a person's own memory; else the group it belongs to
+	SaidBy         int64 // group memories: whose message made the AI save it (0 = unknown, or the account is gone)
+	SaidByName     string
 	Content        string
 	Source         string // user | ai
 	SourceThreadID int64  // chat it was saved in (0 = none, or the chat is gone)
@@ -120,6 +141,7 @@ type MemoryInput struct {
 	Source    string // MemoryFromUser (default) or MemoryFromAI; ignored on update
 	ThreadID  int64  // chat it was saved in; ignored on update
 	Pinned    bool   // ignored on update
+	SaidBy    int64  // group memories: the person whose message this came from; ignored on update
 }
 
 func cleanName(s string) string {
@@ -161,20 +183,20 @@ func (in *MemoryInput) normalize() {
 }
 
 // entityID returns the id of the user's entity with this name, creating it if needed.
-func entityID(tx *sql.Tx, userID int64, name string) (int64, error) {
+func entityID(tx *sql.Tx, o MemOwner, name string) (int64, error) {
 	key := strings.ToLower(name)
-	if _, err := tx.Exec(`INSERT INTO memory_entities(user_id, name, name_key) VALUES (?, ?, ?)
-		ON CONFLICT(user_id, name_key) DO NOTHING`, userID, name, key); err != nil {
+	if _, err := tx.Exec(`INSERT INTO memory_entities(user_id, group_id, name, name_key) VALUES (?, ?, ?, ?)
+		ON CONFLICT(user_id, group_id, name_key) DO NOTHING`, o.UserID, o.GroupID, name, key); err != nil {
 		return 0, err
 	}
 	var id int64
-	err := tx.QueryRow(`SELECT id FROM memory_entities WHERE user_id = ? AND name_key = ?`, userID, key).Scan(&id)
+	err := tx.QueryRow(`SELECT id FROM memory_entities WHERE user_id = ? AND group_id = ? AND name_key = ?`, o.UserID, o.GroupID, key).Scan(&id)
 	return id, err
 }
 
 // linkMemory replaces what a memory is about and the connections it states,
 // refreshes its search row and drops things no memory mentions any more.
-func linkMemory(tx *sql.Tx, userID, memoryID int64, in MemoryInput) error {
+func linkMemory(tx *sql.Tx, o MemOwner, memoryID int64, in MemoryInput) error {
 	if _, err := tx.Exec(`DELETE FROM memory_relations WHERE memory_id = ?`, memoryID); err != nil {
 		return err
 	}
@@ -187,7 +209,7 @@ func linkMemory(tx *sql.Tx, userID, memoryID int64, in MemoryInput) error {
 		if id, ok := ids[k]; ok {
 			return id, nil
 		}
-		id, err := entityID(tx, userID, name)
+		id, err := entityID(tx, o, name)
 		if err != nil {
 			return 0, err
 		}
@@ -211,20 +233,20 @@ func linkMemory(tx *sql.Tx, userID, memoryID int64, in MemoryInput) error {
 		if err != nil {
 			return err
 		}
-		if _, err := tx.Exec(`INSERT INTO memory_relations(user_id, memory_id, subject_id, predicate, object_id)
-			VALUES (?, ?, ?, ?, ?)`, userID, memoryID, sid, r.Predicate, oid); err != nil {
+		if _, err := tx.Exec(`INSERT INTO memory_relations(user_id, group_id, memory_id, subject_id, predicate, object_id)
+			VALUES (?, ?, ?, ?, ?, ?)`, o.UserID, o.GroupID, memoryID, sid, r.Predicate, oid); err != nil {
 			return err
 		}
 	}
 	if err := refreshMemoryFTS(tx, memoryID); err != nil {
 		return err
 	}
-	return dropOrphanEntities(tx, userID)
+	return dropOrphanEntities(tx, o)
 }
 
-func dropOrphanEntities(tx *sql.Tx, userID int64) error {
-	_, err := tx.Exec(`DELETE FROM memory_entities WHERE user_id = ?
-		AND id NOT IN (SELECT entity_id FROM memory_mentions)`, userID)
+func dropOrphanEntities(tx *sql.Tx, o MemOwner) error {
+	_, err := tx.Exec(`DELETE FROM memory_entities WHERE user_id = ? AND group_id = ?
+		AND id NOT IN (SELECT entity_id FROM memory_mentions)`, o.UserID, o.GroupID)
 	return err
 }
 
@@ -243,8 +265,8 @@ func refreshMemoryFTS(tx *sql.Tx, memoryID int64) error {
 	return err
 }
 
-// CreateMemory saves a new memory for userID.
-func (s *Store) CreateMemory(userID int64, in MemoryInput) (int64, error) {
+// CreateMemory saves a new memory in o.
+func (s *Store) CreateMemory(o MemOwner, in MemoryInput) (int64, error) {
 	in.normalize()
 	if in.Content == "" {
 		return 0, ErrEmptyMemory
@@ -262,13 +284,17 @@ func (s *Store) CreateMemory(userID int64, in MemoryInput) (int64, error) {
 		return 0, err
 	}
 	defer tx.Rollback()
-	res, err := tx.Exec(`INSERT INTO memories(user_id, content, source, source_thread_id, pinned) VALUES (?, ?, ?, ?, ?)`,
-		userID, in.Content, source, thread, b2i(in.Pinned))
+	var saidBy any
+	if in.SaidBy > 0 {
+		saidBy = in.SaidBy
+	}
+	res, err := tx.Exec(`INSERT INTO memories(user_id, group_id, content, source, source_thread_id, pinned, said_by) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		o.UserID, o.GroupID, in.Content, source, thread, b2i(in.Pinned), saidBy)
 	if err != nil {
 		return 0, err
 	}
 	id, _ := res.LastInsertId()
-	if err := linkMemory(tx, userID, id, in); err != nil {
+	if err := linkMemory(tx, o, id, in); err != nil {
 		return 0, err
 	}
 	return id, tx.Commit()
@@ -276,7 +302,7 @@ func (s *Store) CreateMemory(userID int64, in MemoryInput) (int64, error) {
 
 // UpdateMemory replaces the text, the things and the connections of a memory.
 // When the text changes its vector is dropped, so it gets indexed again.
-func (s *Store) UpdateMemory(userID, id int64, in MemoryInput) error {
+func (s *Store) UpdateMemory(o MemOwner, id int64, in MemoryInput) error {
 	in.normalize()
 	if in.Content == "" {
 		return ErrEmptyMemory
@@ -287,7 +313,7 @@ func (s *Store) UpdateMemory(userID, id int64, in MemoryInput) error {
 	}
 	defer tx.Rollback()
 	var old string
-	if err := tx.QueryRow(`SELECT content FROM memories WHERE id = ? AND user_id = ?`, id, userID).Scan(&old); err != nil {
+	if err := tx.QueryRow(`SELECT content FROM memories WHERE id = ? AND user_id = ? AND group_id = ?`, id, o.UserID, o.GroupID).Scan(&old); err != nil {
 		return notFound(err)
 	}
 	if old != in.Content {
@@ -298,44 +324,44 @@ func (s *Store) UpdateMemory(userID, id int64, in MemoryInput) error {
 	} else if _, err := tx.Exec(`UPDATE memories SET updated_at = ? WHERE id = ?`, Now(), id); err != nil {
 		return err
 	}
-	if err := linkMemory(tx, userID, id, in); err != nil {
+	if err := linkMemory(tx, o, id, in); err != nil {
 		return err
 	}
 	return tx.Commit()
 }
 
-func (s *Store) SetMemoryPinned(userID, id int64, pinned bool) error {
-	res, err := s.DB.Exec(`UPDATE memories SET pinned = ? WHERE id = ? AND user_id = ?`, b2i(pinned), id, userID)
+func (s *Store) SetMemoryPinned(o MemOwner, id int64, pinned bool) error {
+	res, err := s.DB.Exec(`UPDATE memories SET pinned = ? WHERE id = ? AND user_id = ? AND group_id = ?`, b2i(pinned), id, o.UserID, o.GroupID)
 	return affected(res, err)
 }
 
-func (s *Store) DeleteMemory(userID, id int64) error {
+func (s *Store) DeleteMemory(o MemOwner, id int64) error {
 	tx, err := s.DB.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	res, err := tx.Exec(`DELETE FROM memories WHERE id = ? AND user_id = ?`, id, userID)
+	res, err := tx.Exec(`DELETE FROM memories WHERE id = ? AND user_id = ? AND group_id = ?`, id, o.UserID, o.GroupID)
 	if err := affected(res, err); err != nil {
 		return err
 	}
-	if err := dropOrphanEntities(tx, userID); err != nil {
+	if err := dropOrphanEntities(tx, o); err != nil {
 		return err
 	}
 	return tx.Commit()
 }
 
 // DeleteAllMemories wipes a user's whole memory.
-func (s *Store) DeleteAllMemories(userID int64) error {
+func (s *Store) DeleteAllMemories(o MemOwner) error {
 	tx, err := s.DB.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err := tx.Exec(`DELETE FROM memories WHERE user_id = ?`, userID); err != nil {
+	if _, err := tx.Exec(`DELETE FROM memories WHERE user_id = ? AND group_id = ?`, o.UserID, o.GroupID); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(`DELETE FROM memory_entities WHERE user_id = ?`, userID); err != nil {
+	if _, err := tx.Exec(`DELETE FROM memory_entities WHERE user_id = ? AND group_id = ?`, o.UserID, o.GroupID); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -352,17 +378,17 @@ func affected(res sql.Result, err error) error {
 	return nil
 }
 
-const memoryCols = `m.id, m.user_id, m.content, m.source, COALESCE(m.source_thread_id, 0), COALESCE(t.title, ''),
-	m.pinned, m.embedding IS NOT NULL, m.created_at, m.updated_at`
-const memoryFrom = ` FROM memories m LEFT JOIN threads t ON t.id = m.source_thread_id `
+const memoryCols = `m.id, m.user_id, m.group_id, m.content, m.source, COALESCE(m.source_thread_id, 0), COALESCE(t.title, ''),
+	m.pinned, m.embedding IS NOT NULL, m.created_at, m.updated_at, COALESCE(m.said_by, 0), COALESCE(sb.username, '')`
+const memoryFrom = ` FROM memories m LEFT JOIN threads t ON t.id = m.source_thread_id LEFT JOIN users sb ON sb.id = m.said_by `
 
 func scanMemories(rows *sql.Rows) ([]Memory, error) {
 	defer rows.Close()
 	var out []Memory
 	for rows.Next() {
 		var m Memory
-		if err := rows.Scan(&m.ID, &m.UserID, &m.Content, &m.Source, &m.SourceThreadID, &m.SourceTitle,
-			&m.Pinned, &m.Indexed, &m.CreatedAt, &m.UpdatedAt); err != nil {
+		if err := rows.Scan(&m.ID, &m.UserID, &m.GroupID, &m.Content, &m.Source, &m.SourceThreadID, &m.SourceTitle,
+			&m.Pinned, &m.Indexed, &m.CreatedAt, &m.UpdatedAt, &m.SaidBy, &m.SaidByName); err != nil {
 			return nil, err
 		}
 		out = append(out, m)
@@ -450,8 +476,8 @@ func (s *Store) listMemories(where string, args ...any) ([]Memory, error) {
 }
 
 // MemoryByID returns one of the user's memories with its links.
-func (s *Store) MemoryByID(userID, id int64) (*Memory, error) {
-	mems, err := s.listMemories(`m.id = ? AND m.user_id = ?`, id, userID)
+func (s *Store) MemoryByID(o MemOwner, id int64) (*Memory, error) {
+	mems, err := s.listMemories(`m.id = ? AND m.user_id = ? AND m.group_id = ?`, id, o.UserID, o.GroupID)
 	if err != nil {
 		return nil, err
 	}
@@ -463,8 +489,8 @@ func (s *Store) MemoryByID(userID, id int64) (*Memory, error) {
 
 // ListMemories returns a page of memories, newest first. filter is "" (all),
 // "pinned", "ai" or "user"; before > 0 continues after that id.
-func (s *Store) ListMemories(userID int64, filter string, before int64, limit int) ([]Memory, error) {
-	where, args := `m.user_id = ?`, []any{userID}
+func (s *Store) ListMemories(o MemOwner, filter string, before int64, limit int) ([]Memory, error) {
+	where, args := `m.user_id = ? AND m.group_id = ?`, []any{o.UserID, o.GroupID}
 	switch filter {
 	case "pinned":
 		where += ` AND m.pinned = 1`
@@ -480,8 +506,8 @@ func (s *Store) ListMemories(userID int64, filter string, before int64, limit in
 }
 
 // PinnedMemories are the memories the AI is always shown.
-func (s *Store) PinnedMemories(userID int64, limit int) ([]Memory, error) {
-	rows, err := s.DB.Query(`SELECT `+memoryCols+memoryFrom+`WHERE m.user_id = ? AND m.pinned = 1 ORDER BY m.id LIMIT ?`, userID, limit)
+func (s *Store) PinnedMemories(o MemOwner, limit int) ([]Memory, error) {
+	rows, err := s.DB.Query(`SELECT `+memoryCols+memoryFrom+`WHERE m.user_id = ? AND m.group_id = ? AND m.pinned = 1 ORDER BY m.id LIMIT ?`, o.UserID, o.GroupID, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -489,12 +515,12 @@ func (s *Store) PinnedMemories(userID int64, limit int) ([]Memory, error) {
 }
 
 // MemoriesByIDs returns the user's memories with these ids, in the given order.
-func (s *Store) MemoriesByIDs(userID int64, ids []int64) ([]Memory, error) {
+func (s *Store) MemoriesByIDs(o MemOwner, ids []int64) ([]Memory, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
 	in, args := placeholders(ids)
-	mems, err := s.listMemories(`m.user_id = ? AND m.id IN (`+in+`)`, append([]any{userID}, args...)...)
+	mems, err := s.listMemories(`m.user_id = ? AND m.group_id = ? AND m.id IN (`+in+`)`, append([]any{o.UserID, o.GroupID}, args...)...)
 	if err != nil {
 		return nil, err
 	}
@@ -513,10 +539,10 @@ func (s *Store) MemoriesByIDs(userID int64, ids []int64) ([]Memory, error) {
 
 // MemoryIDByContent returns the id of a memory with exactly this text
 // (ignoring letter case), or 0. It stops the AI saving the same fact twice.
-func (s *Store) MemoryIDByContent(userID int64, content string) int64 {
+func (s *Store) MemoryIDByContent(o MemOwner, content string) int64 {
 	var id int64
-	s.DB.QueryRow(`SELECT id FROM memories WHERE user_id = ? AND lower(content) = lower(?) LIMIT 1`,
-		userID, clip(strings.TrimSpace(content), MemoryMaxLen)).Scan(&id)
+	s.DB.QueryRow(`SELECT id FROM memories WHERE user_id = ? AND group_id = ? AND lower(content) = lower(?) LIMIT 1`,
+		o.UserID, o.GroupID, clip(strings.TrimSpace(content), MemoryMaxLen)).Scan(&id)
 	return id
 }
 
@@ -526,13 +552,13 @@ type MemoryStats struct {
 	Indexed                               int // memories with a vector from the current embedding model
 }
 
-func (s *Store) MemoryStats(userID int64, embedKey string) MemoryStats {
+func (s *Store) MemoryStats(o MemOwner, embedKey string) MemoryStats {
 	var st MemoryStats
 	s.DB.QueryRow(`SELECT COUNT(*), COALESCE(SUM(pinned), 0),
 		COALESCE(SUM(embedding IS NOT NULL AND embed_key = ? AND ? != ''), 0)
-		FROM memories WHERE user_id = ?`, embedKey, embedKey, userID).Scan(&st.Memories, &st.Pinned, &st.Indexed)
-	s.DB.QueryRow(`SELECT COUNT(*) FROM memory_entities WHERE user_id = ?`, userID).Scan(&st.Entities)
-	s.DB.QueryRow(`SELECT COUNT(*) FROM memory_relations WHERE user_id = ?`, userID).Scan(&st.Relations)
+		FROM memories WHERE user_id = ? AND group_id = ?`, embedKey, embedKey, o.UserID, o.GroupID).Scan(&st.Memories, &st.Pinned, &st.Indexed)
+	s.DB.QueryRow(`SELECT COUNT(*) FROM memory_entities WHERE user_id = ? AND group_id = ?`, o.UserID, o.GroupID).Scan(&st.Entities)
+	s.DB.QueryRow(`SELECT COUNT(*) FROM memory_relations WHERE user_id = ? AND group_id = ?`, o.UserID, o.GroupID).Scan(&st.Relations)
 	return st
 }
 
@@ -577,15 +603,15 @@ type MemoryHit struct {
 
 // SearchMemoryText finds the user's memories containing any word of q, in the
 // text or in the names of the things it is about.
-func (s *Store) SearchMemoryText(userID int64, q string, limit int) ([]MemoryHit, error) {
+func (s *Store) SearchMemoryText(o MemOwner, q string, limit int) ([]MemoryHit, error) {
 	fq := ftsAny(q)
 	if fq == "" {
 		return nil, nil
 	}
 	rows, err := s.DB.Query(`SELECT m.id, snippet(memories_fts, 0, '[[', ']]', '…', 28)
 		FROM memories_fts JOIN memories m ON m.id = memories_fts.rowid
-		WHERE memories_fts MATCH ? AND m.user_id = ?
-		ORDER BY bm25(memories_fts), m.id DESC LIMIT ?`, fq, userID, limit)
+		WHERE memories_fts MATCH ? AND m.user_id = ? AND m.group_id = ?
+		ORDER BY bm25(memories_fts), m.id DESC LIMIT ?`, fq, o.UserID, o.GroupID, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -627,9 +653,9 @@ func DecodeVector(b []byte) []float32 {
 }
 
 // MemoryVectors loads every vector of the user made by the model embedKey.
-func (s *Store) MemoryVectors(userID int64, embedKey string) ([]MemoryVector, error) {
+func (s *Store) MemoryVectors(o MemOwner, embedKey string) ([]MemoryVector, error) {
 	rows, err := s.DB.Query(`SELECT id, embedding FROM memories
-		WHERE user_id = ? AND embed_key = ? AND embedding IS NOT NULL`, userID, embedKey)
+		WHERE user_id = ? AND group_id = ? AND embed_key = ? AND embedding IS NOT NULL`, o.UserID, o.GroupID, embedKey)
 	if err != nil {
 		return nil, err
 	}
@@ -647,9 +673,9 @@ func (s *Store) MemoryVectors(userID int64, embedKey string) ([]MemoryVector, er
 }
 
 // MemoriesToEmbed returns memories after afterID that have no vector from embedKey yet.
-func (s *Store) MemoriesToEmbed(userID int64, embedKey string, afterID int64, limit int) ([]Memory, error) {
+func (s *Store) MemoriesToEmbed(o MemOwner, embedKey string, afterID int64, limit int) ([]Memory, error) {
 	rows, err := s.DB.Query(`SELECT id, content FROM memories
-		WHERE user_id = ? AND id > ? AND (embedding IS NULL OR embed_key != ?) ORDER BY id LIMIT ?`, userID, afterID, embedKey, limit)
+		WHERE user_id = ? AND group_id = ? AND id > ? AND (embedding IS NULL OR embed_key != ?) ORDER BY id LIMIT ?`, o.UserID, o.GroupID, afterID, embedKey, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -666,9 +692,9 @@ func (s *Store) MemoriesToEmbed(userID int64, embedKey string, afterID int64, li
 }
 
 // SetMemoryEmbedding stores a vector, unless the text changed while it was made.
-func (s *Store) SetMemoryEmbedding(userID, id int64, content, embedKey string, vec []float32) error {
-	_, err := s.DB.Exec(`UPDATE memories SET embedding = ?, embed_key = ? WHERE id = ? AND user_id = ? AND content = ?`,
-		EncodeVector(vec), embedKey, id, userID, content)
+func (s *Store) SetMemoryEmbedding(o MemOwner, id int64, content, embedKey string, vec []float32) error {
+	_, err := s.DB.Exec(`UPDATE memories SET embedding = ?, embed_key = ? WHERE id = ? AND user_id = ? AND group_id = ? AND content = ?`,
+		EncodeVector(vec), embedKey, id, o.UserID, o.GroupID, content)
 	return err
 }
 
@@ -694,8 +720,8 @@ func scanEntities(rows *sql.Rows) ([]MemoryEntity, error) {
 var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 
 // ListEntities returns the user's things, the most connected first. q filters by name.
-func (s *Store) ListEntities(userID int64, q string, limit int) ([]MemoryEntity, error) {
-	where, args := `e.user_id = ?`, []any{userID}
+func (s *Store) ListEntities(o MemOwner, q string, limit int) ([]MemoryEntity, error) {
+	where, args := `e.user_id = ? AND e.group_id = ?`, []any{o.UserID, o.GroupID}
 	if q = strings.ToLower(strings.TrimSpace(q)); q != "" {
 		where += ` AND e.name_key LIKE ? ESCAPE '\'`
 		args = append(args, "%"+likeEscaper.Replace(q)+"%")
@@ -708,8 +734,8 @@ func (s *Store) ListEntities(userID int64, q string, limit int) ([]MemoryEntity,
 	return scanEntities(rows)
 }
 
-func (s *Store) EntityByID(userID, id int64) (*MemoryEntity, error) {
-	rows, err := s.DB.Query(`SELECT `+entityCols+` FROM memory_entities e WHERE e.id = ? AND e.user_id = ?`, id, userID)
+func (s *Store) EntityByID(o MemOwner, id int64) (*MemoryEntity, error) {
+	rows, err := s.DB.Query(`SELECT `+entityCols+` FROM memory_entities e WHERE e.id = ? AND e.user_id = ? AND e.group_id = ?`, id, o.UserID, o.GroupID)
 	if err != nil {
 		return nil, err
 	}
@@ -725,15 +751,15 @@ func (s *Store) EntityByID(userID, id int64) (*MemoryEntity, error) {
 
 // EntityByName finds a thing by its exact name (any letter case) or, failing
 // that, the best-known thing whose name contains the text.
-func (s *Store) EntityByName(userID int64, name string) (*MemoryEntity, error) {
+func (s *Store) EntityByName(o MemOwner, name string) (*MemoryEntity, error) {
 	name = cleanName(name)
 	if name == "" {
 		return nil, ErrNotFound
 	}
 	var id int64
-	err := s.DB.QueryRow(`SELECT id FROM memory_entities WHERE user_id = ? AND name_key = ?`, userID, strings.ToLower(name)).Scan(&id)
+	err := s.DB.QueryRow(`SELECT id FROM memory_entities WHERE user_id = ? AND group_id = ? AND name_key = ?`, o.UserID, o.GroupID, strings.ToLower(name)).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
-		list, lerr := s.ListEntities(userID, name, 1)
+		list, lerr := s.ListEntities(o, name, 1)
 		if lerr != nil {
 			return nil, lerr
 		}
@@ -745,37 +771,37 @@ func (s *Store) EntityByName(userID int64, name string) (*MemoryEntity, error) {
 	if err != nil {
 		return nil, err
 	}
-	return s.EntityByID(userID, id)
+	return s.EntityByID(o, id)
 }
 
 // EntityRelations returns a page of a thing's connections and how many it has.
-func (s *Store) EntityRelations(userID, entityID int64, limit, offset int) ([]MemoryRelation, int, error) {
+func (s *Store) EntityRelations(o MemOwner, entityID int64, limit, offset int) ([]MemoryRelation, int, error) {
 	var total int
-	if err := s.DB.QueryRow(`SELECT COUNT(*) FROM memory_relations WHERE user_id = ? AND (subject_id = ? OR object_id = ?)`,
-		userID, entityID, entityID).Scan(&total); err != nil {
+	if err := s.DB.QueryRow(`SELECT COUNT(*) FROM memory_relations WHERE user_id = ? AND group_id = ? AND (subject_id = ? OR object_id = ?)`,
+		o.UserID, o.GroupID, entityID, entityID).Scan(&total); err != nil {
 		return nil, 0, err
 	}
-	rels, err := s.queryRelations(`r.user_id = ? AND (r.subject_id = ? OR r.object_id = ?) ORDER BY r.id DESC LIMIT ? OFFSET ?`,
-		userID, entityID, entityID, limit, max(offset, 0))
+	rels, err := s.queryRelations(`r.user_id = ? AND r.group_id = ? AND (r.subject_id = ? OR r.object_id = ?) ORDER BY r.id DESC LIMIT ? OFFSET ?`,
+		o.UserID, o.GroupID, entityID, entityID, limit, max(offset, 0))
 	return rels, total, err
 }
 
 // EntityMemories returns the newest memories about a thing and how many there are.
-func (s *Store) EntityMemories(userID, entityID int64, limit int) ([]Memory, int, error) {
+func (s *Store) EntityMemories(o MemOwner, entityID int64, limit int) ([]Memory, int, error) {
 	var total int
 	if err := s.DB.QueryRow(`SELECT COUNT(*) FROM memory_mentions mm JOIN memories m ON m.id = mm.memory_id
-		WHERE mm.entity_id = ? AND m.user_id = ?`, entityID, userID).Scan(&total); err != nil {
+		WHERE mm.entity_id = ? AND m.user_id = ? AND m.group_id = ?`, entityID, o.UserID, o.GroupID).Scan(&total); err != nil {
 		return nil, 0, err
 	}
-	mems, err := s.listMemories(`m.user_id = ? AND m.id IN (SELECT memory_id FROM memory_mentions WHERE entity_id = ?)
-		ORDER BY m.id DESC LIMIT ?`, userID, entityID, limit)
+	mems, err := s.listMemories(`m.user_id = ? AND m.group_id = ? AND m.id IN (SELECT memory_id FROM memory_mentions WHERE entity_id = ?)
+		ORDER BY m.id DESC LIMIT ?`, o.UserID, o.GroupID, entityID, limit)
 	return mems, total, err
 }
 
 // RenameEntity renames a thing. If another thing already has the new name the
 // two are merged, which is how duplicates ("Sam", "Sam B.") are cleaned up.
 // It returns the id that holds the name afterwards.
-func (s *Store) RenameEntity(userID, id int64, name string) (int64, error) {
+func (s *Store) RenameEntity(o MemOwner, id int64, name string) (int64, error) {
 	name = cleanName(name)
 	if name == "" {
 		return 0, errors.New("a name is required")
@@ -787,11 +813,11 @@ func (s *Store) RenameEntity(userID, id int64, name string) (int64, error) {
 	}
 	defer tx.Rollback()
 	var n int
-	if err := tx.QueryRow(`SELECT COUNT(*) FROM memory_entities WHERE id = ? AND user_id = ?`, id, userID).Scan(&n); err != nil || n == 0 {
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM memory_entities WHERE id = ? AND user_id = ? AND group_id = ?`, id, o.UserID, o.GroupID).Scan(&n); err != nil || n == 0 {
 		return 0, ErrNotFound
 	}
 	var other int64
-	err = tx.QueryRow(`SELECT id FROM memory_entities WHERE user_id = ? AND name_key = ? AND id != ?`, userID, key, id).Scan(&other)
+	err = tx.QueryRow(`SELECT id FROM memory_entities WHERE user_id = ? AND group_id = ? AND name_key = ? AND id != ?`, o.UserID, o.GroupID, key, id).Scan(&other)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return 0, err
 	}
@@ -850,10 +876,10 @@ type MemoryGraph struct {
 // MemoryGraphAround returns the picture drawn on the Memory page. With
 // focus == 0 it is the most connected things and the links between them;
 // otherwise it is one thing and its direct neighbours. limit caps the nodes.
-func (s *Store) MemoryGraphAround(userID, focus int64, limit int) (*MemoryGraph, error) {
+func (s *Store) MemoryGraphAround(o MemOwner, focus int64, limit int) (*MemoryGraph, error) {
 	g := &MemoryGraph{}
 	if focus == 0 {
-		nodes, err := s.ListEntities(userID, "", limit+1)
+		nodes, err := s.ListEntities(o, "", limit+1)
 		if err != nil {
 			return nil, err
 		}
@@ -869,17 +895,17 @@ func (s *Store) MemoryGraphAround(userID, focus int64, limit int) (*MemoryGraph,
 			ids[i] = n.ID
 		}
 		in, args := placeholders(ids)
-		all := append(append([]any{userID}, args...), args...)
-		g.Edges, err = s.queryRelations(`r.user_id = ? AND r.subject_id IN (`+in+`) AND r.object_id IN (`+in+`)
+		all := append(append([]any{o.UserID, o.GroupID}, args...), args...)
+		g.Edges, err = s.queryRelations(`r.user_id = ? AND r.group_id = ? AND r.subject_id IN (`+in+`) AND r.object_id IN (`+in+`)
 			GROUP BY r.subject_id, r.predicate, r.object_id ORDER BY r.id DESC LIMIT 400`, all...)
 		return g, err
 	}
-	center, err := s.EntityByID(userID, focus)
+	center, err := s.EntityByID(o, focus)
 	if err != nil {
 		return nil, err
 	}
-	edges, err := s.queryRelations(`r.user_id = ? AND (r.subject_id = ? OR r.object_id = ?)
-		GROUP BY r.subject_id, r.predicate, r.object_id ORDER BY r.id DESC LIMIT ?`, userID, focus, focus, limit+1)
+	edges, err := s.queryRelations(`r.user_id = ? AND r.group_id = ? AND (r.subject_id = ? OR r.object_id = ?)
+		GROUP BY r.subject_id, r.predicate, r.object_id ORDER BY r.id DESC LIMIT ?`, o.UserID, o.GroupID, focus, focus, limit+1)
 	if err != nil {
 		return nil, err
 	}
@@ -900,8 +926,8 @@ func (s *Store) MemoryGraphAround(userID, focus int64, limit int) (*MemoryGraph,
 	}
 	if len(ids) > 0 {
 		in, args := placeholders(ids)
-		rows, err := s.DB.Query(`SELECT `+entityCols+` FROM memory_entities e WHERE e.user_id = ? AND e.id IN (`+in+`)`,
-			append([]any{userID}, args...)...)
+		rows, err := s.DB.Query(`SELECT `+entityCols+` FROM memory_entities e WHERE e.user_id = ? AND e.group_id = ? AND e.id IN (`+in+`)`,
+			append([]any{o.UserID, o.GroupID}, args...)...)
 		if err != nil {
 			return nil, err
 		}

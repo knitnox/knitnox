@@ -15,6 +15,7 @@ type MCPServer struct {
 	Enabled  bool
 	Approval string // ApprovalAuto | ApprovalAsk
 	AgentID  int64  // > 0: belongs to that agent only; 0: one of the user's shared servers
+	GroupID  int64  // > 0: belongs to that group only (the group's thread id)
 }
 
 func (m *MCPServer) Asks() bool { return m.Approval == ApprovalAsk }
@@ -63,7 +64,7 @@ func (s *Store) scanMCP(rows interface {
 	for rows.Next() {
 		var m MCPServer
 		var enc []byte
-		if err := rows.Scan(&m.ID, &m.UserID, &m.Name, &m.URL, &enc, &m.Enabled, &m.Approval, &m.AgentID); err != nil {
+		if err := rows.Scan(&m.ID, &m.UserID, &m.Name, &m.URL, &enc, &m.Enabled, &m.Approval, &m.AgentID, &m.GroupID); err != nil {
 			return nil, err
 		}
 		h, err := s.Box.Open(enc)
@@ -76,12 +77,12 @@ func (s *Store) scanMCP(rows interface {
 	return out, rows.Err()
 }
 
-const mcpCols = `id, user_id, name, url, headers_enc, enabled, approval, COALESCE(agent_id, 0)`
+const mcpCols = `id, user_id, name, url, headers_enc, enabled, approval, COALESCE(agent_id, 0), COALESCE(group_id, 0)`
 
 // ListMCPServers returns a user's shared servers (not the ones that belong to
-// a single agent; see ListAgentOwnServers).
+// a single agent or to a group; see ListAgentOwnServers and ListGroupServers).
 func (s *Store) ListMCPServers(userID int64) ([]MCPServer, error) {
-	rows, err := s.DB.Query(`SELECT `+mcpCols+` FROM mcp_servers WHERE user_id = ? AND agent_id IS NULL ORDER BY id`, userID)
+	rows, err := s.DB.Query(`SELECT `+mcpCols+` FROM mcp_servers WHERE user_id = ? AND agent_id IS NULL AND group_id IS NULL ORDER BY id`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -104,56 +105,58 @@ func (s *Store) MCPServerByID(userID, id int64) (*MCPServer, error) {
 }
 
 // ThreadMCPServers returns the enabled servers the AI may use in a thread:
-//   - solo thread:  all of the owner's enabled servers
-//   - group thread: only servers the owner explicitly approved for the thread
-func (s *Store) ThreadMCPServers(t *Thread, group bool) ([]MCPServer, error) {
-	q := `SELECT ` + mcpCols + ` FROM mcp_servers WHERE user_id = ? AND enabled = 1 AND agent_id IS NULL`
-	args := []any{t.OwnerUserID}
-	if group {
-		q += ` AND id IN (SELECT mcp_server_id FROM thread_mcp WHERE thread_id = ?)`
-		args = append(args, t.ID)
+//   - personal chat: all of the owner's enabled servers
+//   - group:         the group's own servers, never the owner's personal ones
+func (s *Store) ThreadMCPServers(t *Thread) ([]MCPServer, error) {
+	q, arg := `user_id = ? AND agent_id IS NULL AND group_id IS NULL`, t.OwnerUserID
+	if t.IsGroup() {
+		q, arg = `group_id = ?`, t.ID
 	}
-	rows, err := s.DB.Query(q+` ORDER BY id`, args...)
+	rows, err := s.DB.Query(`SELECT `+mcpCols+` FROM mcp_servers WHERE enabled = 1 AND `+q+` ORDER BY id`, arg)
 	if err != nil {
 		return nil, err
 	}
 	return s.scanMCP(rows)
 }
 
-func (s *Store) ApprovedMCPIDs(threadID int64) (map[int64]bool, error) {
-	rows, err := s.DB.Query(`SELECT mcp_server_id FROM thread_mcp WHERE thread_id = ?`, threadID)
+// CreateGroupMCPServer adds a tool server that belongs to one group. It is
+// kept under the group owner's account, who is the only one to manage it.
+func (s *Store) CreateGroupMCPServer(t *Thread, name, url, headers, approval string) error {
+	if !t.IsGroup() {
+		return ErrNotGroup
+	}
+	enc, err := s.Box.Seal(headers)
+	if err != nil {
+		return err
+	}
+	_, err = s.DB.Exec(`INSERT INTO mcp_servers(user_id, name, url, headers_enc, approval, group_id) VALUES (?, ?, ?, ?, ?, ?)`,
+		t.OwnerUserID, name, url, enc, normalizeApproval(approval), t.ID)
+	return err
+}
+
+// ListGroupServers returns every tool server of a group, enabled or not.
+func (s *Store) ListGroupServers(groupID int64) ([]MCPServer, error) {
+	rows, err := s.DB.Query(`SELECT `+mcpCols+` FROM mcp_servers WHERE group_id = ? ORDER BY id`, groupID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	out := map[int64]bool{}
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		out[id] = true
-	}
-	return out, rows.Err()
+	return s.scanMCP(rows)
 }
 
-// SetThreadMCP replaces the approved set. ids must belong to the owner (checked here).
-func (s *Store) SetThreadMCP(threadID, ownerID int64, ids []int64) error {
-	tx, err := s.DB.Begin()
+// GroupServer returns one of a group's tool servers.
+func (s *Store) GroupServer(groupID, serverID int64) (*MCPServer, error) {
+	rows, err := s.DB.Query(`SELECT `+mcpCols+` FROM mcp_servers WHERE id = ? AND group_id = ?`, serverID, groupID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer tx.Rollback()
-	if _, err := tx.Exec(`DELETE FROM thread_mcp WHERE thread_id = ?`, threadID); err != nil {
-		return err
+	list, err := s.scanMCP(rows)
+	if err != nil {
+		return nil, err
 	}
-	for _, id := range ids {
-		if _, err := tx.Exec(`INSERT INTO thread_mcp(thread_id, mcp_server_id)
-			SELECT ?, id FROM mcp_servers WHERE id = ? AND user_id = ? AND agent_id IS NULL`, threadID, id, ownerID); err != nil {
-			return err
-		}
+	if len(list) == 0 {
+		return nil, ErrNotFound
 	}
-	return tx.Commit()
+	return &list[0], nil
 }
 
 // ---- tool approvals ----

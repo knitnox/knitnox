@@ -37,14 +37,28 @@ Everything Knitnox does today, grouped by area. Limits are listed at the end so 
 | Rename and delete | From the sidebar or the chat menu |
 | Export | Download a chat as Markdown or JSON |
 
-## Group chats
+## Groups
 
 | Feature | What it means |
 |---|---|
+| A kind of its own | A group is started as a group. Your own chats never become one, so what your personal tools answered never reaches other people |
 | Invite links | With an expiry date and a maximum number of uses |
-| Roles | Owner, member (can chat) and viewer (read only) |
+| Roles | Admin, member (can chat) and viewer (read only) |
 | One shared queue | Everyone's messages are answered one at a time |
-| Safe sharing | Members get the owner's tools or personal key only if the owner allows it |
+| Its own memory | The AI saves what the group decides. Every member can read it; only the AI writes it; wrong facts can be deleted |
+| Its own tools | Tool servers added for the group by its admin |
+| One model | Chosen by the admin, from the shared models or the admin's own |
+| No personal tools | Nobody's Memory, Plan Book, Feed, pictures, agents or tool servers are used in a group |
+| Take to my chat | Under any message: a chat of your own that quotes it, can read the group, and uses your own tools |
+
+## Read-only links
+
+| Feature | What it means |
+|---|---|
+| Show a chat | Anyone who has the link can read one of your own chats, without an account |
+| A copy in time | The link shows the chat as it was when you made or updated it |
+| Tools hidden | Tool calls and results are left out unless you choose to show them |
+| Under your control | Stop the link at any time; an admin can turn links off for the whole server |
 
 ## Models and keys
 
@@ -126,7 +140,7 @@ Everything Knitnox does today, grouped by area. Limits are listed at the end so 
 | Who changed what | Every task keeps a history: you, the AI, or which agent |
 | Bin | Deleted tasks can be restored for 30 days |
 | Due count | The sidebar shows how many tasks are due today or late |
-| Private | Never used in group chats |
+| Private | Never used in groups |
 
 ## Memory
 
@@ -140,7 +154,7 @@ Everything Knitnox does today, grouped by area. Limits are listed at the end so 
 | Word search | Works with no setup |
 | Smart search | With an embedding model it also finds different wording; set by the admin or by you |
 | Pinned memories | A few facts the AI is always told, without searching |
-| Private | Never used in group chats; an agent can read it only if you allow that agent |
+| Private | Never used in groups (a group has a separate memory of its own); an agent can read it only if you allow that agent |
 | Your data | Download everything as a file, or delete everything |
 
 ## Notifications and app
@@ -201,10 +215,12 @@ Everything Knitnox does today, grouped by area. Limits are listed at the end so 
 - **Files.** No OCR for scanned PDFs; Word, Excel and PowerPoint are not read.
 - **Search.** Matches the beginnings of words in message text, not inside attached files.
 - **Approval waits.** A tool call waiting for approval holds that chat's queue until someone decides.
+- **Groups.** A group's memory has no page for things and connections and no pinning; it is searched and listed only. A chat cannot be turned into a group or back. When the admin changes the model, the chat does not say so. The AI of a connected chat reads a group; it cannot write to it.
+- **Read-only links.** One link per chat. Recordings made with Read aloud are not part of it.
 - **Plan Book.** Due dates are days, not times; there are no reminders, subtasks, repeating tasks or shared projects yet.
 - **Feed.** No likes, comments or follows. One picture, recording or video per post; you cannot upload your own files to a post. Video uses one format only (`POST /videos`, then asking until it is done), which OpenRouter and DeepInfra offer; OpenAI shut its own video service down in September 2026, and Gemini's voice and video are not reachable through its OpenAI-compatible address. The read count is the number of other people who were shown a shared post.
 - **Tools menu.** It switches whole groups and whole tool servers, not single tools, and it can only switch off what is already set up. Changing it in the middle of a chat makes the next reply cost a little more once.
-- **Pictures and voice in chats.** Pictures are made only in your own chats, not in group chats or by agents, and the AI cannot see the picture it made. Read aloud reads the first 4,000 characters of an answer and leaves code out. Videos are made only for Feed posts.
+- **Pictures and voice in chats.** Pictures are made only in your own chats, not in groups or by agents, and the AI cannot see the picture it made. Read aloud reads the first 4,000 characters of an answer and leaves code out. Videos are made only for Feed posts.
 - **Model kinds.** What a model is for is guessed from its name when it is added and can be changed in the providers list. Pictures, recordings and videos are not counted in token quotas; the admin sets a number per person per day instead.
 - **Memory search.** Smart search needs an embedding model; without one, only shared words match. Embedding calls are not counted in token quotas.
 - **Memory size.** Built for thousands of memories per person, not millions.

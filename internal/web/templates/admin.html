@@ -107,6 +107,11 @@
             <label class="check"><input type="checkbox" name="block_private_urls" value="1" {{if .S.BlockPrivateURLs}}checked{{end}}>
               <span>Keep users' own providers and tools away from this server's network<small>People can add their own AI providers and tool servers by address. When this is on, such an address may not point at this computer or its local network (for example another service on the same machine). Turn it on when not everyone with an account is fully trusted. Leave it off if people here run their own tool servers or Ollama on this machine or network. Shared providers that an admin adds always work.</small></span></label>
           </div>
+          <div class="card" id="share-links">
+            <h3 class="card-title">Read-only links</h3>
+            <label class="check"><input type="checkbox" name="share_links" value="1" {{if .S.ShareLinks}}checked{{end}}>
+              <span>Let people share a personal chat with a read-only link<small>Anyone who has such a link can read that chat <b>without an account</b>; nobody can write through it. The owner of the chat makes the link, decides whether tool results are shown, and can stop it at any time. When this is off, no link can be made and the existing ones stop working until it is on again. Groups are not affected: they are joined by invite and need an account.</small></span></label>
+          </div>
           <div class="card" id="feed">
             <h3 class="card-title">Feed</h3>
             <label class="check"><input type="checkbox" name="feed_public" value="1" {{if .S.FeedPublic}}checked{{end}}>

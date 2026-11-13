@@ -59,9 +59,12 @@ users ─┬─< sessions
        ├─< push_subscriptions
        ├─< audit_log (as actor)
        └─< thread_members (pinned, archived) >─ threads ─┬─< runs ─< messages ─< attachments (kind, text; files in DATA/uploads)
-                                                          │                   └─< tool_approvals
-                                                          ├─< thread_invites
-                                                          └─< thread_mcp >─ mcp_servers
+                                 (kind: chat | group)     │                   └─< tool_approvals
+                                                          ├─< thread_invites        (groups only)
+                                                          ├─< mcp_servers.group_id  (a group's own tool servers)
+                                                          ├── group_settings (1:1)  (a group's embedding model)
+                                                          ├─< thread_groups         (groups a personal chat may read)
+                                                          └── thread_shares (1:1)   (a personal chat's read-only link)
 messages_fts (FTS5 index over messages.content, trigger-maintained)
 agents, agent_tasks, agent_mcp, thread_agents, store_agents, … (agents, see §16)
 memories, memory_entities, memory_relations, … (long-term memory, see §17)
@@ -220,24 +223,102 @@ threads.summary = new_summary; threads.compacted_until_run = cut
 |---|---|---|---|
 | Shared (admin) | everyone | message author | **yes** |
 | Personal, author is its owner | owner | owner | no (logged only) |
-| Personal, author is a group member | only if the owner ticked "let members use my key" | owner's key; usage row records the author | no |
+| Personal, chosen by a group's admin for that group | every member of the group | the admin's key; usage row records the author | no |
 
 - Quota = billable `prompt + completion` tokens since the start of the current UTC day or month. `0` = unlimited.
 - Checked before the turn and before every further agent step, so a long tool loop cannot overrun by much.
 - When a provider sends no `usage`, the call is estimated (chars/4) and flagged `estimated = 1`.
 - Cost = tokens × per-model price (USD per 1M), set by whoever added the model.
 
-## 10. Group chats
+## 10. Groups and read-only links
 
-**Roles**: `owner` (settings, invites, remove members, cancel any queued message, delete the chat), `member` (chat, cancel own queued messages), `viewer` (read only).
+> **A chat is one of two kinds, for good.** `threads.kind` is `chat` or `group`. It is set when the chat is made and no code changes it afterwards.
 
-**Turn-based** means one shared FIFO queue, answered one at a time. Each user message reaches the model as `[username]: text`, and the system prompt lists the participants.
+Before migration 015 a chat "became" a group chat when a second person joined and turned back when the last one left. Three problems came from that one rule: sharing a chat showed its new members everything the owner's personal tools had answered in it; the tool list, which sits at the start of the prompt, changed with membership, so the provider's cache was thrown away; and "whose tools?" had no good answer. A fixed kind removes all three.
 
-**Safety defaults**
-- **MCP tools**: a solo chat uses all the owner's enabled servers. As soon as a second member joins, **only servers the owner ticked for that chat** are used. Otherwise a member could ask the AI to act with the owner's GitHub or email credentials.
-- **Personal keys**: members cannot spend the owner's personal key unless the owner allows it per chat.
-- **Invites**: random 128-bit token, expiry (1–90 days), max uses, revocable.
-- **Removal**: a removed member's open SSE stream is closed at the next 20-second ping.
+| | Personal chat (`chat`) | Group (`group`) |
+|---|---|---|
+| Who writes | its owner only | everyone who joined by invite (members), plus viewers who only read |
+| Tools | the owner's memory, Plan Book, feed, pictures, agents and tool servers | only what belongs to the group: its memory and its tool servers |
+| Memory | the owner's (`MemOwner{UserID}`) | the group's own (`MemOwner{UserID: owner, GroupID: thread}`), written only by the AI |
+| Tool servers | the owner's shared ones (`group_id IS NULL`, `agent_id IS NULL`) | rows with `mcp_servers.group_id = thread` |
+| Model | the owner's choice | one for everybody, chosen by the admin (the owner) |
+| Others can… | read it through a read-only link | join with an invite link |
+| Clock | the owner's time zone | the server's |
+
+The code is in `store/groups.go`, `engine/groups.go`, `web/groups.go`, `templates/group.html` and `templates/shared.html`; the schema is `migrations/015_groups.sql`. An agent's thread is a `chat`.
+
+### Groups
+
+**Roles**: `owner` (shown as *admin*: settings, model, invites, tool servers, remove members, cancel any queued message, delete the group), `member` (chat, cancel own queued messages), `viewer` (read only).
+
+**Turn-based** means one shared FIFO queue, answered one at a time. Each user message reaches the model as `[username]: text`, and the system prompt lists the participants. This is so from the first message, also while the admin is still alone in the group.
+
+**What `openTools` does for a group**: it connects the group's own enabled tool servers, adds the memory tools for `GroupMemory(thread)` unless the admin switched *Group memory* off, and returns. Nothing after that line runs, so no personal tool can be added to a group by accident. The same toolset is built whoever wrote the message, which is why the prompt prefix is identical between members (`TestGroupHasItsOwnMemory` checks it).
+
+**Group memory** is the memory of §17 with a second kind of owner. The differences:
+
+| | A person's memory | A group's memory |
+|---|---|---|
+| Who writes | the person on the Memory page, and the AI | the AI only, with the same tools (`memory_save`, …) |
+| Who reads | the person | every member, on `/t/{id}/memory` |
+| Who deletes | the person | the admin any fact; a member the facts from their own messages (`memories.said_by`) |
+| Pinned memories in the prompt | up to 12 | none: the note is a constant, so the prefix never changes |
+| Embedding model | the person's or the server's | the admin's choice in `group_settings` (a shared model or one of the admin's own), else the server's |
+
+People cannot add or edit a fact. That is deliberate: a fact typed in by one member would shape the answers for all of them.
+
+**Tool servers of a group** work like an agent's own servers (§16): a row in `mcp_servers` with `group_id` set. `ListMCPServers` filters them out of the owner's personal list, and `ThreadMCPServers` returns either the owner's or the group's, never both. They are kept under the owner's `user_id`, so the existing owner checks (`MCPServerByID`, test, approval mode) apply unchanged.
+
+**Keys**: a group may run on one of the admin's own models. Then `prepare` lets every member's run use that personal provider, and nothing counts toward anybody's quota. In every other case a personal key is used only by its owner.
+
+**Invites**: random 128-bit token, expiry (1–90 days), max uses, revocable. `CreateInvite` and `AcceptInvite` both check `kind = 'group'`, so a personal chat cannot be joined even with an old token. A removed member's open SSE stream is closed at the next 20-second ping. New members read the whole history.
+
+### Looking into a group from a personal chat
+
+A group cannot post to anybody's feed. The bridge is a **reference**: a row in `thread_groups(thread_id, group_id)` lets a personal chat read a group its owner is in.
+
+| Step | Where |
+|---|---|
+| Connect | the Tools menu (rows keyed `group:<id>`, `web/tools.go → groupRows`), or "Take to my chat" under a group message, which opens the home screen with the group ticked and the message quoted (`takenFromGroup`) |
+| Who may | `store.SetThreadGroup`: the chat is a personal chat of the user, not an agent's; the target is a group; the user is a member of it |
+| Tools | `engine.addGroupTools`: `group_memory_search`, `group_memory_read`, `group_messages` (up to 30 turns, text only, capped at 12,000 characters, oldest left out first). None of them writes |
+| Prompt | `groupRefsNote` names the connected groups and nothing else. Group text reaches the model only as tool answers |
+
+Two rules:
+
+1. **Membership is checked on every call** (`ThreadGroups` computes `Member` each time). A person who leaves or is removed keeps the reference, so the prompt prefix does not change, but every tool answers that the group can no longer be read. Deleting the group removes the reference (`ON DELETE CASCADE`).
+2. **Group text is data.** Every answer says so, the way memory answers do. This matters more here than anywhere else: the personal chat has its owner's feed, memory and tool servers, and the text it reads was written by other people.
+
+### Read-only links
+
+`thread_shares(thread_id, token, until_run, show_tools)` is the one link a personal chat can have. `GET /s/{token}` is the only chat page that needs no account.
+
+| Rule | How |
+|---|---|
+| A copy in time | The page shows runs up to `until_run`, the newest finished run when the link was made. "Update the link to now" moves it; the token stays |
+| Tools hidden by default | Without `show_tools` only user and assistant messages are loaded, and assistant steps that only called tools are skipped |
+| Files | `/s/{token}/files/{id}` serves an attachment only if its message is inside the copy. Recordings (Read aloud) are never served |
+| Nothing to send | The page has no form, no CSRF token and no sidebar; it is marked `noindex` and `no-store` |
+| Stopping | `DELETE` of the row. An unknown and a stopped link answer the same 404 |
+| Server switch | `settings.share_links` (Admin → Settings). Off: no link can be made and none works |
+
+Groups and agents have no link: `SaveShare` inserts only for `kind = 'chat'` threads that are not an agent's.
+
+### Chats from before
+
+Migration 015 turns every chat with more than one member into a group, copies the owner's tool servers that were ticked for it into group servers (the encrypted headers are copied as they are), deletes invites to chats that stay personal, and sets `threads.group_notice`. The owner then sees one note on the chat: earlier messages may hold answers of their personal tools, and the members can still read them. `POST /t/{id}/notice` clears it. `thread_mcp` and `threads.allow_owner_key` are no longer read.
+
+### Trade-offs
+
+| Decision | Why | Cost / when to revisit |
+|---|---|---|
+| The kind never changes | no leak at the moment of sharing, a stable prompt prefix, one rule to explain | a chat cannot be "opened up" later; people start a group and take what they need with them |
+| No personal tools in a group, not even the admin's | every member can make the AI use whatever is there | "post what we decided" takes one more step (Take to my chat) |
+| Only the AI writes the group's memory | nobody can plant a fact by typing it | a wrong fact is fixed by asking the AI in the group, or deleted |
+| A reference reads through tools | nothing from the group enters the prompt; the cache of the personal chat is kept | the model has to decide to look; it is told when in `groupRefsNote` |
+| The link is a copy in time | tomorrow's memory search is not published by a link made today | the owner has to update the link to show more |
+| The memory tables keep `user_id` and add `group_id` | no change for personal memory; a group's rows go when its owner's account goes | every memory query filters on two columns (`MemOwner`) |
 
 ## 11. Failure and recovery
 
@@ -384,7 +465,7 @@ Counting per name *and* address is what keeps a stranger from locking a known ac
 
 ### Organising chats
 
-`thread_members.pinned / archived` are **per member**, so two people in the same group chat can pin or archive it independently. The sidebar is grouped Pinned → Today → Yesterday → … with archived chats in a collapsed group; the "⋯" menu on every row (and in the chat's top bar) offers rename (owner), pin, archive, export and delete (owner) / leave (member). Rename is `POST /t/{id}/rename` and is edited inline in the sidebar.
+`thread_members.pinned / archived` are **per member**, so two people in the same group can pin or archive it independently. The sidebar is grouped Pinned → Groups → Today → Yesterday → … with archived chats in a collapsed group; the "⋯" menu on every row (and in the chat's top bar) offers rename (owner), pin, archive, export and delete (owner) / leave (member). Rename is `POST /t/{id}/rename` and is edited inline in the sidebar.
 
 ## 16. Agents and the agent store
 
@@ -465,10 +546,11 @@ Publishing copies the name, instructions, schedule and limits into `store_agents
 
 | Server | Listed on Settings | Used by the owner's chats | Used by an agent |
 |---|---|---|---|
-| Shared (`agent_id` NULL) | yes | yes (solo: all enabled; group: ticked ones) | only if ticked for it, filtered by its allowlist |
+| Shared (`agent_id` and `group_id` NULL) | yes | yes, all enabled ones (personal chats only) | only if ticked for it, filtered by its allowlist |
 | Own (`agent_id` set) | no | never | that agent only, every tool |
+| A group's (`group_id` set, §10) | no (in the group's panel) | in that group only | never |
 
-`ListMCPServers`, `ThreadMCPServers`, `SetThreadMCP` and `SetAgentMCP` all filter on `agent_id IS NULL`, so an own server cannot be ticked for a chat or for another agent. `AgentMCPServers` returns the union. Own servers are managed in the agent's panel, are deleted with the agent, and are never copied to the store.
+`ListMCPServers`, `ThreadMCPServers` and `SetAgentMCP` all filter on `agent_id IS NULL`, so an own server cannot be ticked for a chat or for another agent. `AgentMCPServers` returns the union. Own servers are managed in the agent's panel, are deleted with the agent, and are never copied to the store.
 
 ### Connecting from a chat
 
@@ -476,7 +558,7 @@ The chat's top bar has an **Agents** menu (owner only) listing the owner's agent
 
 ## 17. Long-term memory
 
-**Memory** is a per-user store of short facts that the AI saves in one chat and looks up in another. The code is in `store/memory.go`, `engine/memory.go`, `llm/embed.go` and `web/memory.go`; the schema is `migrations/007_memory.sql`.
+**Memory** is a store of short facts that the AI saves in one chat and looks up in another. Every person has one; every group has a separate one of its own (§10). The code is in `store/memory.go`, `engine/memory.go`, `llm/embed.go` and `web/memory.go`; the schema is `migrations/007_memory.sql`.
 
 > **A graph in plain SQLite.** Facts, the things they mention and the connections between those things are four ordinary tables. There is no graph database and no vector extension, so Knitnox stays one pure-Go binary with one database file.
 
@@ -489,14 +571,14 @@ memory_settings (per user: enabled, own embedding provider + model)
 agents.use_memory                                      an agent may read its owner's memory
 ```
 
-Every row carries `user_id` and every query filters on it. A thing (`memory_entities`) exists only while a memory mentions it; `name_key` is the lower-cased name, so "Sam" and "sam" are one thing. Renaming a thing to an existing name merges the two.
+Every row carries `user_id` and `group_id` (0 = a person's own memory), and every query filters on both through `store.MemOwner`: `UserMemory(id)` or `GroupMemory(thread)`. So a group's memory cannot be reached with a person's owner value, nor the other way round. A thing (`memory_entities`) exists only while a memory mentions it; `name_key` is the lower-cased name, so "Sam" and "sam" are one thing. Renaming a thing to an existing name merges the two.
 
 ### Who gets memory
 
 | Run | Memory tools |
 |---|---|
-| Solo chat, owner turned memory on | read and write, for the owner's memory |
-| Group chat | none, ever |
+| Personal chat, owner turned memory on | read and write, for the owner's memory |
+| Group | read and write, for the group's own memory; never a person's |
 | Agent with `use_memory` and owner's memory on | read only |
 | Anything else | none |
 
@@ -533,7 +615,7 @@ If the embedding call fails, search logs a warning and returns the word results.
 | Vectors scanned in Go | no extension, exact results | time and memory grow with a user's memories; add an HNSW index past tens of thousands |
 | Vectors loaded from the database per search | no cache to keep correct | more disk reads; cache per user if search gets slow |
 | Off by default, per user | the AI storing personal facts should be a choice | users must find the switch; the page explains it |
-| Never in group chats | one person's memory must not reach others | no shared team memory yet |
+| A person's memory never in a group | one person's memory must not reach others | a group has its own memory instead (§10) |
 | Agents read only | agents process untrusted text and could store planted "facts" | an agent cannot learn into the user's memory |
 | Memory tools run without approval | saving a note should not interrupt a chat | the AI can change memory; every call is visible in the chat and on the Memory page |
 | Embedding calls are not billed | they are small | not counted in quotas or the usage page |
@@ -736,7 +818,7 @@ attachments.kind   image | file | audio
 | | Picture | Read aloud |
 |---|---|---|
 | Started by | the AI, with the built-in tool `make_picture` | a person, with the speaker button (`POST /t/{id}/messages/{mid}/speak`) |
-| Where | the owner's own chats (not group chats, not agents), when the owner has a picture model | any chat the person can read, when that person has a voice model |
+| Where | the owner's own chats (not groups, not agents), when the owner has a picture model | any chat the person can read, when that person has a voice model |
 | Whose model and limit | the chat owner's | the person who pressed the button |
 | Linked to | the AI message that made the tool call (`turnCtx.callMsgID`) | the answer that is read |
 | Made | inside the run; the tool waits up to 4 minutes | inside the request; up to 3 minutes |
@@ -753,13 +835,13 @@ attachments.kind   image | file | audio
 
 ## 22. The Tools menu: switches per chat
 
-Until a chat says otherwise it gets everything its owner set up. `thread_tools_off(thread_id, key)` holds what the owner switched **off** for one chat; `key` is a built-in group (`memory`, `plan`, `feed`, `pictures`, `agents`) or one server (`mcp:<id>`). Storing the exceptions, not the choices, means a tool added later works in old chats without touching them.
+Until a chat says otherwise it gets everything its owner set up; a group gets everything that belongs to the group (§10). `thread_tools_off(thread_id, key)` holds what the owner switched **off** for one chat; `key` is a built-in set of tools (`memory`, `plan`, `feed`, `pictures`, `agents`) or one server (`mcp:<id>`). In a group, `memory` means the group's memory. Storing the exceptions, not the choices, means a tool added later works in old chats without touching them.
 
 | Step | Where |
 |---|---|
-| The menu's rows | `web/tools.go → toolRows`: each group with whether it is set up for the owner, each tool server of the chat. A group that is not set up is shown greyed out with a link; in a group chat the personal groups say so |
+| The menu's rows | `web/tools.go → toolRows`: each set of tools with whether it is set up for the owner, each tool server of the chat. One that is not set up is shown greyed out with a link. For a group: *Group memory* and the group's servers, nothing personal. `groupRows` adds, for a personal chat, the groups its owner is in (keys `group:<id>`, stored in `thread_groups`, off until switched on) |
 | Switching | `POST /t/{id}/tools` (`key`, `on`), owner only. The key must be a row that is set up, so nothing can be stored for a server that is not the owner's or not shared with the chat. The answer is the menu drawn again plus the pill's count as an out-of-band swap |
-| Before the chat exists | The home form sends `tools_menu=1` and one `tool_on` per ticked row; `newThreadTools` stores the unticked ones before `Submit`, so the first turn already honours them |
+| Before the chat exists | The home form sends `tools_menu=1` and one `tool_on` per ticked row (`app.js` adds both to the request it builds); `newThreadTools` stores the unticked ones and connects the ticked groups before `Submit`, so the first turn already honours them |
 | Applying | `engine.openTools` reads `ThreadToolsOff` at the start of every run and leaves those groups and servers out; the notes in the system prompt follow, because they are added only for tools that were added |
 
 - **It can only narrow.** Turning Memory on is still done on the Memory page; the menu never grants a chat something its owner has not enabled.

@@ -226,9 +226,7 @@ func TestGroupChatIgnoresPersonalInstructions(t *testing.T) {
 	f := setup(t, srv.URL)
 	f.st.SetInstructions(f.owner, "SECRET-PERSONAL")
 	bob, _ := f.st.CreateUser("bob", "x", "user")
-	tid, _ := f.st.CreateThread(f.owner, f.modelID)
-	tok, _ := f.st.CreateInvite(tid, f.owner, "member", time.Hour, 1)
-	f.st.AcceptInvite(tok, bob)
+	tid := newGroup(t, f, bob)
 	runID, _ := f.eng.Submit(tid, bob, "hi", nil)
 	waitRun(t, f.st, runID)
 	if strings.Contains(body.Load().(string), "SECRET-PERSONAL") {

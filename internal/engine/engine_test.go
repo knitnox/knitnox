@@ -163,6 +163,26 @@ func setup(t *testing.T, llmURL string) *fixture {
 	return &fixture{st: st, eng: eng, owner: owner, modelID: models[0].ID}
 }
 
+// newGroup makes a group owned by the fixture's owner and lets the given
+// people join it as members.
+func newGroup(t *testing.T, f *fixture, members ...int64) int64 {
+	t.Helper()
+	gid, err := f.st.CreateGroup(f.owner, f.modelID, "Team")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range members {
+		tok, err := f.st.CreateInvite(gid, f.owner, "member", time.Hour, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := f.st.AcceptInvite(tok, m); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return gid
+}
+
 func waitRun(t *testing.T, st *store.Store, runID int64) *store.Run {
 	t.Helper()
 	deadline := time.Now().Add(10 * time.Second)
@@ -273,23 +293,21 @@ func TestToolLoop(t *testing.T) {
 	}
 }
 
-func TestGroupThreadHidesOwnerMCPUnlessApproved(t *testing.T) {
+// A group never uses its owner's personal tool servers, whoever writes.
+func TestGroupDoesNotUseTheOwnersToolServers(t *testing.T) {
 	llmSrv, _ := fakeLLM(t, 0)
 	mcpSrv := fakeMCP(t)
 	f := setup(t, llmSrv.URL)
 	f.st.CreateMCPServer(f.owner, "fake", mcpSrv.URL, "", store.ApprovalAuto)
 	bob, _ := f.st.CreateUser("bob", "x", "user")
-	tid, _ := f.st.CreateThread(f.owner, f.modelID)
-	tok, _ := f.st.CreateInvite(tid, f.owner, "member", time.Hour, 1)
-	if _, err := f.st.AcceptInvite(tok, bob); err != nil {
-		t.Fatal(err)
-	}
+	tid := newGroup(t, f, bob)
+	f.st.SetThreadTool(tid, store.ToolMemory, false) // without its own memory a group has no tools at all here
 	runID, _ := f.eng.Submit(tid, bob, "hi all", nil)
 	r := waitRun(t, f.st, runID)
 	if r.Status != store.RunDone {
 		t.Fatalf("status %s: %s", r.Status, r.Error)
 	}
-	// No tools approved -> plain echo, with the sender's name prefixed.
+	// None of the owner's tools here -> plain echo, with the sender's name prefixed.
 	if got := lastAssistant(t, f.st, runID); got != "echo: [bob]: hi all" {
 		t.Fatalf("reply = %q", got)
 	}

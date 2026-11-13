@@ -39,7 +39,7 @@ Think things through on your own, or invite family, friends or your team with a 
 - Answers keep coming after you close the tab; up to 10 messages wait in line
 - Attach PDFs, photos, code and notes; the AI can draw pictures and read answers aloud
 - Thinking models show their reasoning in a fold-away block
-- Your own API keys and tools stay yours inside a group
+- Your own API keys and tools stay yours: a group has a memory and tools of its own
 
 <p align="center">
 <picture>
@@ -61,7 +61,7 @@ Like a social feed, but **just for you** until you choose to share. You, your ch
 
 ## Plan Book — tasks and projects, with a helper
 
-A simple place for what you need to do. When you allow it, **the AI adds tasks straight from your conversations**: agree on a trip in a group chat, and "Book the cabin" lands in your Plan Book with a due date. Every task shows who added it.
+A simple place for what you need to do. When you allow it, **the AI adds tasks straight from your conversations**: plan a trip in a chat, and "Book the cabin" lands in your Plan Book with a due date. Every task shows who added it.
 
 <p align="center">
 <picture>
@@ -520,7 +520,8 @@ Deliberately not implemented, because a user-supplied command means remote code 
 - **Pictures from other sites** in an answer are not loaded by themselves: a button stands in their place and the picture loads on a click. Otherwise text the AI was fed (a web page, a file, a tool result) could make it write a picture address that carries your data to someone else's server.
 - **Tool approval**: "Ask before running" is the safe default for anything with side effects. Only the chat owner or the person whose message triggered the call can decide, and "Always allow" (which switches the server to automatic) is owner-only.
 - **API keys / MCP headers**: AES-256-GCM at rest and never sent back to the browser (shown as `sk-…abcd`).
-- **Group chats**: members never get the owner's MCP tools or personal API key unless the owner opts in per chat. Personal custom instructions are never applied in group chats.
+- **Groups**: a group is its own kind of chat. Nobody's personal tools, memory, tool servers or custom instructions are used in one; it has a memory and tool servers of its own. A personal key is used by others only when a group's admin picks one of their own models for that group.
+- **Read-only links**: a personal chat can be shown to anyone who has its link, without an account. The link shows the chat as it was when it was made, hides tool results unless the owner shows them, and can be stopped; an admin can turn links off for the whole server.
 - **SSRF**: users can make the server call an address they enter (their own provider's base URL, a tool server, a picture link a provider returns). `internal/netguard` checks every such connection where it is opened, after the name was looked up, so redirects and names that change are covered. Link-local addresses (`169.254.0.0/16`, `fe80::/10`, where cloud hosts keep credentials) are always refused. With **Admin → Settings → Keep users' own providers and tools away from this server's network** on, this machine and private networks are refused too. It is off at first because a tool server or Ollama on the same machine is common; turn it on when not everyone with an account is fully trusted. Addresses an admin sets up (shared providers) are never checked.
 - **Tool calls are not repeated blindly**: a call is retried only when it cannot have reached the tool (connection refused, or the server answered 429/503). After a timeout or a lost answer the model is told the tool may have run.
 - **The key file**: `secret.key` lies next to the database and is copied into every backup, so the encryption of API keys protects against someone who gets only the database file, not the whole folder or a backup. To keep them apart, set `KNITNOX_SECRET` in the service's environment instead and delete `secret.key` (existing keys then have to be entered again unless the value is the file's content).

@@ -1758,6 +1758,61 @@ select.model-kind { width: auto; min-height: 28px; padding: 2px 30px 2px 10px; f
 }
 
 /* =========================================================================
+   Groups and read-only links
+   ========================================================================= */
+/* the sidebar's second action, and a link among the chat's facts in the top bar */
+a.sb-new-group { color: var(--fg-2); text-decoration: none; }
+a.sb-new-group.is-active { background: var(--bg); color: var(--fg); box-shadow: var(--shadow-sm); }
+a.meta-link { text-decoration: none; border-radius: var(--r-xs); }
+a.meta-link:hover { color: var(--fg); text-decoration: underline; text-underline-offset: 3px; }
+/* the model name at the top of a chat is its owner's way to the model picker */
+button.meta-model { border: 0; background: none; padding: 2px 4px; margin: -2px -4px; font: inherit; font-size: 12px; cursor: pointer; border-radius: var(--r-xs); }
+button.meta-model:hover { color: var(--fg); background: var(--bg-hover); }
+button.meta-model .i:last-child { width: 11px; height: 11px; }
+a.act { text-decoration: none; }
+.thread-empty .hint .i { width: 14px; height: 14px; vertical-align: -2px; }
+
+/* "Take to my chat": what the new chat will be, said above the box */
+.taken-note { align-items: flex-start; background: var(--accent-soft); color: var(--fg-2); font-weight: 400; line-height: 1.55; text-align: left; }
+.taken-note .i { flex: none; margin-top: 3px; color: var(--accent); }
+.taken-note b { color: var(--fg); }
+
+/* the Share panel of a personal chat */
+.share-behind { display: flex; align-items: flex-start; gap: 8px; color: var(--warn); }
+.share-behind .i { flex: none; width: 15px; height: 15px; margin-top: 2px; }
+
+/* starting a group: what a group has, next to what stays personal */
+.kind-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 28px; }
+.kind-compare > div > b { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.kind-compare > div > b .i { width: 16px; height: 16px; color: var(--accent); }
+.new-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
+
+/* a group's memory: who may do what, under the list */
+.mem-rights { display: flex; align-items: flex-start; gap: 8px; margin-top: 16px; }
+.mem-rights .i { flex: none; width: 15px; height: 15px; margin-top: 2px; }
+.mem .rel b { font-weight: 500; color: var(--fg-2); }
+
+/* the page a read-only link opens: no sidebar, nothing to send */
+.shared { height: 100vh; height: 100dvh; overflow-y: auto; background: var(--canvas); }
+.shared-top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 12px; padding: 12px 20px;
+  background: var(--canvas); border-bottom: 1px solid var(--border); }
+.shared-badge { gap: 6px; line-height: 22px; padding: 0 10px; font-size: 12px; }
+.shared-badge .i { width: 13px; height: 13px; }
+.shared-main { max-width: var(--content-w); margin: 0 auto; padding: 28px 24px 56px; }
+.shared-main .thread { max-width: none; padding: 28px 0 0; }
+.shared-title { font-size: 24px; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.shared-about { margin-top: 6px; max-width: 70ch; color: var(--muted); line-height: 1.55; }
+.shared-about b { color: var(--fg-2); }
+.shared-foot { margin-top: 40px; text-align: center; font-size: 12.5px; color: var(--faint); }
+
+@media (max-width: 640px) {
+  .kind-compare { grid-template-columns: 1fr; }
+  .new-foot .btn { flex: 1; }
+  .shared-top { padding: 10px 14px; }
+  .shared-main { padding: 20px 14px 48px; }
+}
+
+/* =========================================================================
    Phones: every pop-up is a sheet at the bottom of the screen.
    Keep this block LAST. Menus get their own left/right/bottom rules further up for wide screens; on a phone those
    would move the sheet off the screen (the Tools menu once opened above it), so these few lines must always win.

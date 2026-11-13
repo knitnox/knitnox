@@ -116,11 +116,8 @@ func TestRunsAreToldTheTimeWithoutBreakingThePromptCache(t *testing.T) {
 	// A group chat goes by the server's clock, whatever the members' zones are.
 	bob, _ := f.st.CreateUser("bob", "x", "user")
 	f.st.SetTimezone(bob, "America/Lima", true)
-	tok, _ := f.st.CreateInvite(tid, f.owner, "member", time.Hour, 1)
-	if _, err := f.st.AcceptInvite(tok, bob); err != nil {
-		t.Fatal(err)
-	}
-	waitRun(t, f.st, mustSubmit(t, f, tid, bob, "hello all"))
+	gid := newGroup(t, f, bob)
+	waitRun(t, f.st, mustSubmit(t, f, gid, bob, "hello all"))
 	group := last()
 	if sys := group[0].Content; !strings.Contains(sys, "the server's time zone (UTC") || strings.Contains(sys, "Asia/Dhaka") || strings.Contains(sys, "America/Lima") {
 		t.Errorf("group system prompt = %q", sys)

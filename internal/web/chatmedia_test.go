@@ -36,7 +36,7 @@ func TestReadAloudOverHTTP(t *testing.T) {
 	bob := a.register("bob")
 	carol := a.register("carol")
 
-	tid, _ := a.st.CreateThread(alice.id, 0)
+	tid, _ := a.st.CreateGroup(alice.id, 0, "Bakers") // a group, so that someone else can listen too
 	runID, _ := a.st.EnqueueMessage(tid, alice.id, "how do I bake bread?", 10, nil)
 	aiID, _ := a.st.CreateMessage(&store.Message{ThreadID: tid, RunID: runID, Role: "assistant", Content: "Mix flour and water."})
 	a.st.FinishRun(runID, store.RunDone, "", 1)

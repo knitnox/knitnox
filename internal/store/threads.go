@@ -15,13 +15,27 @@ type Thread struct {
 	Summary           string
 	CompactedUntilRun int64
 	Instructions      string // chat-specific custom instructions
+	Kind              string // KindChat or KindGroup; never changes after the chat is made
+	GroupNotice       bool   // was shared before groups existed; the owner has not been told yet
 	UpdatedAt         string
 	CreatedAt         string
 }
 
+// The two kinds of chat. The kind is fixed when a chat is made: a personal
+// chat never becomes a group and a group never becomes a personal chat.
+const (
+	KindChat  = "chat"  // one person's own chat (also every agent's thread)
+	KindGroup = "group" // a chat for several people, with its own memory and tools
+)
+
+// IsGroup reports whether this is a group. A group never uses anybody's
+// personal tools, however many people are in it.
+func (t *Thread) IsGroup() bool { return t.Kind == KindGroup }
+
 type ThreadListItem struct {
 	ID        int64
 	Title     string
+	Group     bool
 	Members   int
 	Role      string
 	UpdatedAt string
@@ -35,7 +49,17 @@ type Member struct {
 	Role     string
 }
 
+// CreateThread makes a personal chat.
 func (s *Store) CreateThread(ownerID int64, modelID int64) (int64, error) {
+	return s.createThread(ownerID, modelID, KindChat, "")
+}
+
+// CreateGroup makes a group with ownerID as its admin. Others join by invite.
+func (s *Store) CreateGroup(ownerID, modelID int64, title string) (int64, error) {
+	return s.createThread(ownerID, modelID, KindGroup, title)
+}
+
+func (s *Store) createThread(ownerID, modelID int64, kind, title string) (int64, error) {
 	tx, err := s.DB.Begin()
 	if err != nil {
 		return 0, err
@@ -45,11 +69,16 @@ func (s *Store) CreateThread(ownerID int64, modelID int64) (int64, error) {
 	if modelID > 0 {
 		mid = modelID
 	}
-	res, err := tx.Exec(`INSERT INTO threads(owner_user_id, model_id) VALUES (?, ?)`, ownerID, mid)
+	res, err := tx.Exec(`INSERT INTO threads(owner_user_id, model_id, kind) VALUES (?, ?, ?)`, ownerID, mid, kind)
 	if err != nil {
 		return 0, err
 	}
 	id, _ := res.LastInsertId()
+	if title != "" {
+		if _, err := tx.Exec(`UPDATE threads SET title = ? WHERE id = ?`, title, id); err != nil {
+			return 0, err
+		}
+	}
 	if _, err := tx.Exec(`INSERT INTO thread_members(thread_id, user_id, role) VALUES (?, ?, 'owner')`, id, ownerID); err != nil {
 		return 0, err
 	}
@@ -58,9 +87,9 @@ func (s *Store) CreateThread(ownerID int64, modelID int64) (int64, error) {
 
 func (s *Store) ThreadByID(id int64) (*Thread, error) {
 	t := &Thread{}
-	err := s.DB.QueryRow(`SELECT id, owner_user_id, title, model_id, allow_owner_key, summary, compacted_until_run, instructions, updated_at, created_at
+	err := s.DB.QueryRow(`SELECT id, owner_user_id, title, model_id, allow_owner_key, summary, compacted_until_run, instructions, kind, group_notice, updated_at, created_at
 		FROM threads WHERE id = ?`, id).
-		Scan(&t.ID, &t.OwnerUserID, &t.Title, &t.ModelID, &t.AllowOwnerKey, &t.Summary, &t.CompactedUntilRun, &t.Instructions, &t.UpdatedAt, &t.CreatedAt)
+		Scan(&t.ID, &t.OwnerUserID, &t.Title, &t.ModelID, &t.AllowOwnerKey, &t.Summary, &t.CompactedUntilRun, &t.Instructions, &t.Kind, &t.GroupNotice, &t.UpdatedAt, &t.CreatedAt)
 	return t, notFound(err)
 }
 
@@ -74,7 +103,7 @@ func (s *Store) MemberRole(threadID, userID int64) string {
 // ListThreadsForUser returns the user's chats, pinned first, then by activity.
 // Archived chats are included (flagged) so the sidebar can tuck them away.
 func (s *Store) ListThreadsForUser(userID int64) ([]ThreadListItem, error) {
-	rows, err := s.DB.Query(`SELECT t.id, t.title, tm.role, t.updated_at, tm.pinned, tm.archived,
+	rows, err := s.DB.Query(`SELECT t.id, t.title, t.kind = 'group', tm.role, t.updated_at, tm.pinned, tm.archived,
 		(SELECT COUNT(*) FROM thread_members x WHERE x.thread_id = t.id)
 		FROM threads t JOIN thread_members tm ON tm.thread_id = t.id AND tm.user_id = ?
 		WHERE t.id NOT IN (SELECT thread_id FROM agents)
@@ -86,7 +115,7 @@ func (s *Store) ListThreadsForUser(userID int64) ([]ThreadListItem, error) {
 	var out []ThreadListItem
 	for rows.Next() {
 		var t ThreadListItem
-		if err := rows.Scan(&t.ID, &t.Title, &t.Role, &t.UpdatedAt, &t.Pinned, &t.Archived, &t.Members); err != nil {
+		if err := rows.Scan(&t.ID, &t.Title, &t.Group, &t.Role, &t.UpdatedAt, &t.Pinned, &t.Archived, &t.Members); err != nil {
 			return nil, err
 		}
 		out = append(out, t)
@@ -140,13 +169,20 @@ func (s *Store) MemberCount(threadID int64) int {
 	return n
 }
 
-func (s *Store) UpdateThreadSettings(id int64, title string, modelID int64, allowOwnerKey bool, instructions string) error {
+func (s *Store) UpdateThreadSettings(id int64, title string, modelID int64, instructions string) error {
 	var mid any
 	if modelID > 0 {
 		mid = modelID
 	}
-	_, err := s.DB.Exec(`UPDATE threads SET title = ?, model_id = ?, allow_owner_key = ?, instructions = ?, updated_at = ? WHERE id = ?`,
-		title, mid, b2i(allowOwnerKey), instructions, Now(), id)
+	_, err := s.DB.Exec(`UPDATE threads SET title = ?, model_id = ?, instructions = ?, updated_at = ? WHERE id = ?`,
+		title, mid, instructions, Now(), id)
+	return err
+}
+
+// ClearGroupNotice records that the owner read the note about a chat that
+// was shared before groups existed.
+func (s *Store) ClearGroupNotice(id int64) error {
+	_, err := s.DB.Exec(`UPDATE threads SET group_notice = 0 WHERE id = ?`, id)
 	return err
 }
 
@@ -189,18 +225,29 @@ type Invite struct {
 
 var ErrInviteInvalid = errors.New("invite is invalid, expired or used up")
 
+// ErrNotGroup is returned when something only a group can do is asked of a personal chat.
+var ErrNotGroup = errors.New("only a group can be joined")
+
+// CreateInvite makes a link with which people can join a group.
 func (s *Store) CreateInvite(threadID, by int64, role string, ttl time.Duration, maxUses int) (string, error) {
 	tok := randomToken()[:32]
-	_, err := s.DB.Exec(`INSERT INTO thread_invites(token, thread_id, created_by, role, expires_at, max_uses)
-		VALUES (?, ?, ?, ?, ?, ?)`, tok, threadID, by, role, FormatTime(time.Now().Add(ttl)), maxUses)
-	return tok, err
+	res, err := s.DB.Exec(`INSERT INTO thread_invites(token, thread_id, created_by, role, expires_at, max_uses)
+		SELECT ?, id, ?, ?, ?, ? FROM threads WHERE id = ? AND kind = 'group'`,
+		tok, by, role, FormatTime(time.Now().Add(ttl)), maxUses, threadID)
+	if err != nil {
+		return "", err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return "", ErrNotGroup
+	}
+	return tok, nil
 }
 
 func (s *Store) InviteByToken(tok string) (*Invite, error) {
 	inv := &Invite{}
 	err := s.DB.QueryRow(`SELECT i.token, i.thread_id, t.title, i.role, i.expires_at, i.max_uses, i.uses
 		FROM thread_invites i JOIN threads t ON t.id = i.thread_id
-		WHERE i.token = ? AND i.expires_at > ? AND i.uses < i.max_uses`, tok, Now()).
+		WHERE i.token = ? AND i.expires_at > ? AND i.uses < i.max_uses AND t.kind = 'group'`, tok, Now()).
 		Scan(&inv.Token, &inv.ThreadID, &inv.ThreadTitle, &inv.Role, &inv.ExpiresAt, &inv.MaxUses, &inv.Uses)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrInviteInvalid
@@ -240,8 +287,9 @@ func (s *Store) AcceptInvite(tok string, userID int64) (int64, error) {
 	defer tx.Rollback()
 	var threadID int64
 	var role string
-	err = tx.QueryRow(`SELECT thread_id, role FROM thread_invites
-		WHERE token = ? AND expires_at > ? AND uses < max_uses`, tok, Now()).Scan(&threadID, &role)
+	// Only a group can be joined; a personal chat is shown with a read-only link instead.
+	err = tx.QueryRow(`SELECT i.thread_id, i.role FROM thread_invites i JOIN threads t ON t.id = i.thread_id
+		WHERE i.token = ? AND i.expires_at > ? AND i.uses < i.max_uses AND t.kind = 'group'`, tok, Now()).Scan(&threadID, &role)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, ErrInviteInvalid
 	} else if err != nil {

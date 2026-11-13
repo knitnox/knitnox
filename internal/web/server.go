@@ -147,8 +147,13 @@ func (s *Server) parseTemplates() error {
 			}
 			return out
 		},
-		"add":       func(a, b int) int { return a + b },
-		"kindLabel": modelKindLabel, // image -> "Pictures"
+		"toolIn": func(t *store.Thread, r toolRow) map[string]any { // one row of the Tools menu and its chat
+			return map[string]any{"R": r, "Thread": t}
+		},
+		"sharedModels": func(opts []store.ModelOption) []store.ModelOption { return modelsWhere(opts, false) }, // the server's models
+		"ownModels":    func(opts []store.ModelOption) []store.ModelOption { return modelsWhere(opts, true) },  // the person's own
+		"add":          func(a, b int) int { return a + b },
+		"kindLabel":    modelKindLabel, // image -> "Pictures"
 		"modelKinds": func() []string { // every kind, in the order shown
 			return []string{store.ModelChat, store.ModelEmbedding, store.ModelImage, store.ModelVoice, store.ModelVideo}
 		},
@@ -160,7 +165,7 @@ func (s *Server) parseTemplates() error {
 		},
 	}
 	s.pages = map[string]*template.Template{}
-	pages := []string{"auth", "chat", "settings", "admin", "invite", "error", "search", "agents", "help", "memory", "planbook", "feed"}
+	pages := []string{"auth", "chat", "settings", "admin", "invite", "error", "search", "agents", "help", "memory", "planbook", "feed", "group", "shared"}
 	for _, p := range pages {
 		t, err := template.New("layout.html").Funcs(funcs).ParseFS(templateFS,
 			"templates/layout.html", "templates/partials.html", "templates/icons.html", "templates/"+p+".html")
@@ -170,6 +175,17 @@ func (s *Server) parseTemplates() error {
 		s.pages[p] = t
 	}
 	return nil
+}
+
+// modelsWhere keeps the models that are (or are not) on a provider of the person's own.
+func modelsWhere(opts []store.ModelOption, personal bool) []store.ModelOption {
+	var out []store.ModelOption
+	for _, o := range opts {
+		if o.Personal == personal {
+			out = append(out, o)
+		}
+	}
+	return out
 }
 
 // toolPrefix is the per-server prefix the engine adds to exposed tool names.
@@ -221,6 +237,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /login", s.login)
 	mux.HandleFunc("GET /register", s.registerPage)
 	mux.HandleFunc("POST /register", s.register)
+	// The read-only link of a personal chat: for anyone who has it, no account needed.
+	mux.HandleFunc("GET /s/{tok}", s.sharedPage)
+	mux.HandleFunc("GET /s/{tok}/files/{aid}", s.sharedFile)
 
 	// signed-in users
 	u := func(p string, h http.HandlerFunc) { mux.Handle(p, s.requireUser(h)) }
@@ -251,6 +270,17 @@ func (s *Server) Handler() http.Handler {
 	u("POST /t/{id}/members/{uid}/remove", s.removeMember)
 	u("GET /invite/{tok}", s.invitePage)
 	u("POST /invite/{tok}", s.acceptInvite)
+
+	u("GET /groups/new", s.groupNewPage)
+	u("POST /groups", s.groupCreate)
+	u("POST /t/{id}/notice", s.groupNoticeDismiss)
+	u("GET /t/{id}/memory", s.groupMemory)
+	u("POST /t/{id}/memory/settings", s.groupMemorySettings)
+	u("POST /t/{id}/memory/{mid}/delete", s.groupMemoryDelete)
+	u("POST /t/{id}/mcp", s.groupMCPCreate)
+	u("POST /t/{id}/mcp/{sid}", s.groupMCPAction)
+	u("POST /t/{id}/share", s.shareSave)
+	u("POST /t/{id}/share/stop", s.shareStop)
 
 	u("GET /agents", s.agentsPage)
 	u("GET /agents/new", s.agentNewPage)
@@ -424,8 +454,9 @@ type threadGroup struct {
 	Items []store.ThreadListItem
 }
 
-// groupThreads buckets chats for the sidebar: Pinned, then by last activity
-// (UTC days). Archived chats are returned separately.
+// groupThreads buckets chats for the sidebar: Pinned, then the groups the
+// person is in, then their own chats by last activity (UTC days). Archived
+// chats are returned separately.
 func groupThreads(list []store.ThreadListItem, now time.Time) (groups []threadGroup, archived []store.ThreadListItem) {
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 	bounds := []struct {
@@ -444,13 +475,24 @@ func groupThreads(list []store.ThreadListItem, now time.Time) (groups []threadGr
 		}
 		groups[len(groups)-1].Items = append(groups[len(groups)-1].Items, t)
 	}
+	// Pinned first, then groups: both lists are in order of activity already,
+	// so two passes keep each section together.
+	for _, t := range list {
+		if !t.Archived && t.Pinned {
+			add("Pinned", t)
+		}
+	}
+	for _, t := range list {
+		if !t.Archived && !t.Pinned && t.Group {
+			add("Groups", t)
+		}
+	}
 	for _, t := range list {
 		if t.Archived {
 			archived = append(archived, t)
 			continue
 		}
-		if t.Pinned {
-			add("Pinned", t)
+		if t.Pinned || t.Group {
 			continue
 		}
 		at, _ := time.Parse("2006-01-02 15:04:05", t.UpdatedAt)

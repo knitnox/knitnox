@@ -20,21 +20,22 @@ type turnCtx struct {
 	model       *store.Model
 	provider    *store.Provider
 	billable    bool // global provider: counts toward the author's quota
-	group       bool
+	group       bool // the thread is a group (store.KindGroup), however many people are in it
 	members     []store.Member
-	ownerInstr  string         // thread owner's personal instructions (solo chats only)
-	agent       *store.Agent   // set when the thread belongs to an agent
-	connected   []store.Agent  // agents this chat manages (normal chats only)
-	loc         *time.Location // time zone of the person this run works for
-	memoryUser  int64          // whose long-term memory this run may use (0 = none)
-	memoryWrite bool           // false for agents: they only read
-	planOn      bool           // this run may use its owner's Plan Book
-	planWrite   bool           // false = read only
-	feedOn      bool           // this run may post to its owner's feed
-	feedDaily   int            // posts per day (agents only; 0 = no limit)
-	feedMedia   string         // what else a post can carry here, in a sentence ("" = nothing)
-	pictureOn   bool           // the make_picture tool is offered
-	callMsgID   int64          // the AI message whose tool calls are being run (pictures are linked to it)
+	ownerInstr  string           // thread owner's personal instructions (personal chats only)
+	agent       *store.Agent     // set when the thread belongs to an agent
+	connected   []store.Agent    // agents this chat manages (personal chats only)
+	refs        []store.GroupRef // groups this personal chat may look into (see groups.go)
+	loc         *time.Location   // time zone of the person this run works for
+	memory      store.MemOwner   // the memory this run may use: a person's or the group's (UserID 0 = none)
+	memoryWrite bool             // false for agents: they only read
+	planOn      bool             // this run may use its owner's Plan Book
+	planWrite   bool             // false = read only
+	feedOn      bool             // this run may post to its owner's feed
+	feedDaily   int              // posts per day (agents only; 0 = no limit)
+	feedMedia   string           // what else a post can carry here, in a sentence ("" = nothing)
+	pictureOn   bool             // the make_picture tool is offered
+	callMsgID   int64            // the AI message whose tool calls are being run (pictures are linked to it)
 }
 
 // execute runs the agent loop for one queued user turn. It returns the number
@@ -84,8 +85,11 @@ func (e *Engine) execute(ctx context.Context, run *store.Run) (int, error) {
 	if len(tc.connected) > 0 {
 		msgs[0].Content += connectedAgentsNote(tc.connected)
 	}
-	if tc.memoryUser > 0 {
-		msgs[0].Content += e.memoryNote(tc.memoryUser, tc.memoryWrite)
+	if tc.memory.UserID > 0 {
+		msgs[0].Content += e.memoryNote(tc.memory, tc.memoryWrite)
+	}
+	if len(tc.refs) > 0 {
+		msgs[0].Content += groupRefsNote(tc.refs)
 	}
 	if tc.planOn {
 		msgs[0].Content += planNote(tc.planWrite)
@@ -172,9 +176,12 @@ func (e *Engine) prepare(run *store.Run) (*turnCtx, error) {
 	if tc.agent, err = e.st.AgentByThread(run.ThreadID); err != nil {
 		return nil, err
 	}
-	tc.group = len(tc.members) > 1 && tc.agent == nil
+	// What a chat is was decided when it was made and never changes, so the
+	// tools it gets (and with them the start of the prompt) do not change when
+	// somebody joins or leaves.
+	tc.group = tc.thread.IsGroup() && tc.agent == nil
 	// Whose clock the run goes by: the owner's time zone in their own chat,
-	// the server's in a group chat, where people may be in different zones.
+	// the server's in a group, where people may be in different zones.
 	tc.loc = time.Local
 	if !tc.group {
 		tc.loc = time.UTC
@@ -208,10 +215,11 @@ func (e *Engine) prepare(run *store.Run) (*turnCtx, error) {
 		switch {
 		case owner == run.AuthorUserID:
 			// spending your own key
-		case owner == tc.thread.OwnerUserID && tc.thread.AllowOwnerKey:
-			// owner allowed members to use their key
+		case tc.group && owner == tc.thread.OwnerUserID:
+			// the group's admin chose one of their own models for the group,
+			// and so pays for everybody's messages in it
 		default:
-			return nil, errors.New("this chat uses the owner's personal API key and the owner has not allowed members to use it")
+			return nil, errors.New("this chat uses a personal API key that is not yours")
 		}
 	}
 	return tc, nil
@@ -268,14 +276,14 @@ func (e *Engine) autoTitle(tc *turnCtx) {
 func SystemPrompt(global string, t *store.Thread, ownerInstr string, members []store.Member, loc *time.Location) string {
 	var sys strings.Builder
 	sys.WriteString(global)
-	sys.WriteString("\n\n" + clockGuide(loc, len(members) > 1))
+	sys.WriteString("\n\n" + clockGuide(loc, t.IsGroup()))
 	if ownerInstr != "" {
 		sys.WriteString("\n\nThe user's custom instructions:\n" + ownerInstr)
 	}
 	if ti := strings.TrimSpace(t.Instructions); ti != "" {
 		sys.WriteString("\n\nInstructions for this chat:\n" + ti)
 	}
-	if len(members) > 1 {
+	if t.IsGroup() {
 		names := make([]string, 0, len(members))
 		for _, m := range members {
 			names = append(names, m.Username)

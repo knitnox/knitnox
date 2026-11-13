@@ -39,6 +39,8 @@ type Settings struct {
 	FeedPublic bool
 	// Pictures, recordings and videos one person may have made per day with the server's models (0 = no limit).
 	FeedMediaDaily int
+	// Read-only links: may people show a personal chat to anyone who has its link, without an account?
+	ShareLinks bool
 }
 
 func DefaultSettings() Settings {
@@ -64,6 +66,7 @@ func DefaultSettings() Settings {
 		SignupPeriod:           "monthly",
 		FeedPublic:             true,
 		FeedMediaDaily:         20,
+		ShareLinks:             true,
 	}
 }
 
@@ -142,6 +145,8 @@ func (s *Store) LoadSettings() (Settings, error) {
 			st.EmbedModel = v
 		case "feed_public":
 			st.FeedPublic = v == "1"
+		case "share_links":
+			st.ShareLinks = v == "1"
 		case "feed_media_daily":
 			st.FeedMediaDaily = atoi(st.FeedMediaDaily)
 		case "embed_dimensions":
@@ -180,6 +185,7 @@ func (s *Store) SaveSettings(st Settings) error {
 		"embed_dimensions":         strconv.Itoa(st.EmbedDimensions),
 		"feed_public":              strconv.Itoa(b2i(st.FeedPublic)),
 		"feed_media_daily":         strconv.Itoa(st.FeedMediaDaily),
+		"share_links":              strconv.Itoa(b2i(st.ShareLinks)),
 	}
 	tx, err := s.DB.Begin()
 	if err != nil {

@@ -46,7 +46,7 @@
             <div class="section-icon">{{template "i-brain"}}</div>
             <div>
               <div class="h-row"><h2>What Knitnox remembers about you</h2>
-                {{template "tip-open" "How does memory work?"}}A <b>memory</b> is one short fact, like “I am vegetarian”. The AI saves them while you chat and looks them up in later chats, so you do not have to repeat yourself. Memory is private to you and is never used in group chats. <a href="/help/guide">Read the guide</a>{{template "tip-close"}}
+                {{template "tip-open" "How does memory work?"}}A <b>memory</b> is one short fact, like “I am vegetarian”. The AI saves them while you chat and looks them up in later chats, so you do not have to repeat yourself. Memory is private to you and is never used in groups; a group has a separate memory of its own. <a href="/help/guide">Read the guide</a>{{template "tip-close"}}
               </div>
               <p>Short facts the AI saved in your chats, or that you added yourself. Nothing is hidden: you can read, change and delete every one.</p>
             </div>
@@ -211,7 +211,7 @@
               <div class="card-title">{{if .MS.Enabled}}<span class="badge st-ok">On</span> The AI remembers things for you{{else}}<span class="badge">Off</span> The AI starts every chat from zero{{end}}</div>
               <ul class="plain-list hint">
                 <li><b>In your own chats</b> the AI can save short facts and look them up later.</li>
-                <li><b>In group chats</b> memory is never used, so other people cannot learn what it holds.</li>
+                <li><b>In groups</b> your memory is never used, so other people cannot learn what it holds. A group keeps a separate memory of its own, which its members can read.</li>
                 <li><b>Agents</b> cannot see it unless you allow one: open the agent, then Setup → “Which tools may it use?”. They can only read.</li>
                 <li>Turning it off deletes nothing. You can still read and edit everything here.</li>
               </ul>

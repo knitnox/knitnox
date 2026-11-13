@@ -11,9 +11,9 @@
         <div class="auth-brand"><div class="empty-icon">{{template "i-users"}}</div></div>
         <h1>Join “{{.Invite.ThreadTitle}}”</h1>
         <p class="auth-sub">You're invited as {{if eq .Invite.Role "viewer"}}a read-only viewer{{else}}a member who can chat{{end}}.
-          Everyone's messages are answered by the AI one at a time, in order.</p>
+          This is a group: everyone's messages are answered by the AI one at a time, in order, and you can read what was written before you joined.</p>
         <div class="stack sm">
-          <button type="submit" class="btn primary block lg">Join chat</button>
+          <button type="submit" class="btn primary block lg">Join the group</button>
           <a href="/" class="btn ghost block">Not now</a>
         </div>
       </form>

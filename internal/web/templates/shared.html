@@ -1,0 +1,84 @@
+{{define "title"}}{{if .Gone}}Link not found{{else}}{{.Title}}{{end}} · Knitnox{{end}}
+
+{{define "head"}}<meta name="robots" content="noindex, nofollow">{{end}}
+
+{{/* What a read-only link shows. The reader may have no account, so there is no sidebar and nothing to send. */}}
+{{define "content"}}
+<div class="shared">
+  <header class="shared-top">
+    <span class="brand"><span class="logo" aria-hidden="true"></span><span>Knitnox</span></span>
+    <span class="grow"></span>
+    <span class="badge shared-badge">{{template "i-eye"}}Read-only copy</span>
+  </header>
+  <main class="shared-main" id="main" tabindex="-1">
+    {{if .Gone}}
+    <div class="empty-card">
+      <div class="empty-icon">{{template "i-link"}}</div>
+      <p>This link does not work</p>
+      <span>Its owner may have stopped sharing, or the address is not complete. Ask the person who sent it for a new link.</span>
+    </div>
+    {{else}}
+    <h1 class="shared-title">{{.Title}}</h1>
+    <p class="shared-about">{{if .Owner}}<b>{{.Owner}}</b> shared this conversation with an AI.{{else}}A shared conversation with an AI.{{end}} It shows the chat as it was on {{short .Share.UpdatedAt}} UTC. You can read it, but nobody can write in it from here.</p>
+    <div class="thread">
+      {{range .Messages}}
+      {{if eq .Role "user"}}
+      <div class="msg msg-user">
+        <div class="avatar">{{initial .AuthorName}}</div>
+        <div class="msg-main">
+          <div class="msg-author">{{.AuthorName}}</div>
+          {{if .Images}}
+          <div class="msg-images">
+            {{range .Images}}<button type="button" class="img-thumb" data-lightbox="/s/{{$.Share.Token}}/files/{{.ID}}" aria-label="Open image"><img src="/s/{{$.Share.Token}}/files/{{.ID}}" alt="{{.OrigName}}" loading="lazy" decoding="async"></button>{{end}}
+          </div>
+          {{end}}
+          {{if .Files}}
+          <div class="msg-files">
+            {{range .Files}}<a class="file-chip" href="/s/{{$.Share.Token}}/files/{{.ID}}" title="Download {{.OrigName}}">{{template "i-file"}}<span class="file-name">{{.OrigName}}</span><small>{{fmtBytes .Size}}</small></a>{{end}}
+          </div>
+          {{end}}
+          {{if .Content}}<div class="bubble">{{.Content}}</div>{{end}}
+        </div>
+      </div>
+      {{else if eq .Role "assistant"}}
+      <div class="msg msg-ai" data-status="{{.Status}}">
+        <div class="avatar ai"><span class="logo"></span></div>
+        <div class="msg-main">
+          <div class="md">{{.Content}}</div>
+          {{range .Calls}}
+          <details class="tool">
+            <summary>{{template "i-wrench"}}<span>Used <b class="mono">{{toolName .Name}}</b></span>{{template "i-chevron-down"}}</summary>
+            <pre><code class="language-json">{{.Args}}</code></pre>
+          </details>
+          {{end}}
+          {{if .Images}}
+          <div class="msg-images made">
+            {{range .Images}}<button type="button" class="img-thumb" data-lightbox="/s/{{$.Share.Token}}/files/{{.ID}}" aria-label="Open the picture" title="{{.OrigName}}"><img src="/s/{{$.Share.Token}}/files/{{.ID}}" alt="{{.OrigName}}" loading="lazy" decoding="async"></button>{{end}}
+          </div>
+          {{end}}
+        </div>
+      </div>
+      {{else}}
+      <details class="tool tool-result">
+        <summary>{{template "i-corner"}}<span>Result from <b class="mono">{{toolName .ToolName}}</b></span>{{template "i-chevron-down"}}</summary>
+        <pre>{{.Content}}</pre>
+      </details>
+      {{end}}
+      {{else}}
+      <div class="empty-card">
+        <div class="empty-icon">{{template "i-eye"}}</div>
+        <p>Nothing to show yet</p>
+        <span>This chat had no finished messages when it was shared.</span>
+      </div>
+      {{end}}
+    </div>
+    <p class="shared-foot">Made with Knitnox. AI can make mistakes.</p>
+    {{end}}
+  </main>
+</div>
+
+<div class="lightbox" id="lightbox" hidden>
+  <button class="icon-btn lightbox-close" type="button" aria-label="Close">{{template "i-x"}}</button>
+  <img alt="">
+</div>
+{{end}}

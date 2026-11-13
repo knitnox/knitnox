@@ -7,7 +7,6 @@ import (
 	"html/template"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -164,7 +163,9 @@ func (s *Server) home(w http.ResponseWriter, r *http.Request) {
 	if c, err := r.Cookie("kn_start"); err == nil && c.Value == "off" {
 		hidden = true
 	}
-	data := s.toolsData(u, nil, false) // the Tools menu for a chat that does not exist yet
+	taken := s.takenFromGroup(r, u)          // "Take to my chat" on a message of a group
+	data := s.toolsData(u, nil, taken.Group) // the Tools menu for a chat that does not exist yet
+	data["Taken"] = taken
 	for k, v := range map[string]any{
 		"ModelOptions": opts, "DefaultModel": s.defaultModel(u.ID, opts), "MaxFiles": maxAttachments, "Agents": agents,
 		"HasTools": len(servers) > 0, "StartHidden": hidden,
@@ -258,7 +259,7 @@ func (s *Server) threadPage(w http.ResponseWriter, r *http.Request) {
 	}
 	data["Pinned"], data["Archived"] = s.st.ThreadFlags(t.ID, u.ID)
 	if role == "owner" { // the Tools menu next to Attach
-		for k, v := range s.toolsData(u, t, s.st.MemberCount(t.ID) > 1) {
+		for k, v := range s.toolsData(u, t, 0) {
 			if k != "Thread" && k != "Group" {
 				data[k] = v
 			}
@@ -270,10 +271,16 @@ func (s *Server) threadPage(w http.ResponseWriter, r *http.Request) {
 		data["OpenTasks"] = s.st.OpenTaskCount(a.ID)
 		// A scheduled agent that used up today's runs stays quiet until midnight UTC: say so.
 		data["AgentLimit"] = a.Enabled && a.Scheduled() && s.st.RunsToday(a.ThreadID) >= a.DailyRuns
-	} else if role == "owner" { // the Agents menu: connect or disconnect with one click
+	} else if t.IsGroup() {
+		// What the group has, for everyone in it to see: its memory and how many tool servers.
+		data["GroupMemoryOn"] = !s.st.ThreadToolsOff(t.ID)[store.ToolMemory]
+		servers, _ := s.st.ThreadMCPServers(t)
+		data["GroupServers"] = len(servers)
+	} else if role == "owner" { // a personal chat: the Agents menu, and whether a read-only link exists
 		data["Agents"], data["ConnectedCount"] = s.agentOptions(t)
-	} else if list, _ := s.st.ConnectedAgents(t.ID, t.OwnerUserID); len(list) > 0 {
-		data["ConnectedCount"] = len(list)
+		if _, err := s.st.ShareOf(t.ID); err == nil {
+			data["Shared"] = true
+		}
 	}
 	s.render(w, r, "chat", data)
 }
@@ -325,6 +332,7 @@ type msgView struct {
 	Approvals  []approvalView
 	Footer     string // run outcome shown under the run's last message
 	Down       string // tool servers the run could not reach, said in a sentence
+	CanTake    bool   // a finished message of a group: "Take to my chat"
 }
 
 type callView struct{ Name, Args string }
@@ -380,6 +388,7 @@ func (s *Server) viewMessages(t *store.Thread, u *store.User, role string, msgs 
 			}
 		}
 		v.CanSpeak = canSpeak && m.Role == "assistant" && m.Status == store.MsgDone
+		v.CanTake = t.IsGroup() && m.Role != "tool" && m.Status == store.MsgDone && !v.Queued && strings.TrimSpace(m.Content) != ""
 		v.Mine = m.AuthorUserID.Valid && m.AuthorUserID.Int64 == u.ID
 		v.Queued = m.RunStatus == store.RunPending
 		v.CanCancel = v.Queued && (v.Mine || role == "owner")
@@ -470,7 +479,8 @@ func (s *Server) messagesData(t *store.Thread, u *store.User, role string, from 
 	data["Pending"] = s.st.PendingCount(t.ID)
 	data["Running"] = s.eng.ActiveRunID(t.ID) != 0
 	data["Waiting"] = s.eng.Waiting(t.ID)
-	data["Group"] = s.st.MemberCount(t.ID) > 1
+	data["Group"] = t.IsGroup()
+	data["GroupNotice"] = t.IsGroup() && t.GroupNotice && role == "owner"
 	data["ContextPct"] = pct
 	data["ContextUsed"] = used
 	data["ContextWindow"] = window
@@ -661,34 +671,14 @@ func (s *Server) decideApproval(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// serveFile streams an attachment to members of its chat. Documents are sent
-// as downloads with a safe content type so an uploaded HTML file can't run.
+// serveFile streams an attachment to members of its chat (see sendAttachment).
 func (s *Server) serveFile(w http.ResponseWriter, r *http.Request) {
 	a, err := s.st.AttachmentByID(pathID(r, "aid"))
 	if err != nil || s.st.MemberRole(a.ThreadID, currentUser(r).ID) == "" {
 		http.NotFound(w, r)
 		return
 	}
-	f, err := os.Open(s.st.AttachmentPath(a))
-	if err != nil {
-		http.NotFound(w, r)
-		return
-	}
-	defer f.Close()
-	info, _ := f.Stat()
-	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
-	if a.IsImage() || a.IsAudio() {
-		w.Header().Set("Content-Type", a.Mime)
-		w.Header().Set("Content-Disposition", "inline")
-	} else {
-		ct := a.Mime
-		if ct == "text/html" || ct == "text/xml" || ct == "application/xml" {
-			ct = "text/plain"
-		}
-		w.Header().Set("Content-Type", ct+"; charset=utf-8")
-		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", safeFileName(a.OrigName)))
-	}
-	http.ServeContent(w, r, "", info.ModTime(), f)
+	s.sendAttachment(w, r, a, "private, max-age=31536000, immutable")
 }
 
 // speakMessage answers with the address of an AI answer read aloud. The
@@ -910,38 +900,36 @@ func baseURL(r *http.Request) string {
 	return scheme + "://" + r.Host
 }
 
+// shareView is the read-only link of a personal chat, as the panel shows it.
+type shareView struct {
+	URL       string
+	UpdatedAt string
+	ShowTools bool
+	Behind    bool // the chat has newer messages than the link shows
+}
+
 func (s *Server) panelData(r *http.Request, t *store.Thread, role string) (map[string]any, error) {
 	members, err := s.st.ThreadMembers(t.ID)
 	if err != nil {
 		return nil, err
 	}
-	data := map[string]any{"Thread": t, "Role": role, "Members": members, "BaseURL": baseURL(r), "Group": len(members) > 1}
-	if role == "owner" {
-		data["Invites"], _ = s.st.ListInvites(t.ID)
-		data["ModelOptions"], _ = s.st.ModelOptions(t.OwnerUserID)
-		servers, _ := s.st.ListMCPServers(t.OwnerUserID)
-		approved, _ := s.st.ApprovedMCPIDs(t.ID)
-		type mcpOpt struct {
-			store.MCPServer
-			Approved bool
-		}
-		var opts []mcpOpt
-		for _, srv := range servers {
-			opts = append(opts, mcpOpt{srv, approved[srv.ID]})
-		}
-		data["MCP"] = opts
-		// Agents the owner can connect: this chat's AI may then manage their tasks.
-		data["Agents"], _ = s.agentOptions(t)
-		var personal bool
-		if t.ModelID.Valid {
-			if m, err := s.st.ModelByID(t.ModelID.Int64); err == nil {
-				if p, err := s.st.ProviderByID(m.ProviderID); err == nil {
-					personal = !p.IsGlobal()
-				}
-			}
-		}
-		data["PersonalModel"] = personal
+	data := map[string]any{"Thread": t, "Role": role, "Members": members, "BaseURL": baseURL(r), "Group": t.IsGroup()}
+	if role != "owner" {
+		return data, nil
 	}
+	data["ModelOptions"], _ = s.st.ModelOptions(t.OwnerUserID)
+	if t.IsGroup() {
+		data["Invites"], _ = s.st.ListInvites(t.ID)
+		data["Servers"], _ = s.st.ListGroupServers(t.ID) // the group's own tool servers
+		return data, nil
+	}
+	// A personal chat: its read-only link, and the owner's agents it can manage.
+	data["ShareOff"] = !s.shareLinksOn()
+	if sh, err := s.st.ShareOf(t.ID); err == nil {
+		data["Share"] = shareView{URL: baseURL(r) + "/s/" + sh.Token, UpdatedAt: sh.UpdatedAt, ShowTools: sh.ShowTools,
+			Behind: s.st.LastRunID(t.ID) > sh.UntilRun}
+	}
+	data["Agents"], _ = s.agentOptions(t)
 	return data, nil
 }
 
@@ -983,30 +971,22 @@ func (s *Server) threadSettings(w http.ResponseWriter, r *http.Request) {
 	if r := []rune(instr); len(r) > 4000 {
 		instr = string(r[:4000])
 	}
-	if err := s.st.UpdateThreadSettings(t.ID, title, modelID, r.FormValue("allow_owner_key") == "1", instr); err != nil {
+	if err := s.st.UpdateThreadSettings(t.ID, title, modelID, instr); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	r.ParseForm()
-	var ids []int64
-	for _, v := range r.Form["mcp"] {
-		var id int64
-		fmt.Sscan(v, &id)
-		ids = append(ids, id)
-	}
-	if err := s.st.SetThreadMCP(t.ID, t.OwnerUserID, ids); err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	var agentIDs []int64
-	for _, v := range r.Form["agent"] {
-		if id, err := parseInt(v); err == nil {
-			agentIDs = append(agentIDs, id)
+	if !t.IsGroup() { // a group never manages anybody's personal agents
+		r.ParseForm()
+		var agentIDs []int64
+		for _, v := range r.Form["agent"] {
+			if id, err := parseInt(v); err == nil {
+				agentIDs = append(agentIDs, id)
+			}
 		}
-	}
-	if err := s.st.SetThreadAgents(t.ID, t.OwnerUserID, agentIDs); err != nil {
-		s.serverError(w, r, err)
-		return
+		if err := s.st.SetThreadAgents(t.ID, t.OwnerUserID, agentIDs); err != nil {
+			s.serverError(w, r, err)
+			return
+		}
 	}
 	if isHX(r) {
 		w.Header().Set("HX-Refresh", "true")
@@ -1041,7 +1021,7 @@ func (s *Server) leaveThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if role == "owner" {
-		s.errorPage(w, r, http.StatusBadRequest, "The owner cannot leave; delete the chat instead.")
+		s.errorPage(w, r, http.StatusBadRequest, "The admin cannot leave; delete the group instead.")
 		return
 	}
 	if err := s.st.RemoveMember(t.ID, currentUser(r).ID); err != nil {
@@ -1058,6 +1038,10 @@ func (s *Server) leaveThread(w http.ResponseWriter, r *http.Request) {
 func (s *Server) createInvite(w http.ResponseWriter, r *http.Request) {
 	t, ok := s.loadOwnedThread(w, r)
 	if !ok {
+		return
+	}
+	if !t.IsGroup() {
+		s.errorPage(w, r, http.StatusBadRequest, "A personal chat cannot be joined. Share a read-only link to it, or start a group.")
 		return
 	}
 	role := r.FormValue("role")

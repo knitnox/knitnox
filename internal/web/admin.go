@@ -355,6 +355,7 @@ func (s *Server) adminSettingsSave(w http.ResponseWriter, r *http.Request) {
 		EmbedDimensions:        clamp("embed_dimensions", 0, 0, 8192),
 		FeedPublic:             r.FormValue("feed_public") == "1",
 		FeedMediaDaily:         clamp("feed_media_daily", int64(d.FeedMediaDaily), 0, 10000),
+		ShareLinks:             r.FormValue("share_links") == "1",
 	}
 	if p, err := s.st.ProviderByID(st.EmbedProviderID); err != nil || !p.IsGlobal() {
 		st.EmbedProviderID = 0 // only shared providers can serve everyone

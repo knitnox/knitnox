@@ -177,13 +177,12 @@ func TestFeedToolsAreOffered(t *testing.T) {
 		t.Error("the system prompt should explain the feed without listing posts (they would change it every turn)")
 	}
 
-	// Group chat: nothing.
+	// A group: nothing, also when its owner writes.
 	bob, _ := f.st.CreateUser("bob", "x", "user")
-	tok, _ := f.st.CreateInvite(tid, f.owner, "member", time.Hour, 1)
-	f.st.AcceptInvite(tok, bob)
-	waitRun(t, f.st, mustSubmit(t, f, tid, f.owner, "post it for all of us"))
+	gid := newGroup(t, f, bob)
+	waitRun(t, f.st, mustSubmit(t, f, gid, f.owner, "post it for all of us"))
 	if last().hasTool("feed_post") {
-		t.Fatal("a group chat was given the owner's feed")
+		t.Fatal("a group was given the owner's feed")
 	}
 
 	// Agents: nothing by default; with permission they post under their own name, within their limit.

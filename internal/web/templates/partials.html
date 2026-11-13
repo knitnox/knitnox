@@ -11,6 +11,7 @@
 
   <div class="sb-actions">
     <a href="/" class="sb-new">{{template "i-new"}}<span>New chat</span><kbd class="hide-touch">Ctrl+Shift+O</kbd></a>
+    <a href="/groups/new" class="sb-search sb-new-group{{if eq .Nav "group"}} is-active{{end}}">{{template "i-users"}}<span>New group</span></a>
     <button type="button" class="sb-search" data-open-palette aria-haspopup="dialog">
       {{template "i-search"}}<span>Search or jump to…</span><kbd class="hide-touch">Ctrl+K</kbd>
     </button>
@@ -43,7 +44,7 @@
     {{end}}
     {{range .ThreadGroups}}
     <div class="sb-group">
-      <div class="sb-group-label">{{if eq .Label "Pinned"}}{{template "i-pin"}}{{end}}{{.Label}}</div>
+      <div class="sb-group-label">{{if eq .Label "Pinned"}}{{template "i-pin"}}{{else if eq .Label "Groups"}}{{template "i-users"}}{{end}}{{.Label}}</div>
       {{range .Items}}{{template "sb-item" (dict_item . $cur)}}{{end}}
     </div>
     {{else}}
@@ -111,6 +112,7 @@
     <div class="palette-list" id="palette-list" role="listbox" aria-label="Results">
       <div class="pal-label">Go to</div>
       <a class="pal-item" role="option" href="/" data-k="home start">{{template "i-new"}}<span><b>New chat</b><small>Start a fresh conversation</small></span></a>
+      <a class="pal-item" role="option" href="/groups/new" data-k="group chat people team together invite members shared create start">{{template "i-users"}}<span><b>New group</b><small>A chat for several people, with a memory and tools of its own</small></span></a>
       <a class="pal-item" role="option" href="/agents" data-k="bots workers automation schedule create background">{{template "i-bot"}}<span><b>Agents</b><small>Background helpers with their own job, tasks and tools</small></span></a>
       <a class="pal-item" role="option" href="/agents/new" data-k="create add agent bot worker helper automation schedule">{{template "i-plus"}}<span><b>New agent</b><small>Create a background helper in three questions</small></span></a>
       <a class="pal-item" role="option" href="/store" data-k="install ready-made templates share">{{template "i-sparkles"}}<span><b>Agent store</b><small>Ready-made agents shared on this server</small></span></a>
@@ -140,7 +142,7 @@
       {{end}}
       {{if .HasChats}}
       <div class="pal-label">Chats</div>
-      {{range .ThreadGroups}}{{range .Items}}<a class="pal-item pal-chat" role="option" href="/t/{{.ID}}"><span><b>{{.Title}}</b></span></a>{{end}}{{end}}
+      {{range .ThreadGroups}}{{range .Items}}<a class="pal-item pal-chat" role="option" href="/t/{{.ID}}"{{if .Group}} data-k="group"{{end}}><span><b>{{.Title}}</b>{{if .Group}}<small>Group</small>{{end}}</span></a>{{end}}{{end}}
       {{range .Archived}}<a class="pal-item pal-chat" role="option" href="/t/{{.ID}}" data-k="archived"><span><b>{{.Title}}</b><small>Archived</small></span></a>{{end}}
       {{end}}
       <div class="pal-label" data-always>Messages</div>
@@ -157,7 +159,7 @@
 <div class="sb-row{{if eq $t.ID .Cur}} is-active{{end}}" data-thread-row="{{$t.ID}}" data-title="{{$t.Title}}">
   <a href="/t/{{$t.ID}}" class="sb-item"{{if eq $t.ID .Cur}} aria-current="page"{{end}}>
     <span class="sb-title">{{$t.Title}}</span>
-    {{if gt $t.Members 1}}<span class="sb-people" title="{{$t.Members}} people">{{template "i-users"}}{{$t.Members}}</span>{{end}}
+    {{if $t.Group}}<span class="sb-people" title="A group with {{$t.Members}} {{if eq $t.Members 1}}person{{else}}people{{end}}">{{template "i-users"}}{{$t.Members}}</span>{{end}}
   </a>
   <details class="sb-menu">
     <summary class="icon-btn sm" aria-label="Chat options">{{template "i-more"}}</summary>
@@ -168,9 +170,9 @@
       <a href="/t/{{$t.ID}}/export" role="menuitem">{{template "i-download"}}Export as Markdown</a>
       <div class="menu-sep"></div>
       {{if eq $t.Role "owner"}}
-      <button type="button" class="danger-text" data-delete="/t/{{$t.ID}}/delete" data-name="{{$t.Title}}">{{template "i-trash"}}Delete chat</button>
+      <button type="button" class="danger-text" data-delete="/t/{{$t.ID}}/delete" data-name="{{$t.Title}}">{{template "i-trash"}}{{if $t.Group}}Delete group{{else}}Delete chat{{end}}</button>
       {{else}}
-      <button type="button" class="danger-text" data-leave="/t/{{$t.ID}}/leave" data-name="{{$t.Title}}">{{template "i-logout"}}Leave chat</button>
+      <button type="button" class="danger-text" data-leave="/t/{{$t.ID}}/leave" data-name="{{$t.Title}}">{{template "i-logout"}}Leave group</button>
       {{end}}
     </div>
   </details>

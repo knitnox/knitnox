@@ -193,13 +193,12 @@ func TestPlanToolsAreOffered(t *testing.T) {
 		t.Error("the system prompt should explain the Plan Book without listing tasks (they would change it every turn)")
 	}
 
-	// Group chat: nothing.
+	// A group: nothing, also when its owner writes.
 	bob, _ := f.st.CreateUser("bob", "x", "user")
-	tok, _ := f.st.CreateInvite(tid, f.owner, "member", time.Hour, 1)
-	f.st.AcceptInvite(tok, bob)
-	waitRun(t, f.st, mustSubmit(t, f, tid, f.owner, "remind us all"))
+	gid := newGroup(t, f, bob)
+	waitRun(t, f.st, mustSubmit(t, f, gid, f.owner, "remind us all"))
 	if last().hasTool("plan_list") {
-		t.Fatal("a group chat was given the owner's Plan Book")
+		t.Fatal("a group was given the owner's Plan Book")
 	}
 
 	// Agents: none by default, then read-only, then full access under their own name.

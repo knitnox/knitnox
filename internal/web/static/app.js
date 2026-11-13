@@ -905,6 +905,11 @@
         fd.append("content", text);
         fd.append("model_id", $("#model-select").value);
         for (const c of $$("input[name=agent]:checked", homeForm)) fd.append("agent", c.value);
+        // the Tools menu: what stays on, and the groups this chat is connected to
+        if ($("input[name=tools_menu]", homeForm)) {
+          fd.append("tools_menu", "1");
+          for (const c of $$("input[name=tool_on]:checked", homeForm)) fd.append("tool_on", c.value);
+        }
         files.forEach((f) => fd.append("files", f, f.name));
         try {
           const r = await post("/t", fd);
@@ -918,8 +923,21 @@
     if (toolsCount) homeForm.addEventListener("change", (e) => {
       if (!e.target.matches("input[name=tool_on]")) return;
       e.target.nextElementSibling?.classList.toggle("is-on", e.target.checked);
-      const n = $$("input[name=tool_on]:not(:checked)", homeForm).length;
+      const n = $$("input[name=tool_on]:not([data-group]):not(:checked)", homeForm).length; // groups are extras, not tools switched off
       toolsCount.textContent = `${n} off`; toolsCount.hidden = n === 0;
+    });
+    // The Tools menu opens toward the side with more room and never grows past the window: with a quoted
+    // message above it ("Take to my chat") the box sits low, and the list got longer with the groups.
+    const toolsPick = $("details.tools-pick", homeForm);
+    if (toolsPick) toolsPick.addEventListener("toggle", () => {
+      const menu = $(".menu", toolsPick);
+      toolsPick.classList.remove("opens-up"); menu.style.maxHeight = "";
+      if (!toolsPick.open || matchMedia("(max-width: 640px)").matches) return; // on a phone it is a sheet at the bottom
+      const box = toolsPick.getBoundingClientRect();
+      const below = innerHeight - box.bottom, above = box.top;
+      const up = below < menu.scrollHeight + 12 && above > below;
+      toolsPick.classList.toggle("opens-up", up);
+      menu.style.maxHeight = Math.max(180, Math.min(460, (up ? above : below) - 16)) + "px";
     });
     // agents picked before the first message: show how many are ticked
     const agentCount = $("[data-agent-count]", homeForm);
@@ -938,7 +956,12 @@
         autosize(composer.ta); composer.update(); composer.ta.focus();
       });
     }
-    if (!isTouch) composer.ta.focus();
+    // "Take to my chat": the box already quotes a message of a group; type after it
+    if (composer.ta.hasAttribute("data-caret-end")) {
+      autosize(composer.ta); composer.update(); composer.ta.focus();
+      composer.ta.setSelectionRange(composer.ta.value.length, composer.ta.value.length);
+      composer.ta.scrollTop = composer.ta.scrollHeight;
+    } else if (!isTouch) composer.ta.focus();
   }
 
   // ===================================================== chat view

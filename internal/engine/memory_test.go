@@ -7,7 +7,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"knitnox/internal/llm"
 	"knitnox/internal/store"
@@ -58,7 +57,7 @@ func callTool(ts *toolset, name, args string) string {
 
 func memoryTools(f *fixture, userID int64, write bool) *toolset {
 	ts := &toolset{routes: map[string]toolRoute{}, local: map[string]localTool{}}
-	f.eng.addMemoryTools(ts, userID, 0, write)
+	f.eng.addMemoryTools(ts, store.UserMemory(userID), 0, 0, write)
 	return ts
 }
 
@@ -79,7 +78,7 @@ func TestMemoryTools(t *testing.T) {
 	callTool(ts, "memory_save", `{"content":"Tanim likes strong tea.","about":["Tanim"],"pin":true}`)
 
 	// Names differing only in letter case are one thing; predicates are normalised.
-	st := f.st.MemoryStats(f.owner, "")
+	st := f.st.MemoryStats(store.UserMemory(f.owner), "")
 	if st.Memories != 2 || st.Entities != 3 || st.Relations != 2 || st.Pinned != 1 {
 		t.Fatalf("stats = %+v", st)
 	}
@@ -115,7 +114,7 @@ func TestMemoryTools(t *testing.T) {
 	if out := callTool(ts, "memory_update", `{"id":1,"content":"Tanim founded Wish & Cook in Dhaka in 2021."}`); out != "Memory #1 updated." {
 		t.Fatalf("update = %q", out)
 	}
-	m, _ := f.st.MemoryByID(f.owner, 1)
+	m, _ := f.st.MemoryByID(store.UserMemory(f.owner), 1)
 	if !strings.HasSuffix(m.Content, "2021.") || len(m.Relations) != 2 {
 		t.Fatalf("after update: %+v", m)
 	}
@@ -127,15 +126,15 @@ func TestMemoryTools(t *testing.T) {
 		t.Fatalf("second delete = %q", out)
 	}
 	// Things nobody mentions any more are gone; Tanim is still in memory #2.
-	if st := f.st.MemoryStats(f.owner, ""); st.Memories != 1 || st.Entities != 1 || st.Relations != 0 {
+	if st := f.st.MemoryStats(store.UserMemory(f.owner), ""); st.Memories != 1 || st.Entities != 1 || st.Relations != 0 {
 		t.Fatalf("stats after delete = %+v", st)
 	}
 
 	// The pinned memory is part of what the AI is always told.
-	if note := f.eng.memoryNote(f.owner, true); !strings.Contains(note, "#2 Tanim likes strong tea.") || !strings.Contains(note, "memory_save") {
+	if note := f.eng.memoryNote(store.UserMemory(f.owner), true); !strings.Contains(note, "#2 Tanim likes strong tea.") || !strings.Contains(note, "memory_save") {
 		t.Fatalf("note = %q", note)
 	}
-	if note := f.eng.memoryNote(f.owner, false); strings.Contains(note, "memory_save") {
+	if note := f.eng.memoryNote(store.UserMemory(f.owner), false); strings.Contains(note, "memory_save") {
 		t.Fatal("a read-only run is told to save")
 	}
 }
@@ -145,7 +144,7 @@ func TestMemoryIsPerUser(t *testing.T) {
 	llmSrv, _ := fakeLLM(t, 0)
 	f := setup(t, llmSrv.URL)
 	bob, _ := f.st.CreateUser("bob", "x", "user")
-	id, err := f.eng.SaveMemory(f.owner, store.MemoryInput{Content: "Alice's bank is Northwind.", About: []string{"Northwind"}})
+	id, err := f.eng.SaveMemory(store.UserMemory(f.owner), store.MemoryInput{Content: "Alice's bank is Northwind.", About: []string{"Northwind"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,10 +161,10 @@ func TestMemoryIsPerUser(t *testing.T) {
 			t.Errorf("%s reached another user's memory: %q", name, out)
 		}
 	}
-	if m, err := f.st.MemoryByID(f.owner, id); err != nil || m.Content != "Alice's bank is Northwind." {
+	if m, err := f.st.MemoryByID(store.UserMemory(f.owner), id); err != nil || m.Content != "Alice's bank is Northwind." {
 		t.Fatalf("alice's memory was changed: %+v %v", m, err)
 	}
-	if _, err := f.st.MemoryByID(bob, id); err == nil {
+	if _, err := f.st.MemoryByID(store.UserMemory(bob), id); err == nil {
 		t.Fatal("bob can load alice's memory")
 	}
 }
@@ -177,13 +176,13 @@ func TestMemorySmartSearch(t *testing.T) {
 	f := setup(t, llmSrv.URL)
 	ctx := context.Background()
 	for _, text := range []string{"I am vegetarian and allergic to peanuts.", "My dog is called Biscuit.", "I am the founder of a small company."} {
-		if _, err := f.st.CreateMemory(f.owner, store.MemoryInput{Content: text}); err != nil {
+		if _, err := f.st.CreateMemory(store.UserMemory(f.owner), store.MemoryInput{Content: text}); err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	// No embedding model: only words can match, and none do.
-	mems, smart, err := f.eng.SearchMemory(ctx, f.owner, "what food should I cook for dinner?", 5)
+	mems, smart, err := f.eng.SearchMemory(ctx, store.UserMemory(f.owner), "what food should I cook for dinner?", 5)
 	if err != nil || smart || len(mems) != 0 {
 		t.Fatalf("word search: %d results, smart=%v, err=%v", len(mems), smart, err)
 	}
@@ -194,30 +193,30 @@ func TestMemorySmartSearch(t *testing.T) {
 	if err := f.st.SaveSettings(settings); err != nil {
 		t.Fatal(err)
 	}
-	em := f.eng.MemoryEmbedder(f.owner)
+	em := f.eng.MemoryEmbedder(store.UserMemory(f.owner))
 	if em == nil || em.Personal {
 		t.Fatalf("embedder = %+v", em)
 	}
-	if n, err := f.eng.IndexMemories(ctx, f.owner); err != nil || n != 3 {
+	if n, err := f.eng.IndexMemories(ctx, store.UserMemory(f.owner)); err != nil || n != 3 {
 		t.Fatalf("indexed %d, err %v", n, err)
 	}
-	if st := f.st.MemoryStats(f.owner, em.Key); st.Indexed != 3 {
+	if st := f.st.MemoryStats(store.UserMemory(f.owner), em.Key); st.Indexed != 3 {
 		t.Fatalf("indexed stat = %d", st.Indexed)
 	}
 
-	mems, smart, err = f.eng.SearchMemory(ctx, f.owner, "what food should I cook for dinner?", 5)
+	mems, smart, err = f.eng.SearchMemory(ctx, store.UserMemory(f.owner), "what food should I cook for dinner?", 5)
 	if err != nil || !smart || len(mems) != 1 || !strings.Contains(mems[0].Content, "vegetarian") {
 		t.Fatalf("smart search: %+v smart=%v err=%v", mems, smart, err)
 	}
 
 	// Changing the text drops its vector until it is indexed again.
-	if err := f.st.UpdateMemory(f.owner, mems[0].ID, store.MemoryInput{Content: "I eat everything now."}); err != nil {
+	if err := f.st.UpdateMemory(store.UserMemory(f.owner), mems[0].ID, store.MemoryInput{Content: "I eat everything now."}); err != nil {
 		t.Fatal(err)
 	}
-	if st := f.st.MemoryStats(f.owner, em.Key); st.Indexed != 2 {
+	if st := f.st.MemoryStats(store.UserMemory(f.owner), em.Key); st.Indexed != 2 {
 		t.Fatalf("indexed after edit = %d, want 2", st.Indexed)
 	}
-	if n, _ := f.eng.IndexMemories(ctx, f.owner); n != 1 {
+	if n, _ := f.eng.IndexMemories(ctx, store.UserMemory(f.owner)); n != 1 {
 		t.Fatalf("re-indexed %d, want 1", n)
 	}
 
@@ -225,23 +224,23 @@ func TestMemorySmartSearch(t *testing.T) {
 	own := f.owner
 	ownPID, _ := f.st.CreateProvider(&own, "mine", embSrv.URL, "k")
 	f.st.SaveMemorySettings(f.owner, store.MemorySettings{EmbedProviderID: ownPID, EmbedModel: "my-embed"})
-	mine := f.eng.MemoryEmbedder(f.owner)
+	mine := f.eng.MemoryEmbedder(store.UserMemory(f.owner))
 	if mine == nil || !mine.Personal || mine.Key == em.Key {
 		t.Fatalf("own embedder = %+v", mine)
 	}
-	if st := f.st.MemoryStats(f.owner, mine.Key); st.Indexed != 0 {
+	if st := f.st.MemoryStats(store.UserMemory(f.owner), mine.Key); st.Indexed != 0 {
 		t.Fatal("vectors of another model count as ready")
 	}
 	// Someone else's provider is never used.
 	bob, _ := f.st.CreateUser("bob", "x", "user")
 	f.st.SaveMemorySettings(bob, store.MemorySettings{EmbedProviderID: ownPID, EmbedModel: "my-embed"})
-	if got := f.eng.MemoryEmbedder(bob); got == nil || got.Key != em.Key {
+	if got := f.eng.MemoryEmbedder(store.UserMemory(bob)); got == nil || got.Key != em.Key {
 		t.Fatalf("bob's embedder = %+v, want the server's", got)
 	}
 
 	// If the embedding endpoint is down, search quietly falls back to words.
 	embSrv.Close()
-	mems, smart, err = f.eng.SearchMemory(ctx, bob, "anything", 5)
+	mems, smart, err = f.eng.SearchMemory(ctx, store.UserMemory(bob), "anything", 5)
 	if err != nil || smart || len(mems) != 0 {
 		t.Fatalf("fallback: %d results, smart=%v, err=%v", len(mems), smart, err)
 	}
@@ -273,7 +272,7 @@ func TestMemoryToolsAreOffered(t *testing.T) {
 	if r := waitRun(t, f.st, runID); r.Status != store.RunDone {
 		t.Fatalf("status %s: %s", r.Status, r.Error)
 	}
-	mems, _ := f.st.ListMemories(f.owner, "", 0, 10)
+	mems, _ := f.st.ListMemories(store.UserMemory(f.owner), "", 0, 10)
 	if len(mems) != 1 || mems[0].Source != store.MemoryFromAI || mems[0].SourceThreadID != tid || len(mems[0].Entities) != 1 {
 		t.Fatalf("memories = %+v", mems)
 	}
@@ -292,15 +291,22 @@ func TestMemoryToolsAreOffered(t *testing.T) {
 		t.Error("the system prompt does not explain memory")
 	}
 
-	// A second person joins: the chat is now a group chat and memory stays out.
+	// A group has a memory of its own. The owner's memory stays out of it,
+	// also when the owner is the one who writes.
+	f.st.SetMemoryPinned(store.UserMemory(f.owner), mems[0].ID, true) // pinned memories go into the owner's prompt
 	bob, _ := f.st.CreateUser("bob", "x", "user")
-	tok, _ := f.st.CreateInvite(tid, f.owner, "member", time.Hour, 1)
-	if _, err := f.st.AcceptInvite(tok, bob); err != nil {
-		t.Fatal(err)
+	gid := newGroup(t, f, bob)
+	waitRun(t, f.st, mustSubmit(t, f, gid, f.owner, "what do I like to drink?"))
+	inGroup := seen()[len(seen())-1]
+	if strings.Contains(inGroup.System, "prefers tea") || strings.Contains(inGroup.System, "## Long-term memory") {
+		t.Fatal("a group was given the owner's memory")
 	}
-	waitRun(t, f.st, mustSubmit(t, f, tid, f.owner, "remember this too"))
-	if last := seen()[len(seen())-1]; last.hasTool("memory_search") || strings.Contains(last.System, "prefers tea") {
-		t.Fatal("a group chat was given the owner's memory")
+	if !inGroup.hasTool("memory_search") || !strings.Contains(inGroup.System, "## Group memory") {
+		t.Fatal("a group was not given its own memory")
+	}
+	group, _ := f.st.ThreadByID(gid)
+	if hits, _ := f.st.SearchMemoryText(store.GroupMemory(group), "tea", 5); len(hits) != 0 {
+		t.Fatalf("the group's memory finds the owner's memories: %+v", hits)
 	}
 
 	// Agents: nothing by default, read-only tools once allowed.

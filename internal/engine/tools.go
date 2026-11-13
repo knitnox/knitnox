@@ -63,8 +63,8 @@ func (e *Engine) openTools(ctx context.Context, tc *turnCtx) (*toolset, error) {
 		e.connectServers(ctx, ts, servers, allow)
 		e.addAgentTools(ts, tc)
 		if tc.agent.UseMemory && e.st.MemoryEnabled(tc.agent.UserID) {
-			tc.memoryUser = tc.agent.UserID
-			e.addMemoryTools(ts, tc.memoryUser, 0, false)
+			tc.memory = store.UserMemory(tc.agent.UserID)
+			e.addMemoryTools(ts, tc.memory, 0, 0, false)
 		}
 		if tc.agent.PlanAccess != store.PlanAccessNone && e.st.PlanEnabled(tc.agent.UserID) {
 			tc.planOn, tc.planWrite = true, tc.agent.PlanAccess == store.PlanAccessWrite
@@ -78,7 +78,7 @@ func (e *Engine) openTools(ctx context.Context, tc *turnCtx) (*toolset, error) {
 	}
 	// What the owner switched off for this chat in the Tools menu (web/tools.go).
 	off := e.st.ThreadToolsOff(tc.thread.ID)
-	all, err := e.st.ThreadMCPServers(tc.thread, tc.group)
+	all, err := e.st.ThreadMCPServers(tc.thread)
 	if err != nil {
 		return ts, err
 	}
@@ -89,28 +89,45 @@ func (e *Engine) openTools(ctx context.Context, tc *turnCtx) (*toolset, error) {
 		}
 	}
 	e.connectServers(ctx, ts, servers, nil)
+	if tc.group {
+		// A group uses only what belongs to the group: its own tool servers
+		// (above) and its own memory. Nobody's personal memory, Plan Book, feed,
+		// pictures or agents are offered here, whoever wrote the message. To
+		// use those, a member takes the matter to a chat of their own, which
+		// can look into the group (addGroupTools).
+		if !off[store.ToolMemory] {
+			tc.memory, tc.memoryWrite = store.GroupMemory(tc.thread), true
+			e.addMemoryTools(ts, tc.memory, tc.thread.ID, tc.run.AuthorUserID, true)
+		}
+		return ts, nil
+	}
 	if !off[store.ToolAgents] {
 		tc.connected = e.addManagerTools(ts, tc)
 	}
-	// Long-term memory is personal, so it stays out of group chats.
-	if !tc.group && !off[store.ToolMemory] && e.st.MemoryEnabled(tc.thread.OwnerUserID) {
-		tc.memoryUser, tc.memoryWrite = tc.thread.OwnerUserID, true
-		e.addMemoryTools(ts, tc.memoryUser, tc.thread.ID, true)
+	owner := tc.thread.OwnerUserID
+	if !off[store.ToolMemory] && e.st.MemoryEnabled(owner) {
+		tc.memory, tc.memoryWrite = store.UserMemory(owner), true
+		e.addMemoryTools(ts, tc.memory, tc.thread.ID, 0, true)
 	}
-	// So is the Plan Book.
-	if !tc.group && !off[store.ToolPlan] && e.st.PlanEnabled(tc.thread.OwnerUserID) {
+	if !off[store.ToolPlan] && e.st.PlanEnabled(owner) {
 		tc.planOn, tc.planWrite = true, true
-		e.addPlanTools(ts, tc.thread.OwnerUserID, store.PlanActor{Kind: store.PlanByAI, ThreadID: tc.thread.ID}, true, tc.loc)
+		e.addPlanTools(ts, owner, store.PlanActor{Kind: store.PlanByAI, ThreadID: tc.thread.ID}, true, tc.loc)
 	}
-	// And the feed: the AI posts there only in the owner's own chats.
-	if !tc.group && !off[store.ToolFeed] && e.st.FeedEnabled(tc.thread.OwnerUserID) {
-		tc.feedOn, tc.feedMedia = true, e.feedMediaNote(tc.thread.OwnerUserID)
-		e.addFeedTools(ts, tc.thread.OwnerUserID, store.FeedActor{Kind: store.FeedByAI, ThreadID: tc.thread.ID}, 0, true, tc.loc, tc.checkModel())
+	if !off[store.ToolFeed] && e.st.FeedEnabled(owner) {
+		tc.feedOn, tc.feedMedia = true, e.feedMediaNote(owner)
+		e.addFeedTools(ts, owner, store.FeedActor{Kind: store.FeedByAI, ThreadID: tc.thread.ID}, 0, true, tc.loc, tc.checkModel())
 	}
-	// Pictures are made with the owner's model and count toward the owner's
-	// daily limit, so the tool is offered only in the owner's own chats.
-	if !tc.group && !off[store.ToolPictures] {
+	// Pictures are made with the owner's model and count toward the owner's daily limit.
+	if !off[store.ToolPictures] {
 		tc.pictureOn = e.addPictureTool(ts, tc)
+	}
+	// Groups this chat looks into: read-only tools over their memory and
+	// their recent messages.
+	if tc.refs, err = e.st.ThreadGroups(tc.thread.ID, owner); err != nil {
+		return ts, err
+	}
+	if len(tc.refs) > 0 {
+		e.addGroupTools(ts, tc.thread.ID, owner)
 	}
 	return ts, nil
 }

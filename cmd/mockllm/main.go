@@ -17,6 +17,10 @@
 // recording or a video (add the models mock-image, mock-voice and mock-video and
 // mark them as Pictures, Voice and Video). POST /v1/embeddings returns simple
 // word-based vectors, so "smart search" can be tried with a model named "mock-embed".
+// In a group, "remember ..." and "recall ..." use the group's own memory. In a
+// personal chat that is connected to a group (Tools menu, or "Take to my chat"),
+// "group recall ..." searches that group's memory and "group messages" reads its
+// latest messages.
 package main
 
 import (
@@ -113,6 +117,9 @@ func chat(w http.ResponseWriter, r *http.Request) {
 			if i := strings.Index(lastUser, "]\n"); i > 0 && strings.HasPrefix(lastUser, "[") {
 				lastUser = lastUser[i+2:] // Knitnox puts "[date, time]" on the first line of each message
 			}
+			if i := strings.Index(lastUser, "]: "); i > 0 && i < 66 && strings.HasPrefix(lastUser, "[") && !strings.Contains(lastUser[:i], "\n") {
+				lastUser = lastUser[i+3:] // in a group every message starts with "[sender]: "
+			}
 		case "tool":
 			lastTool, sawTool = m.Content.text, true
 		}
@@ -167,6 +174,15 @@ func chat(w http.ResponseWriter, r *http.Request) {
 	}
 	if search := toolNamed("memory_search"); search != "" && !sawTool && strings.HasPrefix(lower, "recall") {
 		callTool(search, map[string]any{"query": strings.TrimSpace(lastUser[len("recall"):])})
+		return
+	}
+	// A group this personal chat is connected to: "group recall ..." searches its memory, "group messages" reads its latest messages.
+	if search := toolNamed("group_memory_search"); search != "" && !sawTool && strings.HasPrefix(lower, "group recall") {
+		callTool(search, map[string]any{"query": strings.TrimSpace(lastUser[len("group recall"):])})
+		return
+	}
+	if read := toolNamed("group_messages"); read != "" && !sawTool && strings.HasPrefix(lower, "group messages") {
+		callTool(read, map[string]any{"turns": 5})
 		return
 	}
 	// Plan Book (offered when the user turned it on): "todo ..." adds a task, "plan" lists what is open.
@@ -243,6 +259,9 @@ func chat(w http.ResponseWriter, r *http.Request) {
 		reply = "The clock tool says it is **" + lastTool + "**."
 		if strings.Contains(lastTool, "emor") { // an answer from a memory tool
 			reply = "Here is what the memory tool answered:\n\n> " + strings.ReplaceAll(strings.TrimSpace(lastTool), "\n", "\n> ")
+		}
+		if strings.Contains(lastTool, " of the group ") || strings.Contains(lastTool, "no longer a member") { // an answer from a tool that looks into a group
+			reply = "Here is what I found in the group:\n\n> " + strings.ReplaceAll(strings.TrimSpace(lastTool), "\n", "\n> ")
 		}
 		if strings.HasPrefix(lastTool, "The picture was made") { // an answer from make_picture
 			reply = "Here is your picture."

@@ -1,0 +1,203 @@
+{{define "title"}}{{if eq .Tab "memory"}}Memory · {{.Thread.Title}}{{else}}New group{{end}} · Knitnox{{end}}
+
+{{define "content"}}
+<div class="shell">
+  {{template "sidebar" .}}
+  <main class="main" id="main" tabindex="-1">
+    {{if eq .Tab "memory"}}{{template "page-top" "Group memory"}}{{else}}{{template "page-top" "New group"}}{{end}}
+    <div class="page-scroll">
+      <div class="page narrow">
+
+        {{if eq .Tab "new"}}
+        <a class="back-link" href="/">{{template "i-chevron-left"}}Back</a>
+        <form class="agent-new" method="post" action="/groups">
+          <input type="hidden" name="_csrf" value="{{.CSRF}}">
+          <header class="new-head">
+            <h2>Start a group</h2>
+            <p>A group is a chat for several people. Everyone writes in the same place and the AI answers one message at a time. Give it a name and it is ready; you invite people on the next screen.</p>
+          </header>
+
+          {{if not .ModelOptions}}<div class="notice is-warn">{{template "i-alert"}}<span>No AI model is set up yet, so a group could not answer. <a href="/settings#keys">Add your API key</a> first, or ask your admin.</span></div>{{end}}
+
+          <div class="card kind-compare" aria-label="How a group differs from your own chats">
+            <div>
+              <b>{{template "i-users"}}A group has its own things</b>
+              <ul class="plain-list hint">
+                <li><b>Its own memory</b>: the AI keeps what the group decides. Everyone in the group can read it.</li>
+                <li><b>Its own tools</b>: you can add tool servers for the group, such as a web search.</li>
+                <li><b>One model</b> for everyone, chosen by you as its admin.</li>
+              </ul>
+            </div>
+            <div>
+              <b>{{template "i-lock"}}Your own things stay yours</b>
+              <ul class="plain-list hint">
+                <li>Nobody's Memory, Plan Book, Feed or tool servers are used in a group, yours included.</li>
+                <li>To use them with something said in the group, press <b>Take to my chat</b> under a message.</li>
+              </ul>
+            </div>
+          </div>
+
+          <section class="card new-step">
+            <h3 class="step"><span aria-hidden="true">1</span>What is it called?</h3>
+            <label>Name
+              <input name="name" maxlength="80" placeholder="e.g. Next project" required autofocus></label>
+            <label>What is the group for? <small class="muted">optional · the AI reads this before every answer</small>
+              <textarea name="instructions" rows="3" maxlength="4000" placeholder="e.g. We are choosing the programming language for our next project. Keep answers short and compare options fairly."></textarea></label>
+          </section>
+
+          <section class="card new-step">
+            <h3 class="step"><span aria-hidden="true">2</span>Which model answers?</h3>
+            <label>Model <small class="muted">one model answers everyone; you can change it later</small>
+              <select name="model_id" required>
+                {{with sharedModels .ModelOptions}}<optgroup label="Shared on this server">
+                  {{range .}}<option value="{{.ModelID}}" {{if eq .ModelID $.DefaultModel}}selected{{end}}>{{.ModelName}} — {{.ProviderName}}{{if not .Vision}} · text only{{end}}</option>{{end}}
+                </optgroup>{{end}}
+                {{with ownModels .ModelOptions}}<optgroup label="Yours (your key pays)">
+                  {{range .}}<option value="{{.ModelID}}" {{if eq .ModelID $.DefaultModel}}selected{{end}}>{{.ModelName}} — {{.ProviderName}}{{if not .Vision}} · text only{{end}}</option>{{end}}
+                </optgroup>{{end}}
+              </select>
+            </label>
+            <p class="hint">A model under <b>Yours</b> uses your own API key: you pay for everyone's messages in this group. A shared model counts toward the limit of whoever writes.</p>
+          </section>
+
+          <h3 class="new-optional">Optional</h3>
+          <details class="card add-card">
+            <summary>{{template "i-brain"}}<span>How the group's memory is searched</span></summary>
+            <div class="stack sm">
+              <p class="hint">The group's memory always finds facts that share words with a question. With an embedding model it also finds them when the words differ.</p>
+              <label>Embedding model
+                {{template "embed-select" .}}
+              </label>
+            </div>
+          </details>
+
+          <div class="new-foot">
+            <button type="submit" class="btn primary lg"{{if not .ModelOptions}} disabled{{end}}>{{template "i-users"}}Create the group</button>
+            <a class="btn ghost" href="/">Cancel</a>
+          </div>
+        </form>
+
+        {{else if eq .Tab "memory"}}
+        <a class="back-link" href="/t/{{.Thread.ID}}">{{template "i-chevron-left"}}Back to {{.Thread.Title}}</a>
+        {{if eq .Notice "search"}}<div class="notice">{{template "i-check"}}Saved. The group's memories are being prepared in the background.</div>{{end}}
+
+        <section class="section">
+          <div class="section-head">
+            <div class="section-icon">{{template "i-brain"}}</div>
+            <div>
+              <div class="h-row"><h2>What the AI keeps for this group</h2>
+                {{template "tip-open" "How does a group's memory work?"}}While you talk in the group, the AI saves short facts: what was decided, who does what, what the group learned. Later it looks them up, so nobody has to repeat things. <b>Only the AI writes here.</b> People cannot add or change a fact, which keeps anyone from planting one; you can delete a fact that is wrong. This memory belongs to the group and is separate from everyone's personal Memory.{{template "tip-close"}}
+              </div>
+              <p>Short facts the AI saved in <b>{{.Thread.Title}}</b>. Everyone in the group can read them. Nothing is hidden.</p>
+            </div>
+          </div>
+
+          {{if not .MemoryOn}}
+          <div class="notice is-warn">{{template "i-alert"}}<span>The group's memory is switched off, so the AI neither saves nor looks anything up. {{if eq .Role "owner"}}Switch it on under <b>Tools</b> in the group, next to Attach.{{else}}The group's admin can switch it on.{{end}} What is here stays.</span></div>
+          {{end}}
+
+          <form class="search-form" action="/t/{{.Thread.ID}}/memory" method="get" role="search">
+            <label class="search-box">
+              {{template "i-search"}}
+              <input type="search" name="q" value="{{.Query}}" placeholder="Search the group's memory…" aria-label="Search the group's memory" autocomplete="off" maxlength="200">
+            </label>
+            <button type="submit" class="btn primary">Search</button>
+          </form>
+
+          {{if .Query}}
+          <p class="lead">{{len .Memories}} closest memor{{if eq (len .Memories) 1}}y{{else}}ies{{end}} for “{{.Query}}”, best first.
+            {{if .Smart}}Found by meaning as well as by words.{{else}}Found by matching words.{{end}}
+            <a href="/t/{{.Thread.ID}}/memory">Show everything</a></p>
+          {{else if .Stats.Memories}}
+          <div class="mem-bar">
+            <p class="mem-summary"><b>{{.Stats.Memories}}</b> memor{{if eq .Stats.Memories 1}}y{{else}}ies{{end}}<span class="dot">·</span><b>{{.Stats.Entities}}</b> thing{{if ne .Stats.Entities 1}}s{{end}}<span class="dot">·</span><b>{{.Stats.Relations}}</b> connection{{if ne .Stats.Relations 1}}s{{end}}</p>
+          </div>
+          {{end}}
+
+          <div class="mem-list" id="memories">
+            {{range .Memories}}
+            <article class="mem" id="gmem-{{.ID}}">
+              <div class="mem-body">
+                <p class="mem-text">{{.Content}}</p>
+                {{if or .Entities .Relations}}
+                <div class="mem-links">
+                  {{range .Relations}}<span class="rel"><b>{{.Subject}}</b><i>{{.Predicate}}</i><b>{{.Object}}</b></span>{{end}}
+                  {{range aboutOnly .Memory}}<span class="chip thing-chip"><span>{{.Name}}</span></span>{{end}}
+                </div>
+                {{end}}
+                <div class="mem-meta">
+                  <span class="badge st-busy">Saved by the AI</span>
+                  {{if .SaidByName}}<span>from a message by <b>{{.SaidByName}}</b></span>{{end}}
+                  <span title="Last changed {{.UpdatedAt}} UTC">{{short .UpdatedAt}}</span>
+                </div>
+              </div>
+              {{if .CanDelete}}
+              <div class="mem-actions">
+                <button type="button" class="icon-btn sm danger-hover" hx-post="/t/{{$.Thread.ID}}/memory/{{.ID}}/delete" hx-target="#gmem-{{.ID}}" hx-swap="outerHTML"
+                        hx-confirm="Delete this from the group's memory, for everyone?" title="Delete: it is wrong, or should not be kept" aria-label="Delete this memory">{{template "i-trash"}}</button>
+              </div>
+              {{end}}
+            </article>
+            {{end}}
+            <div class="empty-card">
+              <div class="empty-icon">{{template "i-brain"}}</div>
+              {{if .Query}}<p>Nothing found</p><span>Try other words, or <a href="/t/{{.Thread.ID}}/memory">show everything</a>.</span>
+              {{else}}<p>Nothing remembered yet</p><span>When the group decides or agrees on something, the AI notes it here. You can also ask it in the group: “remember that we chose Go”.</span>{{end}}
+            </div>
+          </div>
+          {{if .Older}}<p class="mem-more"><a class="btn" href="{{.Older}}">Show older memories</a></p>{{end}}
+          <p class="hint mem-rights">{{template "i-shield"}}<span>Only the AI adds and changes facts. {{if eq .Role "owner"}}As the group's admin you can delete any of them.{{else if eq .Role "member"}}You can delete facts that came from your own messages; the group's admin can delete the rest.{{else}}The group's admin can delete a fact that is wrong.{{end}}</span></p>
+        </section>
+
+        <section class="section" id="search">
+          <div class="section-head">
+            <div class="section-icon">{{template "i-search"}}</div>
+            <div>
+              <div class="h-row"><h2>How memories are found</h2>
+                {{template "tip-open" "What is an embedding model?"}}An <b>embedding model</b> is a small, cheap AI model that turns a sentence into numbers that stand for its meaning. With it, a search for “which language?” also finds “we chose Go”, although no word is the same.{{template "tip-close"}}
+              </div>
+              <p>The memory always works. With an embedding model it also finds things when the words differ.</p>
+            </div>
+          </div>
+          <div class="card stack">
+            {{if .Embed.On}}
+            <div class="card-title"><span class="badge st-ok">Smart search</span> Finds by meaning and by words</div>
+            <p class="hint">Using <span class="mono">{{.Embed.Model}}</span> from {{.Embed.Provider}} ({{if .Embed.Personal}}the admin's own provider{{else}}shared on this server{{end}}).
+              {{if .Embed.Pending}}<b>{{.Embed.Pending}}</b> of {{.Stats.Memories}} memories are still being prepared; until then they are found by words only.{{else if .Stats.Memories}}All {{.Stats.Memories}} memories are ready.{{end}}</p>
+            {{else}}
+            <div class="card-title"><span class="badge">Word search</span> Finds memories that share words with the question</div>
+            <p class="hint">This works without any setup.{{if ne .Role "owner"}} The group's admin can choose an embedding model to also find different wording.{{end}}</p>
+            {{end}}
+            {{if eq .Role "owner"}}
+            <hr>
+            <form class="stack sm" method="post" action="/t/{{.Thread.ID}}/memory/settings">
+              <input type="hidden" name="_csrf" value="{{.CSRF}}">
+              <label>Embedding model for this group <small class="muted">only you, the admin, can change it</small>
+                {{template "embed-select" .}}
+              </label>
+              <div><button type="submit" class="btn primary">Save</button></div>
+            </form>
+            {{end}}
+          </div>
+        </section>
+        {{end}}
+
+      </div>
+    </div>
+  </main>
+</div>
+{{end}}
+
+{{/* The embedding model of a group: the server's, or one the admin may use. Needs .EmbedOptions, .EmbedModelID, .ServerEmbed. */}}
+{{define "embed-select"}}
+<select name="embed_model_id">
+  <option value="0">{{if .ServerEmbed}}The server's model ({{.ServerEmbed}}){{else}}None: search by words only{{end}}</option>
+  {{with sharedModels .EmbedOptions}}<optgroup label="Shared on this server">
+    {{range .}}<option value="{{.ModelID}}" {{if eq .ModelID $.EmbedModelID}}selected{{end}}>{{.ModelName}} — {{.ProviderName}}</option>{{end}}
+  </optgroup>{{end}}
+  {{with ownModels .EmbedOptions}}<optgroup label="Yours (your key pays)">
+    {{range .}}<option value="{{.ModelID}}" {{if eq .ModelID $.EmbedModelID}}selected{{end}}>{{.ModelName}} — {{.ProviderName}}</option>{{end}}
+  </optgroup>{{end}}
+</select>
+{{if not .EmbedOptions}}<small class="muted">No other embedding models yet. Add one under <a href="/settings#keys">Settings → Your API keys</a> and set what it is for to “Embedding”.</small>{{end}}
+{{end}}

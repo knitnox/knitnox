@@ -46,7 +46,7 @@ func TestMemoryPagesAndPermissions(t *testing.T) {
 	if code != http.StatusSeeOther || h.Get("Location") != "/memory?done=added" {
 		t.Fatalf("create: %d %s", code, h.Get("Location"))
 	}
-	mems, _ := a.st.ListMemories(alice.id, "", 0, 10)
+	mems, _ := a.st.ListMemories(store.UserMemory(alice.id), "", 0, 10)
 	if len(mems) != 1 || !mems[0].Pinned || len(mems[0].Entities) != 3 || len(mems[0].Relations) != 1 || mems[0].Relations[0].Predicate != "founded" {
 		t.Fatalf("stored memory = %+v", mems)
 	}
@@ -75,7 +75,7 @@ func TestMemoryPagesAndPermissions(t *testing.T) {
 		strings.Contains(bob.get("/memory/export"), "Tanim") {
 		t.Fatal("bob can see alice's memory")
 	}
-	things, _ := a.st.ListEntities(alice.id, "", 10)
+	things, _ := a.st.ListEntities(store.UserMemory(alice.id), "", 10)
 	thing := fmt.Sprintf("/memory/things/%d", things[0].ID)
 	for _, path := range []string{item, item + "/edit", thing} {
 		if code := bob.getStatus(path); code != http.StatusNotFound {
@@ -87,7 +87,7 @@ func TestMemoryPagesAndPermissions(t *testing.T) {
 			t.Errorf("bob POST %s = %d, want 404", path, code)
 		}
 	}
-	if m, err := a.st.MemoryByID(alice.id, id); err != nil || m.Content != "Tanim founded Wish & Cook." || !m.Pinned {
+	if m, err := a.st.MemoryByID(store.UserMemory(alice.id), id); err != nil || m.Content != "Tanim founded Wish & Cook." || !m.Pinned {
 		t.Fatalf("alice's memory changed: %+v %v", m, err)
 	}
 
@@ -114,7 +114,7 @@ func TestMemoryPagesAndPermissions(t *testing.T) {
 			t.Errorf("things page is missing %q", want)
 		}
 	}
-	tanim, _ := a.st.EntityByName(alice.id, "tanim")
+	tanim, _ := a.st.EntityByName(store.UserMemory(alice.id), "tanim")
 	page = alice.get(fmt.Sprintf("/memory/things/%d", tanim.ID))
 	for _, want := range []string{"<h2>Tanim</h2>", "<b>Tanim</b>", "<i>founded</i>", "in 2021.", fmt.Sprintf(`data-focus="%d"`, tanim.ID)} {
 		if !strings.Contains(page, want) {
@@ -128,16 +128,16 @@ func TestMemoryPagesAndPermissions(t *testing.T) {
 	if got := alice.get(fmt.Sprintf("/memory/graph?focus=%d", tanim.ID)); !strings.Contains(got, ` Cook"`) || strings.Contains(got, "Dhaka") {
 		t.Errorf("focused graph = %s", got)
 	}
-	a.st.CreateMemory(alice.id, store.MemoryInput{Content: "Tanim A. drinks tea.", About: []string{"Tanim A."}})
-	other, _ := a.st.EntityByName(alice.id, "Tanim A.")
+	a.st.CreateMemory(store.UserMemory(alice.id), store.MemoryInput{Content: "Tanim A. drinks tea.", About: []string{"Tanim A."}})
+	other, _ := a.st.EntityByName(store.UserMemory(alice.id), "Tanim A.")
 	code, _, h = alice.post(fmt.Sprintf("/memory/things/%d", other.ID), url.Values{"name": {"tanim"}})
 	if code != http.StatusSeeOther || h.Get("Location") != fmt.Sprintf("/memory/things/%d?done=merged", tanim.ID) {
 		t.Fatalf("merge: %d %s", code, h.Get("Location"))
 	}
-	if merged, _ := a.st.EntityByID(alice.id, tanim.ID); merged.Memories != 2 {
+	if merged, _ := a.st.EntityByID(store.UserMemory(alice.id), tanim.ID); merged.Memories != 2 {
 		t.Fatalf("merged thing has %d memories, want 2", merged.Memories)
 	}
-	if hits, _ := a.st.SearchMemoryText(alice.id, "Tanim tea", 5); len(hits) != 2 {
+	if hits, _ := a.st.SearchMemoryText(store.UserMemory(alice.id), "Tanim tea", 5); len(hits) != 2 {
 		t.Errorf("search after merge found %d memories, want 2", len(hits))
 	}
 
@@ -154,7 +154,7 @@ func TestMemoryPagesAndPermissions(t *testing.T) {
 	if code, _, _ := alice.post("/memory/delete-all", url.Values{"confirm": {"delete"}}); code != http.StatusSeeOther {
 		t.Fatalf("delete-all: %d", code)
 	}
-	if st := a.st.MemoryStats(alice.id, ""); st.Memories != 0 || st.Entities != 0 || st.Relations != 0 {
+	if st := a.st.MemoryStats(store.UserMemory(alice.id), ""); st.Memories != 0 || st.Entities != 0 || st.Relations != 0 {
 		t.Fatalf("after delete-all: %+v", st)
 	}
 }
@@ -186,7 +186,7 @@ func TestMemorySearchSettings(t *testing.T) {
 	if code, _, _ := bob.post("/memory/settings/search", url.Values{"embed_provider_id": {fmt.Sprint(bobs)}, "embed_model": {"my-embed"}}); code != http.StatusSeeOther {
 		t.Fatalf("bob's own provider: %d", code)
 	}
-	if em := a.eng.MemoryEmbedder(bob.id); em == nil || em.Model != "my-embed" || !em.Personal {
+	if em := a.eng.MemoryEmbedder(store.UserMemory(bob.id)); em == nil || em.Model != "my-embed" || !em.Personal {
 		t.Fatalf("bob's embedder = %+v", em)
 	}
 	if !strings.Contains(bob.get("/memory/settings"), "Smart search") {
@@ -219,7 +219,7 @@ func TestMemorySearchSettings(t *testing.T) {
 	if got := save(shared); got.EmbedProviderID != shared || got.EmbedModel != "shared-embed" {
 		t.Fatalf("admin settings = %+v", got)
 	}
-	if em := a.eng.MemoryEmbedder(alice.id); em == nil || em.Model != "shared-embed" || em.Personal {
+	if em := a.eng.MemoryEmbedder(store.UserMemory(alice.id)); em == nil || em.Model != "shared-embed" || em.Personal {
 		t.Fatalf("alice's embedder = %+v", em)
 	}
 	if !strings.Contains(alice.get("/admin/settings"), `value="shared-embed"`) {

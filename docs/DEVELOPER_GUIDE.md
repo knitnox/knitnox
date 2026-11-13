@@ -21,7 +21,8 @@ go run ./cmd/knitnox          # http://localhost:8080
 5. To try the Plan Book: turn it on under **Plan Book**, then send "todo buy milk" and "plan".
    To try the Feed: open **Feed**, the settings button, **Let the AI post**, then send "post the weekly numbers are in" or "draw how a report gets made".
    For pictures, voice and video add the models `mock-image`, `mock-voice` and `mock-video` to the mock provider (their kind is guessed from the name), then send "picture a loaf of bread", "say good morning" or "film a bakery counter". With `mock-image` in place, "paint a red bicycle" makes a picture inside the chat, and with `mock-voice` every answer gets a speaker button.
-6. To try memory: turn it on under **Memory**, then send "remember that I like tea" and "recall tea". For smart search, set the embedding model `mock-embed` under **Admin panel → Settings**.
+6. To try a group: click **New group**, create it, then send "remember that we chose Go". Open **Memory** at the top of the group to see the fact. Click the arrow under a message (**Take to my chat**) and send "group recall chose" or "group messages" in the chat that opens.
+7. To try memory: turn it on under **Memory**, then send "remember that I like tea" and "recall tea". For smart search, set the embedding model `mock-embed` under **Admin panel → Settings**.
 
 Data lives in `./data` (the database, the secret key, uploads, feed media and automatic backups). Delete that folder to start clean.
 
@@ -71,6 +72,11 @@ Dependencies point one way: `web → engine → (llm, mcp, hub, store) → secre
 | The date and time the AI is told | `engine/clock.go` (a time stamp on each user message; nothing in the system prompt, to keep prompt caching working) |
 | The LLM ⇄ tool loop | `engine/run.go → execute` |
 | Which tools a run gets | `engine/tools.go → openTools` |
+| What a chat is (personal or group) | `store/threads.go` (`threads.kind`, `IsGroup`, `CreateGroup`); it is set once and never changed |
+| A group's page for starting it, its memory, its tool servers | `web/groups.go`, `templates/group.html`, the `panel` template in `templates/chat.html` |
+| Whose memory is meant (a person's or a group's) | `store/memory.go → MemOwner`, `UserMemory`, `GroupMemory` |
+| What a personal chat may read of a group | `engine/groups.go → addGroupTools`, `store/groups.go → ThreadGroups`, `SetThreadGroup` |
+| The read-only link of a chat and the page it opens | `web/groups.go → shareSave`, `sharedPage`; `store/groups.go`; `templates/shared.html` |
 | The Tools menu next to Attach (per-chat switches) | `web/tools.go`, `store/threadtools.go`, the `tools-body` template in `templates/chat.html`, `migrations/013_thread_tools.sql` |
 | Which picture, voice or video model a user gets by default | `store/feedmedia.go → FeedMediaModel` |
 | Built-in agent tools | `engine/agents.go → addAgentTools` and `addManagerTools` |
@@ -107,6 +113,7 @@ Dependencies point one way: `web → engine → (llm, mcp, hub, store) → secre
 ## Five rules that keep the code healthy
 
 1. **SQL lives only in `store`.** Other packages call store functions.
+   A group never gets a personal tool: when you add a built-in tool for chats, add it after the `if tc.group { … return }` block in `openTools`.
 2. **Never edit a migration that has shipped.** Add a new numbered file. Migrations run by themselves at start-up.
 3. **No inline scripts or styles.** The browser policy forbids them. Put CSS in `style.css` and JS in `app.js`.
 4. **Check ownership on every handler.** Use `loadThread`, `loadOwnedThread` or `loadAgent`; they return "not found" for other people's data.
@@ -180,6 +187,9 @@ gofmt -l .           # should print nothing
 | `internal/engine/feed_test.go` | Feed tools, the agent daily limit, who is offered the feed, that shared posts of others never reach the model |
 | `internal/engine/clock_test.go` | Time stamps on messages, and that the prompt prefix stays the same between turns |
 | `internal/engine/memory_test.go` | Memory tools, per-user isolation, smart search, who is offered memory |
+| `internal/engine/groups_test.go` | A group's own memory and tool servers, that the kind of a chat never changes, looking into a group from a personal chat, losing membership |
+| `internal/web/groups_test.go` | Starting a group, who may manage it, the group memory page, the read-only link (no account, a copy in time, tools hidden, stopping), Take to my chat |
+| `internal/store/groups_test.go` | Migration 015 on an old database: shared chats become groups and every memory survives |
 | `internal/web/web_test.go` | Login, CSRF, uploads, permissions, admin |
 | `internal/web/agents_test.go` | Agent pages, the store, connecting agents |
 | `internal/web/planbook_test.go` | Plan Book page, permissions, projects, bin |

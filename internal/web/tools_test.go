@@ -72,24 +72,39 @@ func TestToolsMenu(t *testing.T) {
 		t.Fatalf("refused requests stored something: %v", off)
 	}
 
-	// Someone outside the chat, and a member who is not the owner.
+	// Someone outside the chat.
 	if code, _ := set(bob, mail, "1"); code != http.StatusNotFound {
 		t.Fatalf("outside the chat: %d", code)
 	}
-	inv, _ := a.st.CreateInvite(tid, alice.id, "member", 24*3600*1e9, 5)
+
+	// A group: only its admin switches, and only what belongs to the group.
+	gid, _ := a.st.CreateGroup(alice.id, 0, "Team")
+	inv, _ := a.st.CreateInvite(gid, alice.id, "member", 24*3600*1e9, 5)
 	a.st.AcceptInvite(inv, bob.id)
-	if code, _ := set(bob, mail, "1"); code != http.StatusForbidden {
-		t.Fatalf("a member who is not the owner: %d", code)
+	gpath := fmt.Sprintf("/t/%d", gid)
+	gset := func(c *client, key, on string) int {
+		code, _, _ := c.hxPost(gpath+"/tools", url.Values{"key": {key}, "on": {on}})
+		return code
 	}
-	if strings.Contains(bob.get(path), `id="tools-body"`) {
+	if code := gset(bob, store.ToolMemory, "0"); code != http.StatusForbidden {
+		t.Fatalf("a member who is not the admin: %d", code)
+	}
+	if strings.Contains(bob.get(gpath), `id="tools-body"`) {
 		t.Error("a member sees the Tools menu")
 	}
-	// In a group chat the personal groups cannot be switched: they are never used there.
-	if code, _ := set(alice, store.ToolMemory, "0"); code != http.StatusBadRequest {
-		t.Fatalf("memory in a group chat: %d", code)
+	// The admin's own Plan Book and tool server are no rows of a group.
+	for _, key := range []string{store.ToolPlan, store.ToolFeed, mail} {
+		if code := gset(alice, key, "0"); code != http.StatusBadRequest {
+			t.Errorf("%s in a group: %d, want 400", key, code)
+		}
 	}
-	if !strings.Contains(alice.get(path), "Not used in group chats") {
-		t.Error("the menu does not say why memory is unavailable in a group chat")
+	gpage := alice.get(gpath)
+	if !strings.Contains(gpage, "Group memory") || !strings.Contains(gpage, "personal tools are used here") || strings.Contains(gpage, ">Mail<") {
+		t.Error("the group's Tools menu should list the group's memory, say that personal tools stay out, and not list the admin's own server")
+	}
+	// The group's own memory can be switched off for the group.
+	if code := gset(alice, store.ToolMemory, "0"); code != 200 || !a.st.ThreadToolsOff(gid)[store.ToolMemory] {
+		t.Fatalf("the group's memory off: %d %v", code, a.st.ThreadToolsOff(gid))
 	}
 
 	// With messages in the chat, the menu warns about the cost; after a change it says so.
@@ -98,7 +113,6 @@ func TestToolsMenu(t *testing.T) {
 	if !strings.Contains(alice.get(path), "tools-cost") {
 		t.Error("no cost note in a chat that has messages")
 	}
-	a.st.SetThreadMCP(tid, alice.id, []int64{servers[0].ID}) // shared with the group, so it can be switched
 	if _, body := set(alice, mail, "1"); !strings.Contains(body, "Changed.") || !strings.Contains(body, "read the conversation again") {
 		t.Fatalf("after a change mid-chat: %q", body)
 	}

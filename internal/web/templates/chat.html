@@ -12,7 +12,8 @@
         <div class="topbar-title">
           <h1 id="thread-title">{{.Thread.Title}}</h1>
           <div class="topbar-meta">
-            <span class="meta-item">{{template "i-cpu"}}<span class="mono">{{.ModelName}}</span></span>
+            {{if and (eq .Role "owner") (not .Agent)}}<button type="button" class="meta-item meta-link meta-model" hx-get="/t/{{.Thread.ID}}/panel" hx-target="#panel" hx-swap="innerHTML show:#model-field:top" title="{{if .Group}}The model that answers everyone in this group. Click to change it.{{else}}The model that answers in this chat. Click to change it.{{end}}">{{template "i-cpu"}}<span class="mono">{{.ModelName}}</span>{{template "i-chevron-down"}}</button>
+            {{else}}<span class="meta-item"{{if .Group}} title="The model that answers everyone in this group. Its admin can change it."{{end}}>{{template "i-cpu"}}<span class="mono">{{.ModelName}}</span></span>{{end}}
             {{if .Agent}}
             <span class="meta-item">{{template "i-clock"}}{{schedule .Agent.ScheduleMinutes}}{{if and .Agent.Enabled .Agent.NextRunAt}}<span class="hide-sm"> · next {{short .Agent.NextRunAt}} UTC</span>{{end}}</span>
             <span class="meta-item">{{template "i-list"}}{{.OpenTasks}} open task{{if ne .OpenTasks 1}}s{{end}}</span>
@@ -20,7 +21,13 @@
             {{if .AgentLimit}}<span class="meta-item is-warn" title="It made all {{.Agent.DailyRuns}} automatic runs allowed today, so scheduled runs wait until midnight UTC. Raise the limit under Tasks &amp; settings → Setup → Limits, or press Run now.">{{template "i-alert"}}Daily limit reached</span>{{end}}
             {{end}}
             {{if .ConnectedCount}}<span class="meta-item">{{template "i-bot"}}{{.ConnectedCount}} agent{{if ne .ConnectedCount 1}}s{{end}} connected</span>{{end}}
-            {{if gt (len .Members) 1}}<span class="meta-item">{{template "i-users"}}{{len .Members}} people</span>{{end}}
+            {{if .Group}}
+            <span class="meta-item" title="A group: everyone in it writes here, and the AI answers one message at a time">{{template "i-users"}}Group<span class="hide-sm"> · {{len .Members}} {{if eq (len .Members) 1}}person{{else}}people{{end}}</span></span>
+            <a class="meta-item meta-link" href="/t/{{.Thread.ID}}/memory" title="What the AI keeps for this group. Everyone in the group can read it.">{{template "i-brain"}}{{if .GroupMemoryOn}}Memory{{else}}Memory off{{end}}</a>
+            {{if .GroupServers}}<span class="meta-item hide-sm" title="Tool servers that belong to this group">{{template "i-plug"}}{{.GroupServers}} tool server{{if ne .GroupServers 1}}s{{end}}</span>{{end}}
+            {{end}}
+            {{if .GroupsOn}}<span class="meta-item" title="The AI in this chat can read the memory and the latest messages of the groups you connected. Change it under Tools.">{{template "i-users"}}{{.GroupsOn}} group{{if ne .GroupsOn 1}}s{{end}} connected</span>{{end}}
+            {{if .Shared}}<span class="meta-item" title="Anyone who has the link can read this chat. Open Share to update or stop it.">{{template "i-link"}}Link shared</span>{{end}}
             {{if eq .Role "viewer"}}<span class="meta-item">{{template "i-eye"}}Read only</span>{{end}}
             <span class="meta-item ctx" id="ctx-meter" title="How full the AI's reading space is. When it fills up, older messages are summarised automatically."
                   data-pct="{{.ContextPct}}">{{template "i-gauge"}}<span class="ctx-bar"><i></i></span><span class="ctx-text">{{.ContextPct}}%</span></span>
@@ -32,7 +39,7 @@
           {{template "i-list"}}<span class="hide-sm">Tasks &amp; settings</span>
         </button>
         {{else}}
-        {{if eq .Role "owner"}}
+        {{if and (eq .Role "owner") (not .Group)}}
         <details class="row-menu top-menu agent-menu">
           <summary class="btn ghost" title="Connect your background agents to this chat">{{template "i-bot"}}<span class="hide-sm">Agents</span>{{if .ConnectedCount}}<span class="badge">{{.ConnectedCount}}</span>{{end}}</summary>
           <div class="menu" role="menu">
@@ -50,7 +57,7 @@
         </details>
         {{end}}
         <button id="panel-toggle" class="btn ghost" hx-get="/t/{{.Thread.ID}}/panel" hx-target="#panel" hx-swap="innerHTML">
-          {{if eq .Role "owner"}}{{template "i-user-plus"}}<span class="hide-sm">Share</span>{{else}}{{template "i-users"}}<span class="hide-sm">Members</span>{{end}}
+          {{if not .Group}}{{template "i-link"}}<span class="hide-sm">Share</span>{{else if eq .Role "owner"}}{{template "i-user-plus"}}<span class="hide-sm">People</span>{{else}}{{template "i-users"}}<span class="hide-sm">Members</span>{{end}}
         </button>
         {{end}}
         <details class="row-menu top-menu">
@@ -65,9 +72,9 @@
             <a href="/t/{{.Thread.ID}}/export?format=json" role="menuitem">{{template "i-code"}}Export as JSON</a>
             <div class="menu-sep"></div>
             {{if eq .Role "owner"}}
-            <button type="button" class="danger-text" data-delete="/t/{{.Thread.ID}}/delete" data-name="{{.Thread.Title}}">{{template "i-trash"}}{{if .Agent}}Delete agent{{else}}Delete chat{{end}}</button>
+            <button type="button" class="danger-text" data-delete="/t/{{.Thread.ID}}/delete" data-name="{{.Thread.Title}}">{{template "i-trash"}}{{if .Agent}}Delete agent{{else if .Group}}Delete group{{else}}Delete chat{{end}}</button>
             {{else}}
-            <button type="button" class="danger-text" data-leave="/t/{{.Thread.ID}}/leave" data-name="{{.Thread.Title}}">{{template "i-logout"}}Leave chat</button>
+            <button type="button" class="danger-text" data-leave="/t/{{.Thread.ID}}/leave" data-name="{{.Thread.Title}}">{{template "i-logout"}}Leave group</button>
             {{end}}
           </div>
         </details>
@@ -88,14 +95,14 @@
         <form class="composer" id="composer" autocomplete="off" data-vision="{{.Vision}}">
           <div class="composer-card" data-dropzone>
             <div class="att-tray" hidden></div>
-            <textarea name="content" id="input" rows="2" placeholder="{{if .Agent}}Give {{.Agent.Name}} an instruction: it starts a new run…{{else if gt (len .Members) 1}}Message the group…{{else}}Message Knitnox…{{end}}" aria-label="Message"></textarea>
+            <textarea name="content" id="input" rows="2" placeholder="{{if .Agent}}Give {{.Agent.Name}} an instruction: it starts a new run…{{else if .Group}}Message the group…{{else}}Message Knitnox…{{end}}" aria-label="Message"></textarea>
             <div class="composer-bar">
               <button type="button" class="tool-pill" data-attach aria-label="Attach images or files" title="Attach images, PDFs or text files">{{template "i-paperclip"}}<span class="hide-sm">Attach</span></button>
               <input type="file" class="file-input" accept="image/png,image/jpeg,image/webp,image/gif,.pdf,.txt,.md,.markdown,.csv,.json,.xml,.html,.yaml,.yml,.toml,.log,.go,.py,.js,.ts,.tsx,.jsx,.java,.c,.h,.cpp,.cs,.rs,.rb,.php,.sh,.sql,.css,.swift,.kt" multiple hidden>
               {{if and (eq .Role "owner") (not .Agent)}}
               <details class="row-menu tools-pick opens-up">
-                <summary class="tool-pill" title="Choose what the AI may use in this chat">{{template "i-wrench"}}<span class="hide-sm">Tools</span><span class="badge" id="tools-count"{{if not .ToolsOff}} hidden{{end}}>{{.ToolsOff}} off</span></summary>
-                <div class="menu" id="tools-body" role="menu" aria-label="Tools for this chat">{{template "tools-body" .}}</div>
+                <summary class="tool-pill" title="Choose what the AI may use in this {{if .Group}}group{{else}}chat{{end}}">{{template "i-wrench"}}<span class="hide-sm">Tools</span><span class="badge" id="tools-count"{{if not .ToolsOff}} hidden{{end}}>{{.ToolsOff}} off</span></summary>
+                <div class="menu" id="tools-body" role="menu" aria-label="Tools for this {{if .Group}}group{{else}}chat{{end}}">{{template "tools-body" .}}</div>
               </details>
               {{end}}
               <span class="queue-info" id="queue-info" aria-live="polite"></span>
@@ -107,7 +114,7 @@
           <p class="composer-foot"><span class="hide-touch">Enter to send · Shift+Enter for a new line · </span>{{if .Agent}}Each instruction starts a fresh run.{{else}}AI can make mistakes.{{end}}</p>
         </form>
         {{else}}
-        <p class="read-only-note">{{template "i-eye"}} You can read this chat but not post.</p>
+        <p class="read-only-note">{{template "i-eye"}} You can read this group but not post.</p>
         {{end}}
       </div>
     </div>
@@ -126,11 +133,14 @@
         </div>
 
         {{if .ModelOptions}}
+        {{if .Taken.Group}}
+        <div class="notice taken-note" role="status">{{template "i-users"}}<span>This new chat is yours alone, and it is connected to the group <b>{{.Taken.Title}}</b>: the AI can read that group's memory and latest messages, and it can use your own tools. Say below what to do{{if .Taken.Draft}} with the message{{end}}, for example “post this to my feed”.</span></div>
+        {{end}}
         <form class="composer" id="home-form" method="post" action="/t" enctype="multipart/form-data" autocomplete="off" data-max-files="{{.MaxFiles}}">
           <input type="hidden" name="_csrf" value="{{.CSRF}}">
           <div class="composer-card tall" data-dropzone>
             <div class="att-tray" hidden></div>
-            <textarea name="content" id="home-input" rows="3" placeholder="Ask anything, or drop a file here…" aria-label="Message"></textarea>
+            <textarea name="content" id="home-input" rows="3" placeholder="Ask anything, or drop a file here…" aria-label="Message"{{if .Taken.Draft}} data-caret-end{{end}}>{{.Taken.Draft}}</textarea>
             <div class="composer-bar">
               <button type="button" class="tool-pill" data-attach aria-label="Attach images or files" title="Attach images, PDFs or text files">{{template "i-paperclip"}}<span class="hide-sm">Attach</span></button>
               <input type="file" class="file-input" accept="image/png,image/jpeg,image/webp,image/gif,.pdf,.txt,.md,.markdown,.csv,.json,.xml,.html,.yaml,.yml,.toml,.log,.go,.py,.js,.ts,.tsx,.jsx,.java,.c,.h,.cpp,.cs,.rs,.rb,.php,.sh,.sql,.css,.swift,.kt" multiple hidden>
@@ -144,7 +154,7 @@
                 {{template "i-chevron-down"}}
               </label>
               <details class="row-menu tools-pick">
-                <summary class="tool-pill" title="Choose what the AI may use in this chat">{{template "i-wrench"}}<span class="hide-sm">Tools</span><span class="badge" data-tools-count hidden></span></summary>
+                <summary class="tool-pill" title="Choose what the AI may use in this chat">{{template "i-wrench"}}<span class="hide-sm">Tools</span><span class="badge" data-tools-count hidden></span>{{if .GroupsOn}}<span class="badge">{{.GroupsOn}} group{{if ne .GroupsOn 1}}s{{end}}</span>{{end}}</summary>
                 <div class="menu" role="group" aria-label="Tools for this chat">
                   <input type="hidden" name="tools_menu" value="1">
                   <p class="menu-note">What the AI may use <b>in this chat</b>. Untick what you do not need: answers get cheaper and stay on the point. You can change it later next to Attach.</p>
@@ -156,6 +166,14 @@
                   {{end}}
                   {{end}}
                   {{if not .ToolServers}}<p class="menu-note">No tool servers yet. They let the AI search, read mail or use your own services.</p>{{end}}
+                  {{if .ToolGroups}}
+                  <div class="menu-sep"></div>
+                  <div class="menu-label">Your groups</div>
+                  <p class="menu-note">Tick a group and the AI in this chat can read its memory and latest messages. It cannot write there.</p>
+                  {{range .ToolGroups}}
+                  <label class="tool-row"><input type="checkbox" class="switch-input" name="tool_on" value="{{.Key}}" data-group{{if .On}} checked{{end}}><span class="switch{{if .On}} is-on{{end}}" aria-hidden="true"></span><span class="grow"><span>{{.Name}}</span><small>{{.Hint}}</small></span></label>
+                  {{end}}
+                  {{end}}
                   <div class="menu-sep"></div>
                   <a href="/settings#mcp" role="menuitem">{{template "i-plug"}}Add or manage tool servers</a>
                 </div>
@@ -258,6 +276,13 @@
     <button type="button" class="btn sm" hx-post="/agents/{{.AgentID}}/run" hx-swap="none">{{template "i-refresh"}}Run again</button>
   </div>
   {{end}}
+  {{if .GroupNotice}}
+  <div class="agent-alert" id="group-notice" role="status">
+    {{template "i-users"}}
+    <span><b>This chat is now a group.</b> Chats with several people have become groups, with a memory and tools of their own, and your personal tools are no longer used here. Earlier messages stay as they were: if your Memory, Plan Book or tool servers answered in this chat before, the people in it can still read those answers.</span>
+    <button type="button" class="btn sm" hx-post="/t/{{.Thread.ID}}/notice" hx-target="#group-notice" hx-swap="outerHTML">{{template "i-check"}}OK</button>
+  </div>
+  {{end}}
   {{if .HasOlder}}<button type="button" class="load-earlier" data-load-earlier>{{template "i-chevron-up"}}Load earlier messages</button>{{end}}
   {{if .Thread.Summary}}
   <details class="memory">
@@ -277,6 +302,16 @@
       <button type="button" class="btn" hx-post="/agents/{{.Agent.ID}}/run" hx-swap="none">{{template "i-arrow-up"}}Run it now</button>
     </div>
     <p class="hint">Or type an instruction below. Its tools and schedule are under <b>Tasks &amp; settings</b> at the top.</p>
+    {{else if .Group}}
+    <span class="empty-icon">{{template "i-users"}}</span>
+    <p><b>{{.Thread.Title}} is ready</b></p>
+    <p>Everyone you invite writes here, and the AI answers one message at a time. The group has a memory and tools of its own. Nobody's personal tools are used here.</p>
+    {{if eq .Role "owner"}}
+    <div class="row wrap empty-next">
+      <button type="button" class="btn primary" hx-get="/t/{{.Thread.ID}}/panel" hx-target="#panel" hx-swap="innerHTML">{{template "i-user-plus"}}Invite people</button>
+    </div>
+    {{end}}
+    <p class="hint">Want the AI to use your own Feed, Plan Book or Memory with something said here? Press {{template "i-forward"}} <b>Take to my chat</b> under a message.</p>
     {{else}}
     <span class="logo xl" aria-hidden="true"></span>
     <p>Send a message to start the conversation.</p>
@@ -287,23 +322,40 @@
 </div>
 {{end}}
 
-{{/* The inside of the Tools menu of a chat. Needs .Tools, .ToolsOff, .ToolServers, .Thread; .ToolsMidChat for the note about cost. */}}
+{{/* The inside of the Tools menu of a chat. Needs .Tools, .ToolGroups, .ToolsOff, .ToolServers, .Group, .Thread; .ToolsMidChat for the note about cost. */}}
 {{define "tools-body"}}
 {{if .Changed}}<span class="badge" id="tools-count" hx-swap-oob="true"{{if not .ToolsOff}} hidden{{end}}>{{.ToolsOff}} off</span>{{end}}
-<p class="menu-note">What the AI may use <b>in this chat</b>. Switch off what you do not need: answers get cheaper and stay on the point.</p>
+{{if .Group}}<p class="menu-note">What the AI may use <b>in this group</b>. A group uses only what belongs to it: its own memory and its own tool servers. Nobody's personal tools are used here.</p>
+{{else}}<p class="menu-note">What the AI may use <b>in this chat</b>. Switch off what you do not need: answers get cheaper and stay on the point.</p>{{end}}
 {{if .ToolsMidChat}}<p class="menu-note tools-cost{{if .Changed}} is-fresh{{end}}">{{template "i-clock"}}<span>{{if .Changed}}<b>Changed.</b> {{end}}Changing tools in the middle of a chat makes the <b>next</b> reply a little slower and a little dearer, once: the AI provider has to read the conversation again from the start.</span></p>{{end}}
-{{range .Tools}}
-{{if .Ready}}
-<button type="button" role="menuitemcheckbox" aria-checked="{{.On}}" class="tool-row" hx-post="/t/{{$.Thread.ID}}/tools" hx-vals='{"key":"{{.Key}}","on":"{{if .On}}0{{else}}1{{end}}"}' hx-target="#tools-body" hx-swap="innerHTML">
-  <span class="switch{{if .On}} is-on{{end}}" aria-hidden="true"></span><span class="grow"><span>{{.Name}}</span><small>{{.Hint}}</small></span>
-</button>
+{{range .Tools}}{{template "tool-row" (toolIn $.Thread .)}}{{end}}
+{{if .Group}}
+{{if not .ToolServers}}<p class="menu-note">This group has no tool servers yet. They let the AI search the web or call a service for the group.</p>{{end}}
+<div class="menu-sep"></div>
+<button type="button" role="menuitem" hx-get="/t/{{.Thread.ID}}/panel" hx-target="#panel" hx-swap="innerHTML">{{template "i-plug"}}Add or manage the group's tool servers</button>
+<a href="/t/{{.Thread.ID}}/memory" role="menuitem">{{template "i-brain"}}Open the group's memory</a>
 {{else}}
-<div class="tool-row is-off"><span class="switch" aria-hidden="true"></span><span class="grow"><span>{{.Name}}</span><small>{{.Hint}}{{if .Setup}} · <a href="{{.Setup}}">Open</a>{{end}}</small></span></div>
+{{if not .ToolServers}}<p class="menu-note">No tool servers yet. They let the AI search, read mail or use your own services.</p>{{end}}
+{{if .ToolGroups}}
+<div class="menu-sep"></div>
+<div class="menu-label">Your groups</div>
+<p class="menu-note">Connect a group and the AI in this chat can read its memory and latest messages. It cannot write there.</p>
+{{range .ToolGroups}}{{template "tool-row" (toolIn $.Thread .)}}{{end}}
 {{end}}
-{{end}}
-{{if not .ToolServers}}<p class="menu-note">{{if .Group}}No tool servers are shared with this group chat. Tick them under <b>Share → Chat settings</b>.{{else}}No tool servers yet. They let the AI search, read mail or use your own services.{{end}}</p>{{end}}
 <div class="menu-sep"></div>
 <a href="/settings#mcp" role="menuitem">{{template "i-plug"}}Add or manage tool servers</a>
+{{end}}
+{{end}}
+
+{{/* One switch of the Tools menu. Needs .R (a toolRow) and .Thread. */}}
+{{define "tool-row"}}
+{{if .R.Ready}}
+<button type="button" role="menuitemcheckbox" aria-checked="{{.R.On}}" class="tool-row" hx-post="/t/{{.Thread.ID}}/tools" hx-vals='{"key":"{{.R.Key}}","on":"{{if .R.On}}0{{else}}1{{end}}"}' hx-target="#tools-body" hx-swap="innerHTML">
+  <span class="switch{{if .R.On}} is-on{{end}}" aria-hidden="true"></span><span class="grow"><span>{{.R.Name}}</span><small>{{.R.Hint}}</small></span>
+</button>
+{{else}}
+<div class="tool-row is-off"><span class="switch" aria-hidden="true"></span><span class="grow"><span>{{.R.Name}}</span><small>{{.R.Hint}}{{if .R.Setup}} · <a href="{{.R.Setup}}">Open</a>{{end}}</small></span></div>
+{{end}}
 {{end}}
 
 {{/* an older page of messages, prepended by app.js */}}
@@ -346,6 +398,7 @@
       {{if .Content}}<button type="button" class="act" data-copy-msg aria-label="Copy" title="Copy"><span class="ic">{{template "i-copy"}}</span><span class="ic-done">{{template "i-check"}}</span></button>{{end}}
       {{if .CanEdit}}<button type="button" class="act" data-edit-open aria-label="Edit" title="Edit">{{template "i-pencil"}}</button>{{end}}
       {{if .CanCancel}}<button type="button" class="act" data-cancel="/t/{{.ThreadID}}/runs/{{.RunID}}/cancel" aria-label="Remove from queue" title="Remove from queue">{{template "i-trash"}}</button>{{end}}
+      {{template "take-act" .}}
     </div>
   </div>
 </div>
@@ -374,7 +427,7 @@
     {{end}}
     {{range .Approvals}}
     <div class="approval" id="approval-{{.ID}}">
-      <div class="approval-head">{{template "i-shield"}}<span><span>The AI wants to run <b class="mono">{{.ToolName}}</b></span><small>from your <b>{{.ServerName}}</b> server · this may do things outside the chat</small></span></div>
+      <div class="approval-head">{{template "i-shield"}}<span><span>The AI wants to run <b class="mono">{{.ToolName}}</b></span><small>from the <b>{{.ServerName}}</b> tool server · this may do things outside the chat</small></span></div>
       {{if and .Args (ne .Args "{}")}}<pre><code class="language-json">{{.Args}}</code></pre>{{end}}
       {{if .CanDecide}}
       <div class="approval-actions">
@@ -390,6 +443,7 @@
       <button type="button" class="act" data-copy-msg aria-label="Copy" title="Copy"><span class="ic">{{template "i-copy"}}</span><span class="ic-done">{{template "i-check"}}</span></button>
       {{if or .CanSpeak .Audio}}<button type="button" class="act" data-speak="/t/{{.ThreadID}}/messages/{{.ID}}/speak"{{if .Audio}} data-audio="/files/{{.Audio.ID}}"{{end}} aria-label="Read aloud" title="{{if .Audio}}Listen{{else}}Read aloud{{end}}">{{template "i-volume"}}</button>{{end}}
       {{if .CanRegen}}<button type="button" class="act" data-regen="/t/{{.ThreadID}}/runs/{{.RunID}}/edit" aria-label="Regenerate" title="Regenerate">{{template "i-refresh"}}</button>{{end}}
+      {{template "take-act" .}}
     </div>
     {{end}}
   </div>
@@ -412,23 +466,27 @@
 {{end}}
 {{end}}
 
+{{/* "Take to my chat" under a message of a group: a new chat of the reader's own, connected to the group, with the message quoted. */}}
+{{define "take-act"}}{{if .CanTake}}<a class="act" href="/?group={{.ThreadID}}&amp;quote={{.ID}}" aria-label="Take to my chat" title="Take to my chat: opens a new chat of your own with this message quoted. It can read this group, and your own tools work there.">{{template "i-forward"}}</a>{{end}}{{end}}
+
 {{define "panel"}}
 <div class="panel-inner">
   <header class="panel-head">
-    <h2>{{if eq .Role "owner"}}Share &amp; settings{{else}}Members{{end}}</h2>
+    <h2>{{if not .Group}}Share &amp; settings{{else if eq .Role "owner"}}People &amp; settings{{else}}Members{{end}}</h2>
     <button class="icon-btn" type="button" data-close-panel aria-label="Close">{{template "i-x"}}</button>
   </header>
 
+  {{if .Group}}
   <section class="panel-section">
-    <h3>People in this chat</h3>
+    <h3>People in this group</h3>
     <ul class="members">
       {{range .Members}}
       <li>
         <span class="avatar sm">{{initial .Username}}</span>
         <span class="grow">{{.Username}}</span>
-        <span class="role-tag">{{.Role}}</span>
+        <span class="role-tag">{{if eq .Role "owner"}}admin{{else if eq .Role "viewer"}}read only{{else}}member{{end}}</span>
         {{if and (eq $.Role "owner") (ne .Role "owner")}}
-        <button class="icon-btn sm danger-hover" hx-post="/t/{{$.Thread.ID}}/members/{{.UserID}}/remove" hx-target="#panel" hx-confirm="Remove {{.Username}} from this chat?" aria-label="Remove {{.Username}}">{{template "i-x"}}</button>
+        <button class="icon-btn sm danger-hover" hx-post="/t/{{$.Thread.ID}}/members/{{.UserID}}/remove" hx-target="#panel" hx-confirm="Remove {{.Username}} from this group?" aria-label="Remove {{.Username}}">{{template "i-x"}}</button>
         {{end}}
       </li>
       {{end}}
@@ -438,7 +496,7 @@
   {{if eq .Role "owner"}}
   <section class="panel-section">
     <h3>Invite people</h3>
-    <p class="hint">Anyone with the link can join after signing in. Everyone's messages are answered one at a time, in order.</p>
+    <p class="hint">Anyone with the link can join after signing in. They can read everything written here, also from before they joined. Everyone's messages are answered one at a time, in order.</p>
     <form class="stack sm" hx-post="/t/{{.Thread.ID}}/invites" hx-target="#panel">
       <div class="seg">
         <label><input type="radio" name="role" value="member" checked><span>Can chat</span></label>
@@ -465,31 +523,121 @@
   </section>
 
   <section class="panel-section">
+    <h3>Group settings</h3>
+    <form class="stack sm" hx-post="/t/{{.Thread.ID}}/settings">
+      <label>Name <input name="title" value="{{.Thread.Title}}" maxlength="80"></label>
+      <label id="model-field">Model <small class="muted">one model answers everyone in the group · you can change it at any time</small>
+        {{template "model-select" .}}
+      </label>
+      <p class="hint">A model under <b>Yours</b> uses your own API key: you pay for everyone's messages in this group. Changing the model makes the next reply a little dearer, once.</p>
+      <label>Instructions for this group <small class="muted">optional — e.g. “Answer in Bengali”, “We are planning a wedding”</small>
+        <textarea name="instructions" rows="3" maxlength="4000" placeholder="Anything the AI should keep in mind in this group">{{.Thread.Instructions}}</textarea></label>
+      <button type="submit" class="btn primary">Save changes</button>
+    </form>
+  </section>
+
+  <section class="panel-section">
+    <h3>The group's tools</h3>
+    <p class="hint">Tool servers added here belong to this group, for example a web search or a service you all use. Every member can make the AI use them, so do not add one that acts with your private accounts. Your own tool servers are never used in a group.</p>
+    {{range .Servers}}
+    <div class="agent-tool{{if not .Enabled}} is-off{{end}}">
+      <div class="row">
+        <b class="grow own-name">{{.Name}}{{if not .Enabled}} <span class="badge">Disabled</span>{{end}}</b>
+        <button class="icon-btn sm danger-hover" hx-post="/t/{{$.Thread.ID}}/mcp/{{.ID}}" hx-vals='{"action":"delete"}' hx-target="#panel" hx-confirm="Delete {{.Name}}?" aria-label="Delete {{.Name}}">{{template "i-trash"}}</button>
+      </div>
+      <div class="provider-meta"><span class="mono">{{.URL}}</span>{{if .Headers}}<span class="dot">·</span><span>auth headers set</span>{{end}}</div>
+      <div class="row wrap">
+        <button class="chip{{if .Asks}} is-on{{end}}" hx-post="/t/{{$.Thread.ID}}/mcp/{{.ID}}" hx-vals='{"action":"approval"}' hx-target="#panel" title="Click to switch">{{if .Asks}}{{template "i-shield-check"}}Asks first{{else}}{{template "i-power"}}Automatic{{end}}</button>
+        <button class="btn ghost sm" hx-post="/settings/mcp/{{.ID}}/test" hx-target="#group-test-{{.ID}}" hx-indicator="this">Test</button>
+        <button class="btn ghost sm" hx-post="/t/{{$.Thread.ID}}/mcp/{{.ID}}" hx-vals='{"action":"toggle"}' hx-target="#panel">{{if .Enabled}}Disable{{else}}Enable{{end}}</button>
+      </div>
+      <div class="test-result" id="group-test-{{.ID}}"></div>
+    </div>
+    {{end}}
+    <details class="advanced"{{if not .Servers}} open{{end}}>
+      <summary>Add a tool server for this group</summary>
+      <form class="stack sm" hx-post="/t/{{.Thread.ID}}/mcp" hx-target="#panel">
+        <label>Name <input name="name" placeholder="web search" required></label>
+        <label>URL <input name="url" placeholder="https://example.com/mcp" required></label>
+        <label>Headers <small class="muted">optional, one per line</small>
+          <textarea name="headers" rows="2" placeholder="Authorization: Bearer …" class="mono"></textarea></label>
+        <label>When the AI wants to use a tool
+          <select name="approval">
+            <option value="ask">Ask first: the person who wrote, or you, must allow it</option>
+            <option value="auto">Run it automatically</option>
+          </select>
+        </label>
+        <button type="submit" class="btn primary sm">Add server</button>
+      </form>
+    </details>
+  </section>
+
+  <section class="panel-section">
+    <h3>The group's memory</h3>
+    <p class="hint">The AI keeps what the group decides and learns, and only the AI writes there. Everyone in the group can read it.</p>
+    <a class="btn block" href="/t/{{.Thread.ID}}/memory">{{template "i-brain"}}Open the group's memory</a>
+  </section>
+
+  <section class="panel-section">
+    <button class="btn danger block" hx-post="/t/{{.Thread.ID}}/delete" hx-confirm="Delete this group for everyone, with its messages and its memory? This cannot be undone.">{{template "i-trash"}}Delete group</button>
+  </section>
+  {{else}}
+  <section class="panel-section">
+    <a class="btn block" href="/t/{{.Thread.ID}}/memory">{{template "i-brain"}}Open the group's memory</a>
+  </section>
+  <section class="panel-section">
+    <button class="btn danger block" hx-post="/t/{{.Thread.ID}}/leave" hx-confirm="Leave this group?">{{template "i-logout"}}Leave group</button>
+  </section>
+  {{end}}
+
+  {{else}}{{/* a personal chat */}}
+  <section class="panel-section" id="share-link">
+    <h3>Share a link</h3>
+    {{if .ShareOff}}
+    <p class="hint">Read-only links are turned off on this server{{if .Share}}, so the link you made does not work at the moment{{end}}. {{if .Me.IsAdmin}}You can turn them on under <a href="/admin/settings#share-links">Admin panel → Settings</a>.{{else}}An admin can turn them on.{{end}}</p>
+    {{else}}
+    {{with .Share}}
+    <p class="hint">Anyone who has this link can <b>read</b> the chat. They need no account and cannot write.</p>
+    <div class="invite">
+      <div class="invite-link">
+        <input readonly value="{{.URL}}" class="mono" aria-label="Read-only link">
+        <button class="btn sm" type="button" data-copy="{{.URL}}">{{template "i-copy"}}Copy</button>
+      </div>
+      <div class="invite-meta">
+        <span>Shows the chat as it was on {{short .UpdatedAt}} UTC{{if .ShowTools}} · with tool results{{end}}</span>
+        <a class="link" href="{{.URL}}" target="_blank" rel="noopener">Open</a>
+      </div>
+    </div>
+    {{if .Behind}}<p class="hint share-behind">{{template "i-clock"}}<span>Messages you wrote after that are <b>not</b> in the link. Update it to show them.</span></p>{{end}}
+    <form class="stack sm" hx-post="/t/{{$.Thread.ID}}/share" hx-target="#panel">
+      <label class="check"><input type="checkbox" name="show_tools" value="1" {{if .ShowTools}}checked{{end}}>
+        <span>Also show what tools did<small>Leave this off if your tools answer with private things, such as memories, tasks or mail.</small></span></label>
+      <div class="row wrap">
+        <button type="submit" class="btn primary">{{template "i-refresh"}}Update the link to now</button>
+        <button type="button" class="btn" hx-post="/t/{{$.Thread.ID}}/share/stop" hx-target="#panel" hx-confirm="Stop sharing? The link will stop working for everyone.">Stop sharing</button>
+      </div>
+    </form>
+    {{else}}
+    <p class="hint">Make a link that lets anyone who has it <b>read</b> this chat. They need no account and cannot write. The link shows the chat as it is now; what you write later stays private until you update the link.</p>
+    <form class="stack sm" hx-post="/t/{{.Thread.ID}}/share" hx-target="#panel">
+      <label class="check"><input type="checkbox" name="show_tools" value="1">
+        <span>Also show what tools did<small>Leave this off if your tools answer with private things, such as memories, tasks or mail.</small></span></label>
+      <button type="submit" class="btn primary">{{template "i-link"}}Create a read-only link</button>
+    </form>
+    {{end}}
+    {{end}}
+    <p class="hint">Want others to write too? A personal chat stays yours alone. <a href="/groups/new">Start a group</a> for that.</p>
+  </section>
+
+  <section class="panel-section">
     <h3>Chat settings</h3>
     <form class="stack sm" hx-post="/t/{{.Thread.ID}}/settings">
       <label>Title <input name="title" value="{{.Thread.Title}}" maxlength="80"></label>
-      <label>Model
-        <select name="model_id">
-          {{range .ModelOptions}}
-          <option value="{{.ModelID}}" {{if and $.Thread.ModelID.Valid (eq .ModelID $.Thread.ModelID.Int64)}}selected{{end}}>{{.ModelName}} — {{.ProviderName}}{{if .Personal}} (your key){{end}}{{if not .Vision}} · text only{{end}}</option>
-          {{end}}
-        </select>
+      <label id="model-field">Model
+        {{template "model-select" .}}
       </label>
       <label>Instructions for this chat <small class="muted">optional — e.g. “Answer in Bengali”, “We are planning a wedding”</small>
         <textarea name="instructions" rows="3" maxlength="4000" placeholder="Anything the AI should keep in mind in this chat">{{.Thread.Instructions}}</textarea></label>
-      {{if .PersonalModel}}
-      <label class="check"><input type="checkbox" name="allow_owner_key" value="1" {{if .Thread.AllowOwnerKey}}checked{{end}}>
-        <span>Let members use my personal API key<small>Otherwise members' messages fail while this model is selected.</small></span></label>
-      {{end}}
-      <div class="field-group">
-        <div class="field-label">Tools for group members</div>
-        <p class="hint">Solo chats use all your enabled MCP servers. Once others join, only the servers ticked here are used — members would act with your credentials.</p>
-        {{range .MCP}}
-        <label class="check"><input type="checkbox" name="mcp" value="{{.ID}}" {{if .Approved}}checked{{end}}><span>{{.Name}}{{if .Asks}} <small>asks before running</small>{{end}}{{if not .Enabled}} <small>disabled</small>{{end}}</span></label>
-        {{else}}
-        <p class="hint">No MCP servers yet. Add them in <a href="/settings">Settings</a>.</p>
-        {{end}}
-      </div>
       <div class="field-group">
         <div class="field-label">Connected agents</div>
         <p class="hint">The AI in this chat can give a connected agent tasks, start it, and read its latest results. Disconnecting does not stop the agent.</p>
@@ -504,12 +652,21 @@
   </section>
 
   <section class="panel-section">
-    <button class="btn danger block" hx-post="/t/{{.Thread.ID}}/delete" hx-confirm="Delete this chat for everyone? This cannot be undone.">{{template "i-trash"}}Delete chat</button>
-  </section>
-  {{else}}
-  <section class="panel-section">
-    <button class="btn danger block" hx-post="/t/{{.Thread.ID}}/leave" hx-confirm="Leave this chat?">{{template "i-logout"}}Leave chat</button>
+    <button class="btn danger block" hx-post="/t/{{.Thread.ID}}/delete" hx-confirm="Delete this chat? This cannot be undone.">{{template "i-trash"}}Delete chat</button>
   </section>
   {{end}}
 </div>
+{{end}}
+
+{{/* The model picker of a chat or group: shared models first, then the owner's own. Needs .ModelOptions and .Thread. */}}
+{{define "model-select"}}
+<select name="model_id">
+  {{$cur := 0}}{{if .Thread.ModelID.Valid}}{{$cur = .Thread.ModelID.Int64}}{{end}}
+  {{with sharedModels .ModelOptions}}<optgroup label="Shared on this server">
+    {{range .}}<option value="{{.ModelID}}" {{if eq .ModelID $cur}}selected{{end}}>{{.ModelName}} — {{.ProviderName}}{{if not .Vision}} · text only{{end}}</option>{{end}}
+  </optgroup>{{end}}
+  {{with ownModels .ModelOptions}}<optgroup label="Yours (your key pays)">
+    {{range .}}<option value="{{.ModelID}}" {{if eq .ModelID $cur}}selected{{end}}>{{.ModelName}} — {{.ProviderName}}{{if not .Vision}} · text only{{end}}</option>{{end}}
+  </optgroup>{{end}}
+</select>
 {{end}}

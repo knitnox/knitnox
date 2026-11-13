@@ -87,11 +87,11 @@ func (s *Server) memoryData(r *http.Request, tab string) map[string]any {
 	ms, _ := s.st.MemorySettingsFor(u.ID)
 	ev := embedView{}
 	key := ""
-	if em := s.eng.MemoryEmbedder(u.ID); em != nil {
+	if em := s.eng.MemoryEmbedder(store.UserMemory(u.ID)); em != nil {
 		ev = embedView{On: true, Model: em.Model, Provider: em.Provider, Personal: em.Personal}
 		key = em.Key
 	}
-	stats := s.st.MemoryStats(u.ID, key)
+	stats := s.st.MemoryStats(store.UserMemory(u.ID), key)
 	if ev.On {
 		ev.Pending = stats.Memories - stats.Indexed
 	}
@@ -120,11 +120,11 @@ func (s *Server) memoryPage(w http.ResponseWriter, r *http.Request) {
 	var err error
 	if q != "" {
 		var smart bool
-		mems, smart, err = s.eng.SearchMemory(r.Context(), u.ID, q, memorySearchSize)
+		mems, smart, err = s.eng.SearchMemory(r.Context(), store.UserMemory(u.ID), q, memorySearchSize)
 		data["Smart"] = smart
 	} else {
 		before, _ := parseInt(r.URL.Query().Get("before"))
-		mems, err = s.st.ListMemories(u.ID, filter, before, memoryPageSize+1)
+		mems, err = s.st.ListMemories(store.UserMemory(u.ID), filter, before, memoryPageSize+1)
 		if len(mems) > memoryPageSize {
 			mems = mems[:memoryPageSize]
 			data["Older"] = "/memory?" + url.Values{"filter": {filter}, "before": {fmt.Sprint(mems[len(mems)-1].ID)}}.Encode()
@@ -141,7 +141,7 @@ func (s *Server) memoryPage(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) memoryCreate(w http.ResponseWriter, r *http.Request) {
 	in := memoryInputFromForm(r)
-	if _, err := s.eng.SaveMemory(currentUser(r).ID, in); err != nil {
+	if _, err := s.eng.SaveMemory(store.UserMemory(currentUser(r).ID), in); err != nil {
 		if errors.Is(err, store.ErrEmptyMemory) {
 			s.errorPage(w, r, http.StatusBadRequest, "Write what should be remembered first.")
 			return
@@ -154,7 +154,7 @@ func (s *Server) memoryCreate(w http.ResponseWriter, r *http.Request) {
 
 // loadMemory returns the memory in the path if the current user owns it.
 func (s *Server) loadMemory(w http.ResponseWriter, r *http.Request) (*store.Memory, bool) {
-	m, err := s.st.MemoryByID(currentUser(r).ID, pathID(r, "id"))
+	m, err := s.st.MemoryByID(store.UserMemory(currentUser(r).ID), pathID(r, "id"))
 	if err != nil {
 		s.errorPage(w, r, http.StatusNotFound, "Memory not found.")
 		return nil, false
@@ -180,7 +180,7 @@ func (s *Server) memoryUpdate(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := s.eng.UpdateMemory(m.UserID, m.ID, memoryInputFromForm(r)); err != nil {
+	if err := s.eng.UpdateMemory(m.Owner(), m.ID, memoryInputFromForm(r)); err != nil {
 		if errors.Is(err, store.ErrEmptyMemory) {
 			s.flash(w, r, "A memory needs some text. To remove it, use the bin button instead.")
 			return
@@ -196,7 +196,7 @@ func (s *Server) memoryPin(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := s.st.SetMemoryPinned(m.UserID, m.ID, !m.Pinned); err != nil {
+	if err := s.st.SetMemoryPinned(m.Owner(), m.ID, !m.Pinned); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
@@ -208,7 +208,7 @@ func (s *Server) memoryDelete(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := s.st.DeleteMemory(m.UserID, m.ID); err != nil {
+	if err := s.st.DeleteMemory(m.Owner(), m.ID); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
@@ -223,7 +223,7 @@ func (s *Server) memoryDelete(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) memoryThings(w http.ResponseWriter, r *http.Request) {
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
-	things, err := s.st.ListEntities(currentUser(r).ID, q, 300)
+	things, err := s.st.ListEntities(store.UserMemory(currentUser(r).ID), q, 300)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
@@ -235,17 +235,17 @@ func (s *Server) memoryThings(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) memoryThing(w http.ResponseWriter, r *http.Request) {
 	u := currentUser(r)
-	thing, err := s.st.EntityByID(u.ID, pathID(r, "eid"))
+	thing, err := s.st.EntityByID(store.UserMemory(u.ID), pathID(r, "eid"))
 	if err != nil {
 		s.errorPage(w, r, http.StatusNotFound, "That thing is not in your memory (any more).")
 		return
 	}
-	rels, relTotal, err := s.st.EntityRelations(u.ID, thing.ID, memoryThingRels, 0)
+	rels, relTotal, err := s.st.EntityRelations(store.UserMemory(u.ID), thing.ID, memoryThingRels, 0)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	mems, memTotal, err := s.st.EntityMemories(u.ID, thing.ID, memoryThingMems)
+	mems, memTotal, err := s.st.EntityMemories(store.UserMemory(u.ID), thing.ID, memoryThingMems)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
@@ -260,11 +260,11 @@ func (s *Server) memoryThing(w http.ResponseWriter, r *http.Request) {
 func (s *Server) memoryThingRename(w http.ResponseWriter, r *http.Request) {
 	u := currentUser(r)
 	id := pathID(r, "eid")
-	if _, err := s.st.EntityByID(u.ID, id); err != nil {
+	if _, err := s.st.EntityByID(store.UserMemory(u.ID), id); err != nil {
 		s.errorPage(w, r, http.StatusNotFound, "That thing is not in your memory (any more).")
 		return
 	}
-	keep, err := s.st.RenameEntity(u.ID, id, r.FormValue("name"))
+	keep, err := s.st.RenameEntity(store.UserMemory(u.ID), id, r.FormValue("name"))
 	if err != nil {
 		s.errorPage(w, r, http.StatusBadRequest, "Could not rename: "+err.Error())
 		return
@@ -279,7 +279,7 @@ func (s *Server) memoryThingRename(w http.ResponseWriter, r *http.Request) {
 // memoryGraph answers the map on the page: a small part of the graph as JSON.
 func (s *Server) memoryGraph(w http.ResponseWriter, r *http.Request) {
 	focus, _ := parseInt(r.URL.Query().Get("focus"))
-	g, err := s.st.MemoryGraphAround(currentUser(r).ID, focus, memoryGraphNodes)
+	g, err := s.st.MemoryGraphAround(store.UserMemory(currentUser(r).ID), focus, memoryGraphNodes)
 	if err != nil {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
@@ -379,7 +379,7 @@ func (s *Server) memorySearchSettings(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	s.eng.IndexMemoriesSoon(u.ID)
+	s.eng.IndexMemoriesSoon(store.UserMemory(u.ID))
 	http.Redirect(w, r, "/memory/settings?done=search", http.StatusSeeOther)
 }
 
@@ -409,7 +409,7 @@ func (s *Server) memorySearchTest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if pid == 0 {
-		em := s.eng.MemoryEmbedder(u.ID)
+		em := s.eng.MemoryEmbedder(store.UserMemory(u.ID))
 		if em == nil {
 			fmt.Fprint(w, "Pick a provider and type a model name first.")
 			return
@@ -434,13 +434,13 @@ func (s *Server) memorySearchTest(w http.ResponseWriter, r *http.Request) {
 // memoryReindex makes vectors for everything that has none yet and reports.
 func (s *Server) memoryReindex(w http.ResponseWriter, r *http.Request) {
 	u := currentUser(r)
-	if s.eng.MemoryEmbedder(u.ID) == nil {
+	if s.eng.MemoryEmbedder(store.UserMemory(u.ID)) == nil {
 		fmt.Fprint(w, "There is no embedding model yet, so there is nothing to prepare.")
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
 	defer cancel()
-	n, err := s.eng.IndexMemories(ctx, u.ID)
+	n, err := s.eng.IndexMemories(ctx, store.UserMemory(u.ID))
 	if err != nil {
 		fmt.Fprintf(w, "Prepared %d, then stopped: %s", n, templateEscape(preview(err.Error(), 300)))
 		return
@@ -457,7 +457,7 @@ func (s *Server) memoryDeleteAll(w http.ResponseWriter, r *http.Request) {
 		s.errorPage(w, r, http.StatusBadRequest, "Type the word delete to confirm.")
 		return
 	}
-	if err := s.st.DeleteAllMemories(currentUser(r).ID); err != nil {
+	if err := s.st.DeleteAllMemories(store.UserMemory(currentUser(r).ID)); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
@@ -485,7 +485,7 @@ func (s *Server) memoryExport(w http.ResponseWriter, r *http.Request) {
 	items := []item{}
 	var before int64
 	for {
-		page, err := s.st.ListMemories(u.ID, "", before, 500)
+		page, err := s.st.ListMemories(store.UserMemory(u.ID), "", before, 500)
 		if err != nil {
 			s.serverError(w, r, err)
 			return

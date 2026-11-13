@@ -402,7 +402,7 @@ func (s *Store) SetAgentMCP(agentID, ownerID int64, tools []AgentTool) error {
 	}
 	for _, t := range tools {
 		if _, err := tx.Exec(`INSERT OR IGNORE INTO agent_mcp(agent_id, mcp_server_id, tools)
-			SELECT ?, id, ? FROM mcp_servers WHERE id = ? AND user_id = ? AND agent_id IS NULL`, agentID, NormalizeToolList(t.Tools), t.ServerID, ownerID); err != nil {
+			SELECT ?, id, ? FROM mcp_servers WHERE id = ? AND user_id = ? AND agent_id IS NULL AND group_id IS NULL`, agentID, NormalizeToolList(t.Tools), t.ServerID, ownerID); err != nil {
 			return err
 		}
 	}
@@ -431,7 +431,7 @@ func (s *Store) AgentMCP(agentID int64) (map[int64]AgentTool, error) {
 // servers plus the owner's shared servers ticked for it.
 func (s *Store) AgentMCPServers(a *Agent) ([]MCPServer, error) {
 	rows, err := s.DB.Query(`SELECT `+mcpCols+` FROM mcp_servers WHERE user_id = ? AND enabled = 1
-		AND (agent_id = ? OR (agent_id IS NULL AND id IN (SELECT mcp_server_id FROM agent_mcp WHERE agent_id = ?)))
+		AND (agent_id = ? OR (agent_id IS NULL AND group_id IS NULL AND id IN (SELECT mcp_server_id FROM agent_mcp WHERE agent_id = ?)))
 		ORDER BY id`, a.UserID, a.ID, a.ID)
 	if err != nil {
 		return nil, err

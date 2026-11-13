@@ -66,17 +66,60 @@ When a chat gets very long, older messages are summarised so the AI can keep goi
 ## Tell the AI how to behave
 
 - **In all your own chats:** **Settings → Custom instructions**. Example: "Answer in Bengali" or "Keep answers short".
-- **In one chat only:** open the chat, click **Share**, and fill in **Instructions for this chat**.
+- **In one chat only:** open the chat, click **Share**, and fill in **Instructions for this chat**. In a group it is **People → Group settings**, and only the admin can change it. Your personal instructions are never used in a group.
 
-## Chat with other people
+## Chat with other people: groups
 
-1. Open a chat you own and click **Share**.
-2. Choose **Can chat** or **Read only**, then click **Create invite link**.
-3. Send the link. Anyone who opens it and signs in joins the chat.
+A chat is one of two kinds, and it stays that kind for good:
 
-Everyone's messages go into one queue and the AI answers them one at a time. The AI sees who wrote each message.
+| Kind | Who writes | What the AI may use |
+|---|---|---|
+| **Your own chat** | Only you | Your Memory, Plan Book, Feed, pictures, agents and tool servers |
+| **A group** | Everyone you invite | Only what belongs to the group: its own memory and its own tool servers |
 
-> **Safe by default.** Group members cannot use your tools or your personal API key unless you tick them under **Share → Chat settings**.
+A chat of your own never turns into a group, and a group never turns into a personal chat. That way nothing your personal tools answered can end up in front of other people.
+
+### Start a group
+
+1. Click **New group** in the sidebar.
+2. Give it a name and pick the model that answers. A model under **Yours** uses your own API key: you pay for everyone's messages in that group.
+3. Click **Create the group**, then **Invite people**. Choose **Can chat** or **Read only**, click **Create invite link** and send the link. Anyone who opens it and signs in joins.
+
+Everyone's messages go into one queue and the AI answers them one at a time. The AI sees who wrote each message. People who join later can read what was written before.
+
+You are the group's **admin**: only you invite and remove people, change the name, the model and the instructions, add tool servers and delete the group.
+
+### What a group has
+
+- **Its own memory.** The AI saves what the group decides and learns, and looks it up later. Open it with **Memory** at the top of the group. Everyone in the group can read it. **Only the AI writes there**: nobody can add or change a fact, so nobody can plant one. A fact that is wrong can be deleted, by the admin, or by the person whose message it came from.
+- **Its own tools.** The admin adds tool servers under **People → The group's tools**, for example a web search. Every member can make the AI use them, so do not add one that acts with your private accounts.
+- **One model**, chosen by the admin.
+
+Nobody's personal tools are used in a group, also not the admin's.
+
+### Use your own tools with something said in a group
+
+Say the group decided something and you want it in your Feed or your Plan Book.
+
+1. Under the message, click **Take to my chat** (the arrow).
+2. A new chat of your own opens with the message quoted. It is **connected** to the group: its AI can read the group's memory and latest messages, but cannot write there.
+3. Say what to do, for example "post this to my feed".
+
+You can also connect a group without a message: open the **Tools** menu of your chat (or of the home screen) and switch the group on under **Your groups**. If you leave a group or are removed, the chat can no longer read it.
+
+## Show a chat to others: a read-only link
+
+1. Open a chat of your own and click **Share**.
+2. Click **Create a read-only link** and send it.
+
+Anyone who has the link can **read** the chat. They need no account and cannot write.
+
+- The link shows the chat **as it was when you made it**. What you write later stays private until you click **Update the link to now**.
+- Tool calls and their results are left out unless you tick **Also show what tools did**. Leave it off if your tools answer with private things.
+- **Stop sharing** makes the link stop working for everyone.
+- An admin can turn read-only links off for the whole server.
+
+Want others to write too? Start a group instead.
 
 ## Give the AI tools (MCP servers)
 
@@ -109,7 +152,8 @@ Click **Tools** next to **Attach**, on the home screen before you start or in an
 - The button shows how many things are off, for example **Tools · 2 off**.
 - Fewer tools make answers cheaper and keep the AI on the point. Switching Memory off is also the way to have one chat the AI remembers nothing from.
 - **In the middle of a chat** the menu shows a note: after a change, the next reply is a little slower and costs a little more, once, because the AI provider has to read the conversation again from the start. Choosing before the first message costs nothing.
-- In a group chat only the owner sees the button, and the personal rows (Memory, Plan Book, Feed, Pictures) are off for everyone.
+- **Your groups** at the end of the menu connects this chat to a group you are in, so the AI can read that group's memory and latest messages.
+- In a group only the admin sees the button. It lists what belongs to the group: **Group memory** and the group's tool servers. Personal tools are not listed, because a group never uses them.
 
 ## Agents: workers that run in the background
 
@@ -232,7 +276,7 @@ Open the settings button, then **Who may post**. The AI cannot post until you cl
 
 To let an agent post, open the agent, go to **Setup** → **Which tools may it use?**, tick **Feed**, set its posts per day and save. When the limit is reached, the agent keeps working but posts nothing more that day.
 
-What the AI and agents post is always private. Only you can share a post. They can read your own posts but never what other people shared. The feed is never used in group chats.
+What the AI and agents post is always private. Only you can share a post. They can read your own posts but never what other people shared. The feed is never used in groups; to post something said in a group, click **Take to my chat** under the message.
 
 ### What a post can carry
 
@@ -299,7 +343,7 @@ The AI cannot see your Plan Book until you click **Let the AI use it** (on the b
 - "What is on my plan today?"
 - "Mark the passport task as done."
 
-The Plan Book is never used in group chats. To let an agent use it, open the agent, go to **Setup** → **Which tools may it use?** → **Plan Book**, and choose **Read them** or **Read, add, change and delete them**. Tasks added by the AI or an agent are labelled, and anything they delete goes to the bin.
+The Plan Book is never used in groups; to add something said in a group, click **Take to my chat** under the message. To let an agent use it, open the agent, go to **Setup** → **Which tools may it use?** → **Plan Book**, and choose **Read them** or **Read, add, change and delete them**. Tasks added by the AI or an agent are labelled, and anything they delete goes to the bin.
 
 ## Memory: what the AI remembers about you
 
@@ -312,7 +356,7 @@ Memory is **off** until you click **Turn on memory**. You can turn it off again 
 | Where | What happens |
 |---|---|
 | Your own chats | The AI can save facts and look them up |
-| Group chats | Memory is never used |
+| Groups | Your memory is never used. A group has a separate memory of its own |
 | Agents | Only an agent you allowed, and it can only read |
 
 ### Use it in a chat

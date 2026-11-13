@@ -513,6 +513,10 @@ func (s *Server) threadAgentToggle(w http.ResponseWriter, r *http.Request) {
 		s.errorPage(w, r, http.StatusBadRequest, "An agent's own page cannot manage other agents.")
 		return
 	}
+	if t.IsGroup() { // agents are personal, and a group uses nobody's personal tools
+		s.errorPage(w, r, http.StatusBadRequest, "Agents cannot be connected to a group. Use Take to my chat under a message instead.")
+		return
+	}
 	if _, err := s.st.ToggleThreadAgent(t.ID, t.OwnerUserID, pathID(r, "aid")); err != nil {
 		s.errorPage(w, r, http.StatusNotFound, "Agent not found.")
 		return

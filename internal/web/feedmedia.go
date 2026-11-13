@@ -183,7 +183,7 @@ func (s *Server) memoryModelAdd(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	s.eng.IndexMemoriesSoon(u.ID)
+	s.eng.IndexMemoriesSoon(store.UserMemory(u.ID))
 	http.Redirect(w, r, "/memory/settings?done=search", http.StatusSeeOther)
 }
 

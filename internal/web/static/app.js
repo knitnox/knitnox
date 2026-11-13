@@ -292,6 +292,25 @@
     const form = $(".plan-add.is-open");
     if (form && !form.contains(e.target) && !e.target.closest("[data-plan-fill]") && !("keepOpen" in form.dataset) && !$("#plan-title").value.trim()) form.classList.remove("is-open");
   });
+  // The "Added … / Undo" bar comes back with the list after each change. It goes away by itself after a
+  // few seconds, but waits while the pointer is on it or its button has focus, so Undo stays in reach.
+  function dismissPlanUndo(root) {
+    const dock = root.querySelector?.(".plan-undo-dock") || (root.matches?.(".plan-undo-dock") && root);
+    if (!dock || dock.dataset.timed) return;
+    dock.dataset.timed = "1";
+    let timer;
+    const start = () => { clearTimeout(timer); timer = setTimeout(() => {
+      if (dock.matches(":hover") || dock.contains(document.activeElement)) { start(); return; }
+      dock.classList.add("is-leaving");
+      setTimeout(() => dock.remove(), 250);
+    }, 6000); };
+    dock.addEventListener("pointerenter", () => clearTimeout(timer));
+    dock.addEventListener("pointerleave", start);
+    dock.addEventListener("focusout", (e) => { if (!dock.contains(e.relatedTarget)) start(); });
+    start();
+  }
+  document.addEventListener("htmx:afterSwap", (e) => dismissPlanUndo(e.target));
+  dismissPlanUndo(document);
   document.addEventListener("change", (e) => {
     if (!e.target.matches?.("[data-plan-pick]")) return;
     const date = $(".plan-date", e.target.form);

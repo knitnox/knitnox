@@ -1427,6 +1427,7 @@ main:focus, main:focus-visible { outline: none; }
 .plan-undo > .i { width: 22px; height: 22px; padding: 4px; border-radius: 50%; flex-shrink: 0; background: var(--ok-soft); color: var(--ok); stroke-width: 2.5; }
 .plan-undo span { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 500; }
 .plan-undo form { margin: 0; }
+.plan-undo-dock.is-leaving .plan-undo { opacity: 0; transform: translateY(6px); transition: opacity .25s var(--ease), transform .25s var(--ease); }
 
 /* today in words, and the next seven days */
 .plan-glance { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px; margin-bottom: 16px; }

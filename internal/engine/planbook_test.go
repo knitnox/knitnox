@@ -43,7 +43,7 @@ func TestPlanTools(t *testing.T) {
 	lastWeek := time.Now().UTC().AddDate(0, 0, -7).Format("2006-01-02")
 
 	out := callTool(ts, "plan_add", `{"title":"Call Sam about the invoice","due":"`+tomorrow+`","project":"Move House","notes":"He prefers mornings."}`)
-	if !strings.HasPrefix(out, "Added: #1 [todo] Call Sam about the invoice — due "+tomorrow+" (tomorrow) · project: Move House") {
+	if !strings.HasPrefix(out, "Added: #1 [todo] Call Sam about the invoice, due "+tomorrow+" (tomorrow) · project: Move House") {
 		t.Fatalf("add = %q", out)
 	}
 	callTool(ts, "plan_add", `{"title":"Book the van","due":"`+lastWeek+`","project":"move house"}`)
@@ -78,14 +78,14 @@ func TestPlanTools(t *testing.T) {
 	if out := callTool(ts, "plan_list", `{"project":"Nope"}`); !strings.Contains(out, "no project called") {
 		t.Fatalf("unknown project = %q", out)
 	}
-	if out := callTool(ts, "plan_projects", `{}`); out != "- Move House — 2 open, 0 done\n" {
+	if out := callTool(ts, "plan_projects", `{}`); out != "- Move House: 2 open, 0 done\n" {
 		t.Fatalf("projects = %q", out)
 	}
 
 	if out := callTool(ts, "plan_update", `{"id":2,"status":"done"}`); !strings.HasPrefix(out, "Now: #2 [done] Book the van") {
 		t.Fatalf("finish = %q", out)
 	}
-	if out := callTool(ts, "plan_update", `{"id":3,"title":"Buy oat milk","due":"`+today+`","project":"Groceries"}`); !strings.Contains(out, "Buy oat milk — due "+today+" (today) · project: Groceries") {
+	if out := callTool(ts, "plan_update", `{"id":3,"title":"Buy oat milk","due":"`+today+`","project":"Groceries"}`); !strings.Contains(out, "Buy oat milk, due "+today+" (today) · project: Groceries") {
 		t.Fatalf("update = %q", out)
 	}
 	if out := callTool(ts, "plan_update", `{"id":3,"due":"","project":""}`); out != "Now: #3 [todo] Buy oat milk" {
@@ -128,7 +128,7 @@ func TestPlanTools(t *testing.T) {
 		"plan_update": `{"id":1,"title":"hacked"}`, "plan_delete": `{"id":1}`, "plan_list ": `{"project":"Move House"}`,
 	} {
 		out := callTool(bobs, strings.TrimSpace(name), args)
-		if strings.Contains(out, "Call Sam") || strings.Contains(out, "Move House —") || strings.HasPrefix(out, "Now:") || strings.Contains(out, "is in the bin") {
+		if strings.Contains(out, "Call Sam") || strings.Contains(out, "Move House:") || strings.HasPrefix(out, "Now:") || strings.Contains(out, "is in the bin") {
 			t.Errorf("%s reached another user's Plan Book: %q", name, out)
 		}
 	}

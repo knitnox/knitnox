@@ -92,13 +92,13 @@ func TestMemoryTools(t *testing.T) {
 	}
 
 	out = callTool(ts, "memory_explore", `{"thing":"tanim"}`)
-	for _, want := range []string{"Tanim — 2 memories, 1 connection.", "Tanim —founded→ Wish & Cook (memory #1)", "#2 ["} {
+	for _, want := range []string{"Tanim: 2 memories, 1 connection.", "Tanim -founded→ Wish & Cook (memory #1)", "#2 ["} {
 		if !strings.Contains(out, want) {
 			t.Errorf("explore is missing %q in %q", want, out)
 		}
 	}
 	// One hop further, by following a name from the answer.
-	if out := callTool(ts, "memory_explore", `{"thing":"Wish & Cook"}`); !strings.Contains(out, "Wish & Cook —is in→ Dhaka") {
+	if out := callTool(ts, "memory_explore", `{"thing":"Wish & Cook"}`); !strings.Contains(out, "Wish & Cook -is in→ Dhaka") {
 		t.Fatalf("second hop = %q", out)
 	}
 	if out := callTool(ts, "memory_explore", `{"thing":"Nobody"}`); !strings.Contains(out, "no thing called") || !strings.Contains(out, "Tanim") {
@@ -106,7 +106,7 @@ func TestMemoryTools(t *testing.T) {
 	}
 
 	out = callTool(ts, "memory_read", `{"ids":[1]}`)
-	if !strings.Contains(out, "Tanim founded Wish & Cook in Dhaka.") || !strings.Contains(out, "connection: Tanim —founded→ Wish & Cook") {
+	if !strings.Contains(out, "Tanim founded Wish & Cook in Dhaka.") || !strings.Contains(out, "connection: Tanim -founded→ Wish & Cook") {
 		t.Fatalf("read = %q", out)
 	}
 

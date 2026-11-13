@@ -109,7 +109,7 @@ func TestFeedModelsAndKinds(t *testing.T) {
 	if p := bob.get("/settings"); !strings.Contains(p, "my-painter") || !strings.Contains(p, "api.example.com") {
 		t.Error("the model added in Feed settings is not listed under Settings")
 	}
-	if p := bob.get("/feed/settings"); !strings.Contains(p, "my-painter — api.example.com (your own)") || !strings.Contains(p, `data-quick-provider`) {
+	if p := bob.get("/feed/settings"); !strings.Contains(p, "my-painter · api.example.com (your own)") || !strings.Contains(p, `data-quick-provider`) {
 		t.Error("feed settings does not offer bob's own model and provider")
 	}
 	// A second model on the provider he already has: no address or key again.

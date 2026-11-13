@@ -70,7 +70,7 @@ func planLine(t store.PlanTask, today string) string {
 	line := fmt.Sprintf("#%d [%s] %s", t.ID, t.Status, t.Title)
 	if t.Due != "" {
 		words, _ := DueWords(t.Due, today)
-		line += fmt.Sprintf(" — due %s (%s)", t.Due, words)
+		line += fmt.Sprintf(", due %s (%s)", t.Due, words)
 	}
 	if t.Project != "" {
 		line += " · project: " + t.Project
@@ -210,9 +210,9 @@ func (e *Engine) addPlanTools(ts *toolset, userID int64, by store.PlanActor, wri
 					fmt.Fprintf(&b, "(and %d more)\n", len(projects)-i)
 					break
 				}
-				fmt.Fprintf(&b, "- %s — %d open, %d done", p.Name, p.Open, p.Done)
+				fmt.Fprintf(&b, "- %s: %d open, %d done", p.Name, p.Open, p.Done)
 				if p.Notes != "" {
-					b.WriteString(" — " + oneLine(p.Notes, 160))
+					b.WriteString(". " + oneLine(p.Notes, 160))
 				}
 				b.WriteString("\n")
 			}

@@ -228,7 +228,7 @@
                 hx-confirm="Delete model {{.Name}}?" aria-label="Delete model">{{template "i-x"}}</button>
       </div>
       {{else}}
-      <p class="models-empty">No models yet — fetch the list from the provider or add model IDs by hand.</p>
+      <p class="models-empty">No models yet. Fetch the list from the provider, or add model IDs by hand.</p>
       {{end}}
     </div>
 
@@ -298,7 +298,7 @@
 {{if .Providers}}
 <label class="span-2">Provider
   <select name="provider_id" data-quick-provider>
-    {{range .Providers}}<option value="{{.ID}}">{{.Name}} — {{.BaseURL}}</option>{{end}}
+    {{range .Providers}}<option value="{{.ID}}">{{.Name}} · {{.BaseURL}}</option>{{end}}
     <option value="0">A new provider…</option>
   </select>
 </label>
@@ -318,7 +318,7 @@
     <label>Name <input name="name" placeholder="OpenAI" required></label>
     <label>Base URL <input name="base_url" placeholder="https://api.openai.com/v1" required></label>
     <label>API key <input name="api_key" type="password" placeholder="sk-… (optional for local servers)" autocomplete="off"></label>
-    <label>Models <small class="muted">optional — or fetch them after adding</small><input name="models" placeholder="gpt-4o-mini, gpt-4o"></label>
+    <label>Models <small class="muted">optional · or fetch them after adding</small><input name="models" placeholder="gpt-4o-mini, gpt-4o"></label>
     <p class="hint span-2">Works with OpenAI, OpenRouter, Groq, Together, Ollama (<code>http://localhost:11434/v1</code>), LM Studio, vLLM and more.</p>
     <div class="span-2"><button type="submit" class="btn primary">Add provider</button></div>
   </form>

@@ -59,7 +59,7 @@ func (s *Server) requireUser(next http.Handler) http.Handler {
 				got = r.FormValue("_csrf")
 			}
 			if subtle.ConstantTimeCompare([]byte(got), []byte(csrf)) != 1 {
-				http.Error(w, "invalid CSRF token — reload the page", http.StatusForbidden)
+				http.Error(w, "invalid CSRF token: reload the page", http.StatusForbidden)
 				return
 			}
 		}

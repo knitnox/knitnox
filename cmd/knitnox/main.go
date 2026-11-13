@@ -177,7 +177,7 @@ func serve(log *slog.Logger) error {
 	}
 	defer st.Close()
 	if env("KNITNOX_SECRET", "") == "" {
-		log.Warn("KNITNOX_SECRET not set; using generated key file in the data directory. Back it up — losing it makes stored API keys unreadable.")
+		log.Warn("KNITNOX_SECRET not set; using generated key file in the data directory. Back it up: losing it makes stored API keys unreadable.")
 	}
 
 	h := hub.New()

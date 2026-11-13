@@ -126,7 +126,7 @@ func chat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if images > 0 && !sawTool && !strings.HasPrefix(req.Messages[0].Content.text, "You check a picture") {
-		reply := fmt.Sprintf("I can see **%d image(s)** in your message. (This is the mock server — a real vision model would describe them here.)", images)
+		reply := fmt.Sprintf("I can see **%d image(s)** in your message. (This is the mock server. A real vision model would describe them here.)", images)
 		if lastUser != "" {
 			reply += "\n\nYou also wrote:\n\n> " + lastUser
 		}

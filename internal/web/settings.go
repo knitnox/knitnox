@@ -414,5 +414,5 @@ func (s *Server) mcpTest(w http.ResponseWriter, r *http.Request) {
 	for _, t := range tools {
 		names = append(names, t.Name)
 	}
-	fmt.Fprintf(w, "OK — %d tools: %s", len(tools), templateEscape(strings.Join(names, ", ")))
+	fmt.Fprintf(w, "OK: %d tools: %s", len(tools), templateEscape(strings.Join(names, ", ")))
 }

@@ -292,7 +292,7 @@
 <label>Model
   <select name="model_id">
     {{range .ModelOptions}}
-    <option value="{{.ModelID}}" {{if eq .ModelID $.ModelID}}selected{{end}}>{{.ModelName}} — {{.ProviderName}}{{if .Personal}} (your key){{end}}</option>
+    <option value="{{.ModelID}}" {{if eq .ModelID $.ModelID}}selected{{end}}>{{.ModelName}} · {{.ProviderName}}{{if .Personal}} (your key){{end}}</option>
     {{else}}
     <option value="0">No models available yet</option>
     {{end}}

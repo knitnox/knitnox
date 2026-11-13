@@ -201,7 +201,7 @@
       <select name="{{.Field}}">
         <option value="0" {{if eq .Chosen 0}}selected{{end}}>{{if .Server}}The server's model: {{.Server}}{{else}}The server's model (none is set up yet){{end}}</option>
         {{$chosen := .Chosen}}
-        {{range .Options}}<option value="{{.ModelID}}" {{if eq .ModelID $chosen}}selected{{end}}>{{.ModelName}} — {{.ProviderName}}{{if .Personal}} (your own){{end}}</option>{{end}}
+        {{range .Options}}<option value="{{.ModelID}}" {{if eq .ModelID $chosen}}selected{{end}}>{{.ModelName}} · {{.ProviderName}}{{if .Personal}} (your own){{end}}</option>{{end}}
         <option value="-1" {{if eq .Chosen -1}}selected{{end}}>Off: never make {{if eq .Kind "image"}}pictures{{else if eq .Kind "voice"}}recordings{{else}}videos{{end}}</option>
       </select>
     </label>

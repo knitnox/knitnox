@@ -321,7 +321,7 @@
     {{end}}
   </div>
   {{end}}
-  {{if .Waiting}}<div class="run-note is-wait" id="wait-note">{{template "i-clock"}}<span>Waiting for a free slot — other chats are being answered first.</span></div>{{end}}
+  {{if .Waiting}}<div class="run-note is-wait" id="wait-note">{{template "i-clock"}}<span>Waiting for a free slot. Other chats are being answered first.</span></div>{{end}}
 </div>
 {{end}}
 
@@ -550,7 +550,7 @@
         {{template "model-select" .}}
       </label>
       <p class="hint">A model under <b>Yours</b> uses your own API key: you pay for everyone's messages in this group. Changing the model makes the next reply a little dearer, once.</p>
-      <label>Instructions for this group <small class="muted">optional — e.g. “Answer in Bengali”, “We are planning a wedding”</small>
+      <label>Instructions for this group <small class="muted">optional · e.g. “Answer in Bengali”, “We are planning a wedding”</small>
         <textarea name="instructions" rows="3" maxlength="4000" placeholder="Anything the AI should keep in mind in this group">{{.Thread.Instructions}}</textarea></label>
       <button type="submit" class="btn primary">Save changes</button>
     </form>
@@ -656,7 +656,7 @@
       <label id="model-field">Model
         {{template "model-select" .}}
       </label>
-      <label>Instructions for this chat <small class="muted">optional — e.g. “Answer in Bengali”, “We are planning a wedding”</small>
+      <label>Instructions for this chat <small class="muted">optional · e.g. “Answer in Bengali”, “We are planning a wedding”</small>
         <textarea name="instructions" rows="3" maxlength="4000" placeholder="Anything the AI should keep in mind in this chat">{{.Thread.Instructions}}</textarea></label>
       <div class="field-group">
         <div class="field-label">Connected agents</div>
@@ -683,10 +683,10 @@
 <select name="model_id">
   {{$cur := 0}}{{if .Thread.ModelID.Valid}}{{$cur = .Thread.ModelID.Int64}}{{end}}
   {{with sharedModels .ModelOptions}}<optgroup label="Shared on this server">
-    {{range .}}<option value="{{.ModelID}}" {{if eq .ModelID $cur}}selected{{end}}>{{.ModelName}} — {{.ProviderName}}{{if not .Vision}} · text only{{end}}</option>{{end}}
+    {{range .}}<option value="{{.ModelID}}" {{if eq .ModelID $cur}}selected{{end}}>{{.ModelName}} · {{.ProviderName}}{{if not .Vision}} · text only{{end}}</option>{{end}}
   </optgroup>{{end}}
   {{with ownModels .ModelOptions}}<optgroup label="Yours (your key pays)">
-    {{range .}}<option value="{{.ModelID}}" {{if eq .ModelID $cur}}selected{{end}}>{{.ModelName}} — {{.ProviderName}}{{if not .Vision}} · text only{{end}}</option>{{end}}
+    {{range .}}<option value="{{.ModelID}}" {{if eq .ModelID $cur}}selected{{end}}>{{.ModelName}} · {{.ProviderName}}{{if not .Vision}} · text only{{end}}</option>{{end}}
   </optgroup>{{end}}
 </select>
 {{end}}

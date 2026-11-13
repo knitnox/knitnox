@@ -171,7 +171,7 @@ func (e *Engine) addGroupTools(ts *toolset, threadID, userID int64) {
 				if m.SaidByName != "" {
 					from = ", from a message by " + m.SaidByName
 				}
-				fmt.Fprintf(&b, "\n#%d — saved on %s%s\n%s\n", m.ID, day(m.CreatedAt), from, m.Content)
+				fmt.Fprintf(&b, "\n#%d, saved on %s%s\n%s\n", m.ID, day(m.CreatedAt), from, m.Content)
 				for _, r := range m.Relations {
 					b.WriteString("  connection: " + relationLine(r) + "\n")
 				}

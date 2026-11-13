@@ -436,7 +436,7 @@
       e.preventDefault(); // code blocks can sit inside <summary>/<a>
       const code = copyCode.closest(".codeblock").querySelector("pre");
       if (await copyText(code.textContent.replace(/\n$/, ""))) flashCopied(copyCode);
-      else flash("Couldn't copy — select the text instead.");
+      else flash("Couldn't copy. Select the text instead.");
     }
     const copyPre = t.closest("[data-copy-pre]");
     if (copyPre) {
@@ -710,6 +710,18 @@
       helpToc.append(b);
     }
     helpToc.hidden = helpToc.children.length < 2;
+    // Links inside a guide ("see Plan Book") point at a heading the way GitHub names it:
+    // lower case, punctuation dropped, spaces as hyphens. Give the headings those names and scroll to them.
+    for (const h of $$("h2, h3", helpBody)) {
+      if (!h.id) h.id = h.textContent.trim().toLowerCase().replace(/[^\p{L}\p{N} -]/gu, "").replace(/ /g, "-");
+    }
+    helpBody.addEventListener("click", (e) => {
+      const a = e.target.closest('a[href^="#"]');
+      const to = a && document.getElementById(decodeURIComponent(a.getAttribute("href").slice(1)));
+      if (!to) return;
+      e.preventDefault();
+      to.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
   // forms that ask before doing something that cannot be undone
   document.addEventListener("submit", (e) => {
@@ -736,7 +748,7 @@
       const sub = await current();
       btnOn.hidden = !!sub; btnOff.hidden = !sub;
       if (sub) status.textContent = "Enabled on this device";
-      else if (Notification.permission === "denied") { status.textContent = "Blocked — allow notifications for this site in your browser settings"; btnOn.disabled = true; }
+      else if (Notification.permission === "denied") { status.textContent = "Blocked. Allow notifications for this site in your browser settings"; btnOn.disabled = true; }
     }
     btnOn.addEventListener("click", async () => {
       btnOn.disabled = true;
@@ -819,7 +831,7 @@
     async function addFiles(list) {
       for (const file of list) {
         if (files.length >= maxFiles) { flash(`You can attach up to ${maxFiles} files.`); break; }
-        if (isImage(file) && !vision) { flash("This model can't read images — pick an image-capable model, or attach a document."); continue; }
+        if (isImage(file) && !vision) { flash("This model can't read images. Pick a model that can, or attach a document."); continue; }
         if (!isImage(file) && file.size > MAX_FILE) { flash(`${file.name} is larger than 20 MB.`); continue; }
         if (!isImage(file) && file.type.startsWith("image/")) { flash(`${file.name}: only PNG, JPEG, WebP or GIF images are supported.`); continue; }
         const item = { file, ready: false, url: isImage(file) ? URL.createObjectURL(file) : "" };
@@ -923,7 +935,7 @@
           const r = await post("/t", fd);
           if (r.ok && r.redirected) { location.href = r.url; return; }
           flash(r.ok ? "Could not start the chat." : await errorText(r));
-        } catch { flash("Network error — please try again."); }
+        } catch { flash("Network error. Please try again."); }
       },
     });
     // tools unticked before the first message: the switch follows the box, and the pill says how many are off
@@ -1173,7 +1185,7 @@
           } else {
             r = await post(`/t/${threadID}/messages`, { content: text });
           }
-        } catch { flash("Network error — message not sent."); return; }
+        } catch { flash("Network error. The message was not sent."); return; }
         if (r.ok) { clear(); toBottom(true); } else flash(await errorText(r));
       },
     });
@@ -1227,7 +1239,7 @@
           const r = await post(speak.dataset.speak, {});
           if (r.ok) { const url = (await r.json()).url; speak.dataset.audio = url; flash(""); play(url); }
           else flash(await errorText(r));
-        } catch { flash("Network error — please try again."); }
+        } catch { flash("Network error. Please try again."); }
         finally { speak.disabled = false; speak.classList.remove("is-busy"); }
       }
     }
@@ -1272,7 +1284,7 @@
     try {
       const r = await post(box.dataset.edit, { content: $("textarea", box).value.trim() });
       if (r.ok) { closeEdit(msg); toBottom(true); } else flash(await errorText(r));
-    } catch { flash("Network error — please try again."); }
+    } catch { flash("Network error. Please try again."); }
     finally { btn.disabled = false; }
   });
 

@@ -39,7 +39,7 @@ cmd/knitnox ──► web ──► engine ──► llm ──┐   (HTTP clien
 | Package | Responsibility | Must not |
 |---|---|---|
 | `store` | Every SQL statement, migrations, encryption of secrets on write and read | know about HTTP or LLMs |
-| `secret` | AES-256-GCM seal/open, key file | — |
+| `secret` | AES-256-GCM seal/open, key file | nothing |
 | `llm` | One streamed `/chat/completions` call → `Result` (content, tool calls, usage), with an idle watchdog; embeddings; pictures, voice and video | retry, bill, or touch the DB |
 | `mcp` | Streamable HTTP MCP client: `initialize`, `tools/list`, `tools/call`; says whether a failed call can have reached the tool (`NotSent`) | launch processes |
 | `netguard` | The HTTP client for addresses a user typed in; refuses link-local and, when the admin says so, local addresses, at connect time | know who the user is |
@@ -148,7 +148,7 @@ Endpoint: `GET /t/{id}/events`. Each event is `data: {"type": …, "data": …}`
 |---|---|---|
 | `token` | `{message_id, delta, len[, kind:"reasoning"]}` | append if consistent, else resync. `kind: "reasoning"` goes to the Thinking block and has its own running `len` |
 | `snapshot` | `{message_id, content, len, reasoning, rlen}` | replace the live text (sent on connect if a reply is streaming) |
-| `messages` | — | re-fetch `/t/{id}/messages` (HTML fragment) |
+| `messages` | none | re-fetch `/t/{id}/messages` (HTML fragment) |
 | `run` | `{run_id, status, error}` | re-fetch. `status: "waiting"` is UI-only (waiting for a slot) |
 | `queue` | `{pending}` | update "3 queued" |
 | `compacted` | `{until_run}` | re-fetch (shows the memory box) |

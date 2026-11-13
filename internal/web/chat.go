@@ -485,7 +485,7 @@ func (s *Server) viewMessages(t *store.Thread, u *store.User, role string, msgs 
 			case store.RunCancelled:
 				v.Footer = "Stopped"
 			case store.RunInterrupted:
-				v.Footer = "Interrupted — " + m.RunError
+				v.Footer = "Interrupted: " + m.RunError
 			}
 			v.CanRetry = v.Footer != "" && isLatest && myRun && finished(m.RunStatus)
 		}
@@ -703,7 +703,7 @@ func (s *Server) editRun(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := s.eng.Edit(t.ID, run.ID, content); err != nil {
 		if errors.Is(err, engine.ErrNotLatest) {
-			http.Error(w, "Only your latest message can be edited — someone has replied since.", http.StatusConflict)
+			http.Error(w, "Only your latest message can be edited. Someone has replied since.", http.StatusConflict)
 			return
 		}
 		s.serverError(w, r, err)

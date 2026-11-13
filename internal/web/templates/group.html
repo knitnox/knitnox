@@ -50,10 +50,10 @@
             <label>Model <small class="muted">one model answers everyone; you can change it later</small>
               <select name="model_id" required>
                 {{with sharedModels .ModelOptions}}<optgroup label="Shared on this server">
-                  {{range .}}<option value="{{.ModelID}}" {{if eq .ModelID $.DefaultModel}}selected{{end}}>{{.ModelName}} — {{.ProviderName}}{{if not .Vision}} · text only{{end}}</option>{{end}}
+                  {{range .}}<option value="{{.ModelID}}" {{if eq .ModelID $.DefaultModel}}selected{{end}}>{{.ModelName}} · {{.ProviderName}}{{if not .Vision}} · text only{{end}}</option>{{end}}
                 </optgroup>{{end}}
                 {{with ownModels .ModelOptions}}<optgroup label="Yours (your key pays)">
-                  {{range .}}<option value="{{.ModelID}}" {{if eq .ModelID $.DefaultModel}}selected{{end}}>{{.ModelName}} — {{.ProviderName}}{{if not .Vision}} · text only{{end}}</option>{{end}}
+                  {{range .}}<option value="{{.ModelID}}" {{if eq .ModelID $.DefaultModel}}selected{{end}}>{{.ModelName}} · {{.ProviderName}}{{if not .Vision}} · text only{{end}}</option>{{end}}
                 </optgroup>{{end}}
               </select>
             </label>
@@ -193,10 +193,10 @@
 <select name="embed_model_id">
   <option value="0">{{if .ServerEmbed}}The server's model ({{.ServerEmbed}}){{else}}None: search by words only{{end}}</option>
   {{with sharedModels .EmbedOptions}}<optgroup label="Shared on this server">
-    {{range .}}<option value="{{.ModelID}}" {{if eq .ModelID $.EmbedModelID}}selected{{end}}>{{.ModelName}} — {{.ProviderName}}</option>{{end}}
+    {{range .}}<option value="{{.ModelID}}" {{if eq .ModelID $.EmbedModelID}}selected{{end}}>{{.ModelName}} · {{.ProviderName}}</option>{{end}}
   </optgroup>{{end}}
   {{with ownModels .EmbedOptions}}<optgroup label="Yours (your key pays)">
-    {{range .}}<option value="{{.ModelID}}" {{if eq .ModelID $.EmbedModelID}}selected{{end}}>{{.ModelName}} — {{.ProviderName}}</option>{{end}}
+    {{range .}}<option value="{{.ModelID}}" {{if eq .ModelID $.EmbedModelID}}selected{{end}}>{{.ModelName}} · {{.ProviderName}}</option>{{end}}
   </optgroup>{{end}}
 </select>
 {{if not .EmbedOptions}}<small class="muted">No other embedding models yet. Add one under <a href="/settings#keys">Settings → Your API keys</a> and set what it is for to “Embedding”.</small>{{end}}

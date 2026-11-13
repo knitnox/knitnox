@@ -216,7 +216,7 @@ func AgentSystemPrompt(a *store.Agent, owner string, loc *time.Location, tasks [
 	if len(recent) > 0 {
 		b.WriteString("\n## Your most recent runs (newest first)\n")
 		for _, r := range recent {
-			fmt.Fprintf(&b, "- %s [%s] started by: %s — ended with: %s\n", r.CreatedAt, r.Status, oneLine(r.Trigger, 120), oneLine(r.Answer, 300))
+			fmt.Fprintf(&b, "- %s [%s] started by: %s; ended with: %s\n", r.CreatedAt, r.Status, oneLine(r.Trigger, 120), oneLine(r.Answer, 300))
 		}
 	}
 	return b.String()
@@ -225,7 +225,7 @@ func AgentSystemPrompt(a *store.Agent, owner string, loc *time.Location, tasks [
 func taskLine(t store.AgentTask, detailLen int) string {
 	line := fmt.Sprintf("- #%d [%s] %s", t.ID, t.Status, t.Title)
 	if t.Details != "" {
-		line += " — " + oneLine(t.Details, detailLen)
+		line += ": " + oneLine(t.Details, detailLen)
 	}
 	if t.Result != "" {
 		line += " (result: " + oneLine(t.Result, detailLen) + ")"
@@ -460,7 +460,7 @@ func (e *Engine) addManagerTools(ts *toolset, tc *turnCtx) []store.Agent {
 				if e.st.ThreadBusy(cur.ThreadID) {
 					state += ", running now"
 				}
-				fmt.Fprintf(&b, "- agent %d: %s — %s | %s | %s | %d open tasks\n", cur.ID, cur.Name,
+				fmt.Fprintf(&b, "- agent %d: %s: %s | %s | %s | %d open tasks\n", cur.ID, cur.Name,
 					oneLine(cur.Description, 200), state, when, e.st.OpenTaskCount(cur.ID))
 			}
 			return b.String()
@@ -692,7 +692,7 @@ func connectedAgentsNote(agents []store.Agent) string {
 	var b strings.Builder
 	b.WriteString("\n\nBackground agents connected to this chat (you manage them with the *_agent* tools; they do not see this conversation, so give them complete task details):")
 	for _, a := range agents {
-		fmt.Fprintf(&b, "\n- agent %d: %s — %s", a.ID, a.Name, oneLine(a.Description, 200))
+		fmt.Fprintf(&b, "\n- agent %d: %s: %s", a.ID, a.Name, oneLine(a.Description, 200))
 	}
 	b.WriteString("\nAgents run in the background. Never wait for one; tell the user the result will appear in this chat when the task finishes.")
 	return b.String()

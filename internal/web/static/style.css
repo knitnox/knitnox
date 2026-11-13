@@ -1,5 +1,5 @@
 /* =========================================================================
-   Knitnox — soft design system
+   Knitnox: soft design system
    Warm neutrals plus ONE accent hue. Every colour is a token.
      - Theme:  <html data-theme="auto|light|dark">   (auto follows the device)
      - Accent: <html data-accent="iris|ocean|…">     (sets the hue --ah)
@@ -1289,14 +1289,14 @@ main:focus, main:focus-visible { outline: none; }
 .mem-more { margin-top: 14px; text-align: center; }
 @media (hover: none) { .mem-actions { opacity: 1; } }
 
-/* a connection, written as a tiny sentence: Thing — relates to → Other thing */
+/* a connection, written as a tiny sentence: Thing · relates to → Other thing */
 .rel { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; max-width: 100%; padding: 3px 10px; border-radius: 99px;
   background: var(--accent-soft); font-size: 12.5px; color: var(--fg-2); }
 .rel a, .rel b { font-weight: 600; overflow-wrap: anywhere; }
 .rel a { color: var(--accent-text); text-decoration: none; }
 .rel b { color: var(--fg); }
 .rel i { font-style: normal; color: var(--muted); }
-.rel i::before { content: "— "; }
+.rel i::before { content: "· "; }
 .rel i::after { content: " →"; }
 @media (hover: hover) { .rel a:hover { text-decoration: underline; } }
 .rel-list { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }

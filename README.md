@@ -6,7 +6,7 @@
 
 ### Decide together. With AI in the room.
 
-A calm, private AI for you and your people — chats, a feed, a Plan Book and a memory,<br>
+A private AI harness for one person or a small team: one program, one portable database,<br>any local or cloud model. Ask together, ask in private, or let it work around the clock,<br>
 in one small program you run yourself.
 
 [![test](https://github.com/knitnox/knitnox/actions/workflows/test.yml/badge.svg)](https://github.com/knitnox/knitnox/actions/workflows/test.yml)
@@ -20,27 +20,81 @@ in one small program you run yourself.
 
 <picture>
   <source srcset="docs/screenshots/chat-dark.webp" media="(prefers-color-scheme: dark)">
-  <img src="docs/screenshots/chat-light.webp" width="900" alt="A Knitnox group chat: Leo and Mia say which weekend works, and the AI keeps track of who can come.">
+  <img src="docs/screenshots/chat-light.webp" width="900" alt="A Knitnox group: Leo and Mia say which weekend works, and the AI keeps track of who can come.">
 </picture>
 
 </div>
 
 <br>
 
-> **"Well, ChatGPT told me…"** — not any more.
-> In Knitnox, everyone in the chat sees the same answer at the same time. Ask together, agree together.
+> **"Well, ChatGPT told me…" "Gemini said the opposite."**
+> In Knitnox your people and one AI are in the same chat. Everyone sees the same answer at the same time. Ask together, agree together.
+
+## What it is for
+
+Everyday problems, at work, in a club or at the kitchen table, and the part of Knitnox that solves each:
+
+| What people say | The part that solves it |
+|---|---|
+| "ChatGPT said this." "Gemini said the opposite." | **Groups**: everyone asks in one chat and sees the same answer |
+| "Wait, didn't we change that last week?" | **Group memory**: what was agreed, and whose message it came from |
+| "I did not follow, but I will not ask in front of everybody." | **Take to my chat**: a chat of your own that points at the group. Nobody in the group sees it |
+| "Who asked me to do this? And by when?" | **Plan Book**: your tasks, each with who added it |
+| "Sorry, I missed that. I was busy." | **Feed**: your chats and agents post short updates in one place |
+| "I told you that already." | **Memory**: your own memory. Tell the AI once and it knows it in all of your own chats |
+| "Nobody checked. I forgot to look." | **Agents**: helpers that work by themselves around the clock, or when you ask, and report to your Feed |
+| "It cannot do that. It is only a chatbot." | **Tools (MCP)**: connect a tool server and the AI can act, not only talk. Anything a tool server exists for can be added |
+
+It is for any few people who decide things together: a small team, a club or a class, friends and family. One person starts it, the others open a link. It is just as much for one person alone.
+
+## Two ways to use it, two ways to run it
+
+| | |
+|---|---|
+| **With your people** | A group is a small parliament with the AI as its speaker: everyone gets a turn, it answers each person by name and keeps track of what was agreed. Use it to brainstorm or to settle a question. |
+| **In private** | Open a chat of your own that points at the group and ask what you did not want to ask in front of everyone. Nobody in the group sees it. Or use Knitnox entirely on your own. |
+| **On demand** | A normal chat: you write, it answers. |
+| **Around the clock** | Agents work by themselves on a schedule, 24 hours a day, and report to your Feed. You set the limits, choose the tools and can pause one at any time. |
+
+Every person has their own Memory, Plan Book and Feed. It all runs from a single program with one portable database file, on a local model or a cloud provider.
+
+## How it fits together
+
+```text
+  SHARED WITH YOUR PEOPLE
+  ┌────────────────────┐      ┌──────────────────────────────┐
+  │ Group              │ ───▶ │ Group memory                 │
+  │ everyone asks,     │      │ what was decided, and by whom│
+  │ one AI answers     │      └──────────────────────────────┘
+  └────────────────────┘
+            │  Take to my chat  (reads the group, never writes to it)
+            ▼
+  YOURS ALONE
+  ┌────────────────────┐      ┌───────────┐ ┌──────┐ ┌────────┐
+  │ Your own chat      │ ───▶ │ Plan Book │ │ Feed │ │ Memory │
+  │ "post this,        │      └───────────┘ └──────┘ └────────┘
+  │  add that"         │                       ▲
+  └────────────────────┘      Agents ──────────┘  helpers on a schedule
+```
+
+What is shared stays in the group. What is yours stays yours. You carry things across, and nothing private flows back.
 
 ---
 
-## Chats — alone or together
+## 1. Chats and groups
 
-Think things through on your own, or invite family, friends or your team with a link. In a group, **everyone asks in one shared queue** and the AI answers each person in turn, by name. Plan a trip, split a bill, pick a date — and settle it in one place.
+A **chat** is you and the AI. A **group** is a chat for several people: you invite them with a link and everyone writes in the same place. There the AI works like the speaker of a small parliament: everyone gets a turn, it answers each person by name, and it keeps track of who said what.
+
+| | |
+|---|---|
+| **Solves** | "ChatGPT said this, Gemini said that." In a group there is one answer, and everyone saw it. Use it to brainstorm, or to settle a question. |
+| **How it works** | Start a group and send the invite link. One AI model answers everyone; the person who started the group chooses it and can change it later. |
+| **Connects to** | Every group has its own memory (2). Anything said there can be taken to your own chat (3). |
 
 - Answers keep coming after you close the tab; up to 10 messages wait in line
 - Attach PDFs, photos, code and notes; the AI can draw pictures and read answers aloud
 - Thinking models show their reasoning in a fold-away block; tool use stays out of the way as one line you can open
 - Show one of your own chats to anyone with a read-only link, no account needed
-- Your own API keys and tools stay yours: a group has a memory and tools of its own
 
 <p align="center">
 <picture>
@@ -49,20 +103,49 @@ Think things through on your own, or invite family, friends or your team with a 
 </picture>
 </p>
 
-## Feed — your private timeline
+## 2. Group memory
 
-Like a social feed, but **just for you** until you choose to share. You, your chats and your agents post short updates — a morning brief, a sales chart, a decision a group just made — so insight comes to you instead of you hunting for it. Share a post with everyone on your server to keep your community in the loop.
+While you talk, the AI writes down **what the group agrees on**: the date, who does what, what it costs. Everyone in the group can open the list at any time.
+
+| | |
+|---|---|
+| **Solves** | "Didn't we change that?" and "who said that?". Each fact shows whose message it came from, and when. |
+| **How it works** | Only the AI writes there, so nobody can quietly slip a "decision" in. When something changes, tell the AI in the group and it corrects the fact. A wrong fact can be deleted. |
+| **Connects to** | It belongs to the group (1), not to one person. Your own chat can read it when you take something with you (3). |
 
 <p align="center">
 <picture>
-  <source srcset="docs/screenshots/feed-dark.webp" media="(prefers-color-scheme: dark)">
-  <img src="docs/screenshots/feed-light.webp" width="820" alt="The Feed: a post from a group chat, a morning brief from an agent and a chart.">
+  <source srcset="docs/screenshots/groupmem-dark.webp" media="(prefers-color-scheme: dark)">
+  <img src="docs/screenshots/groupmem-light.webp" width="820" alt="The memory of the lake trip group: the date, who drives and the cost, each with the name of the person whose message it came from.">
 </picture>
 </p>
 
-## Plan Book — tasks and projects, with a helper
+## 3. Take to my chat
 
-A simple place for what you need to do. When you allow it, **the AI adds tasks straight from your conversations**: plan a trip in a chat, and "Book the cabin" lands in your Plan Book with a due date. Every task shows who added it.
+Open a chat of your own that **points at the group**. It is yours alone: nobody in the group sees what you ask there. Use it to ask what you did not want to ask in front of everyone, or to do something with a decision.
+
+| | |
+|---|---|
+| **Solves** | "I did not follow, but I do not want to ask in front of everybody." Ask your own chat "what did we decide, and why?". And: "we agreed, now I have to copy it into three places." Say "post this to my feed and add it to my plan". |
+| **How it works** | Click the arrow under any message in a group. A new chat opens with that message quoted. It can read the group's memory and latest messages. It cannot write there. |
+| **Connects to** | It is the bridge from the group (1, 2) to your own Plan Book (4), Feed (5) and Memory (6). |
+
+<p align="center">
+<picture>
+  <source srcset="docs/screenshots/connect-dark.webp" media="(prefers-color-scheme: dark)">
+  <img src="docs/screenshots/connect-light.webp" width="820" alt="Sam's own chat, connected to the lake trip group: the AI posts the decision to his feed and adds a task to his plan.">
+</picture>
+</p>
+
+## 4. Plan Book
+
+Your own to-do list. A task has a due date and can sit in a project. You add tasks yourself, or **the AI adds them when you ask in a chat**.
+
+| | |
+|---|---|
+| **Solves** | "Who asked me to do this, and by when?" Every task shows who added it (you, the AI or an agent) and which chat it came from. |
+| **How it works** | Today, tomorrow and this week at a glance. Projects keep things together. A bin and a history of every change. |
+| **Connects to** | Filled from your chats (3). An agent can read it and remind you in your Feed (5). |
 
 <p align="center">
 <picture>
@@ -71,9 +154,32 @@ A simple place for what you need to do. When you allow it, **the AI adds tasks s
 </picture>
 </p>
 
-## Memory — it remembers, you stay in charge
+## 5. Feed
 
-Tell it once that Ana is allergic to peanuts, and it remembers in every chat. People, places and projects are linked on **a map you can explore**. Memory is off until you switch it on, and you can read, edit or delete everything it knows.
+Like a social feed, but **just for you**. Short posts from you, from the AI in your chats and from your agents, newest first.
+
+| | |
+|---|---|
+| **Solves** | "I missed that, I was busy." And checking five tools every morning. Here the news comes to you. |
+| **How it works** | A post can carry a report, a chart, a picture or a voice recording. It stays private until you share it with everyone on your server. |
+| **Connects to** | Decisions you took from a group (3), and what your agents found. A morning brief can read your Plan Book (4). |
+
+<p align="center">
+<picture>
+  <source srcset="docs/screenshots/feed-dark.webp" media="(prefers-color-scheme: dark)">
+  <img src="docs/screenshots/feed-light.webp" width="820" alt="The Feed: the lake trip decision posted by the AI, a morning brief from an agent and a chart.">
+</picture>
+</p>
+
+## 6. Memory
+
+Your **own** memory, separate from any group's. Tell the AI once that Ana is allergic to peanuts and it remembers in all of your own chats.
+
+| | |
+|---|---|
+| **Solves** | Repeating yourself. Starting every chat from zero. |
+| **How it works** | Off until you switch it on. People, places and projects are linked on a map you can explore. Read, change, pin or delete anything it knows. |
+| **Connects to** | Used in your own chats only (3), never in a group (1). An agent can read it if you allow that one agent. |
 
 <p align="center">
 <picture>
@@ -87,10 +193,10 @@ Tell it once that Ana is allergic to peanuts, and it remembers in every chat. Pe
 | | |
 |---|---|
 | **Agents** | Background helpers with their own instructions, tools and to-do list. On a schedule, on demand, or handed tasks by a chat. Ready-made ones in the agent store. |
-| **Tools that ask first** | Connect tool servers (MCP). Per server: run automatically, or show **Allow / Deny / Always allow** and wait for a person. |
+| **Tools (MCP)** | A tool server gives the AI hands: web search, a calendar, a tracker, a database, a service of your own. Add one to your own chats, give a group its own, or hand one to a single agent. Per server: run automatically, or show **Allow / Deny / Always allow** and wait for a person. |
 | **Any AI model** | Any OpenAI-compatible API: OpenAI, OpenRouter, Groq, Together, or fully local with Ollama, LM Studio and vLLM. Users can bring their own keys. |
 | **Admin panel** | Providers and models, users, daily or monthly allowances, usage and cost per person and model. |
-| **On your phone** | Install it as an app, with push notifications when an answer is ready or a tool needs your OK. |
+| **On your phone (PWA)** | Knitnox is a PWA: a web app you install straight from the browser, with no app store. You get push notifications when an answer is ready or a tool needs your OK. |
 | **Find anything** | Full-text search across every chat, `Ctrl+K` to jump anywhere, export as Markdown or JSON. |
 | **Built to stay up** | Checked automatic backups, time limits for silent providers, login protection and an audit log. |
 
@@ -100,7 +206,7 @@ Tell it once that Ana is allergic to peanuts, and it remembers in every chat. Pe
   your browser or phone
           │
       ┌───▼────┐
-      │knitnox │   one program on your machine — no Docker, no Node, no database server
+      │knitnox │   one program on your machine: no Docker, no Node, no database server
       └───┬────┘
           │
      knitnox.db    one SQLite file holds everything
@@ -176,7 +282,7 @@ go run ./cmd/knitnox                 # http://localhost:8080
 Click a section to open it.
 
 <details>
-<summary><b>Configuration</b> — environment variables and admin settings</summary>
+<summary><b>Configuration</b>: environment variables and admin settings</summary>
 
 All configuration is through environment variables. Everything else is set in the Admin UI and stored in SQLite.
 
@@ -221,9 +327,9 @@ Each user also has, under **Settings**: custom instructions, API keys, MCP serve
 </details>
 
 <details>
-<summary><b>Building for Windows, Linux and macOS</b> — one static binary, cross-compiles from anywhere</summary>
+<summary><b>Building for Windows, Linux and macOS</b>: one static binary, cross-compiles from anywhere</summary>
 
-Knitnox is one static binary with everything (templates, CSS, JS, fonts, migrations) embedded. There is **no C code**, so you can build for any OS from any OS — no cross-compilers, no Docker, nothing to install besides Go 1.26+.
+Knitnox is one static binary with everything (templates, CSS, JS, fonts, migrations) embedded. There is **no C code**, so you can build for any OS from any OS: no cross-compilers, no Docker, nothing to install besides Go 1.26+.
 
 **Build for the machine you're on:**
 
@@ -280,7 +386,7 @@ Notes:
 </details>
 
 <details>
-<summary><b>Deployment</b> — systemd, reverse proxy, Docker, Windows</summary>
+<summary><b>Deployment</b>: systemd, reverse proxy, Docker, Windows</summary>
 
 **Binary + systemd (Linux):**
 
@@ -333,7 +439,7 @@ Run **one instance only**. Workers and the event hub live in process memory (see
 </details>
 
 <details>
-<summary><b>Maintenance</b> — backups, forgotten passwords, upgrades, logs</summary>
+<summary><b>Maintenance</b>: backups, forgotten passwords, upgrades, logs</summary>
 
 ### Backups
 **Automatic:** the server writes a backup every 24 hours into `KNITNOX_BACKUP_DIR` (default `data/backups`) and keeps the newest 7. Both numbers are under **Admin → Settings → Backups**, which also shows when the last backup ran, warns when it failed (it is then retried every hour) and has a **Back up now** button. Every backup's database copy is opened and checked (`PRAGMA integrity_check`) before the backup counts as written; a backup that fails half-way is removed.
@@ -419,7 +525,7 @@ All colours, radii and shadows are CSS variables at the top of `internal/web/sta
 </details>
 
 <details>
-<summary><b>Development and tests</b> — project layout, running tests</summary>
+<summary><b>Development and tests</b>: project layout, running tests</summary>
 
 ```bash
 go test ./...              # engine end-to-end tests with fake LLM + MCP servers
@@ -472,7 +578,7 @@ The mock server (`go run ./cmd/mockllm`) exercises every feature without an API 
 </details>
 
 <details>
-<summary><b>Extending</b> — common recipes for changing the code</summary>
+<summary><b>Extending</b>: common recipes for changing the code</summary>
 
 ### Add an admin setting
 1. Add a field and default in `store/settings.go` (`Settings`, `DefaultSettings`, `LoadSettings`, `SaveSettings`).
@@ -513,7 +619,7 @@ Deliberately not implemented, because a user-supplied command means remote code 
 </details>
 
 <details>
-<summary><b>Security notes</b> — how users, keys and the server are protected</summary>
+<summary><b>Security notes</b>: how users, keys and the server are protected</summary>
 
 - **Passwords**: bcrypt. **Sessions**: random 256-bit tokens, only the SHA-256 is stored, HttpOnly + SameSite=Lax cookies.
 - **CSRF**: per-session token, required on every non-GET (`X-CSRF-Token` header or `_csrf` field).

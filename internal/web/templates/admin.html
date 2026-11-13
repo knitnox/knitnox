@@ -192,7 +192,7 @@
               <label>Model used for summaries
                 <select name="compaction_model_id">
                   <option value="0">Same as the chat</option>
-                  {{range .Models}}<option value="{{.ModelID}}" {{if eq .ModelID $.S.CompactionModelID}}selected{{end}}>{{.ModelName}} — {{.ProviderName}}</option>{{end}}
+                  {{range .Models}}<option value="{{.ModelID}}" {{if eq .ModelID $.S.CompactionModelID}}selected{{end}}>{{.ModelName}} · {{.ProviderName}}</option>{{end}}
                 </select>
               </label>
             </div>

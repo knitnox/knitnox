@@ -373,7 +373,7 @@ func memoryLine(m store.Memory) string {
 }
 
 func relationLine(r store.MemoryRelation) string {
-	return fmt.Sprintf("%s —%s→ %s", r.Subject, r.Predicate, r.Object)
+	return fmt.Sprintf("%s -%s→ %s", r.Subject, r.Predicate, r.Object)
 }
 
 const memoryRelationSchema = `{"type":"array","description":"Connections this fact states, e.g. {\"subject\":\"Sam\",\"relation\":\"works at\",\"object\":\"Acme Bakery\"}","items":{"type":"object","properties":{"subject":{"type":"string"},"relation":{"type":"string"},"object":{"type":"string"}},"required":["subject","relation","object"]}}`
@@ -471,7 +471,7 @@ func (e *Engine) addMemoryTools(ts *toolset, o store.MemOwner, threadID, saidBy 
 				case m.Source == store.MemoryFromAI:
 					who = "you, in a chat"
 				}
-				fmt.Fprintf(&b, "\n#%d — saved by %s on %s, last changed %s%s\n%s\n", m.ID, who, day(m.CreatedAt), day(m.UpdatedAt),
+				fmt.Fprintf(&b, "\n#%d, saved by %s on %s, last changed %s%s\n%s\n", m.ID, who, day(m.CreatedAt), day(m.UpdatedAt),
 					map[bool]string{true: ", pinned", false: ""}[m.Pinned], m.Content)
 				for _, r := range m.Relations {
 					b.WriteString("  connection: " + relationLine(r) + "\n")
@@ -527,7 +527,7 @@ func (e *Engine) addMemoryTools(ts *toolset, o store.MemOwner, threadID, saidBy 
 				return "Error: " + err.Error()
 			}
 			var b strings.Builder
-			fmt.Fprintf(&b, "%s — %s, %s. %s\n", en.Name, count(memTotal, "memory", "memories"), count(total, "connection", "connections"), memoryDataNote)
+			fmt.Fprintf(&b, "%s: %s, %s. %s\n", en.Name, count(memTotal, "memory", "memories"), count(total, "connection", "connections"), memoryDataNote)
 			if total > 0 {
 				fmt.Fprintf(&b, "\nConnections %d–%d of %d:\n", min(in.Offset+1, total), min(in.Offset+len(rels), total), total)
 				for _, r := range rels {

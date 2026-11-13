@@ -1,8 +1,89 @@
 # User guide
 
-Knitnox is a private AI chat for you and your team. This guide shows how to use it, one task at a time. Every section stands on its own, so jump to the one you need.
+Knitnox is a private AI harness for one person or a small team. It is one program with one portable database, and it works with a local model or a cloud provider.
 
-> **In a hurry?** Read "Start in three steps", then come back when you want more.
+With others, it puts your people and one AI in the same chat: you ask together, everyone sees the same answer, and it keeps what you agreed. On your own, it is a private assistant with a memory, a to-do list and helpers that work while you are away. It works the same for a small team, a club, a group of friends or a family.
+
+This guide has two parts. The first part starts from what you need and is all most people read. The rest is a reference: every section stands on its own, so jump to the one you want.
+
+> **In a hurry?** Read "Start in three steps" and "What do you need?".
+
+## What do you need?
+
+| The problem | What to use | Read |
+|---|---|---|
+| Everyone asked a different AI and now there are five answers | A **group**: one question, one answer, in front of everybody | [Settle a question together](#1-settle-a-question-together) |
+| "Didn't we change that last week?" Nobody remembers what was agreed | The **group's memory**: what was decided and whose message it came from | [Keep track of what was decided](#2-keep-track-of-what-was-decided) |
+| Different people ask you for different things and you lose track | The **Plan Book**: your tasks, each with who added it | [Plan Book](#plan-book-your-tasks-and-projects) |
+| You are busy and miss what happened | The **Feed**: short updates from your chats and your agents | [Stay up to date without looking everywhere](#3-stay-up-to-date-without-looking-everywhere) |
+| You repeat the same facts about yourself in every chat | **Memory**: the AI remembers what you tell it | [Memory](#memory-what-the-ai-remembers-about-you) |
+| Something should happen every morning without you | An **agent**: a helper with a job and a schedule | [Agents](#agents-workers-that-run-in-the-background) |
+| The AI should do things, not only talk: search the web, read a calendar, use a service of yours | A **tool server (MCP)**: gives the AI tools. Add one to your chats, to a group or to one agent | [Give the AI tools](#give-the-ai-tools-mcp-servers) |
+| You did not follow something in a group and do not want to ask in front of everyone | **Your own chat, connected to the group**: ask there in private | [Ask in private about a group](#ask-in-private-about-a-group) |
+| You want to show someone a chat, but not let them write | A **read-only link** | [Show a chat to others](#show-a-chat-to-others-a-read-only-link) |
+
+## How the parts fit together
+
+Knitnox has two sides and one bridge between them.
+
+| Side | Part | What it is | What it connects to |
+|---|---|---|---|
+| Shared with your people | **Group** | A chat for several people. Everyone asks, one AI answers | Has its own memory |
+| | **Group memory** | What the group decided, and whose message it came from. Only the AI writes it | Can be read from your own chat |
+| The bridge | **Take to my chat** | The arrow under a message in a group. Opens a chat of your own with that message quoted. Nobody in the group sees what you write there | Reads the group, never writes to it |
+| Yours alone | **Your own chat** | You and the AI. It can use your private things | Plan Book, Feed, Memory |
+| | **Plan Book** | Your tasks, each with who added it | Filled from your chats; agents can read it |
+| | **Feed** | Short updates in one place | Filled by your chats and your agents |
+| | **Memory** | What the AI knows about you | Used in your own chats, never in a group |
+| | **Agents** | Helpers with a job. They work by themselves on a schedule, day and night, or only when you start them | Post to your Feed, can read your Plan Book |
+| Everywhere | **Tools (MCP servers)** | What lets the AI act outside Knitnox: web search, a calendar, a service of your own | Your own chats use yours, a group has its own, an agent can have its own |
+
+In a group the AI works like the speaker of a small parliament: everyone gets a turn, it answers each person by name, and it keeps track of what was agreed. Use a group to brainstorm or to settle a question.
+
+Every person has their own Memory, Plan Book and Feed. The rule behind it: what is shared stays in the group, what is yours stays yours. You carry things across with **Take to my chat**, and nothing private ever flows back into a group.
+
+A short example. Four friends ask in a group which weekend works for a trip. The group's memory keeps the answer: June 21. Sam clicks **Take to my chat** under that message and types "post this to my feed and add booking the cabin to my plan". Now his Feed has the decision, his Plan Book has the task, and his morning agent reminds him the next day.
+
+## Three short walk-throughs
+
+Each one takes a few minutes. The examples are a team, but a club choosing a date or a family planning a trip works the same way.
+
+### 1. Settle a question together
+
+1. Click **New group** in the sidebar, give it a name such as "Next project", and click **Create the group**.
+2. Click **Invite people**, then **Create invite link**, and send the link. Whoever opens it and signs in is in the group.
+3. Ask your question in the group, for example "Which language should we use for the next project? We know Python and a little Go."
+4. Everyone reads the same answer and can reply. The AI answers one message at a time and knows who wrote what.
+5. When you agree, say so: "We take Go. Please remember that."
+
+Nobody needs to paste an answer from another AI. If someone does, paste it into the group and ask the AI there to compare.
+
+### 2. Keep track of what was decided
+
+1. In the group, click **Memory** at the top. You see every fact the AI kept, and whose message it came from.
+2. Weeks later, anyone can ask in the group: "What did we decide about the language?" The AI looks it up.
+3. When a decision changes, tell the AI in the group: "We changed our mind: Python, not Go." It corrects the fact.
+4. A fact that is simply wrong can be deleted on the Memory page, by the group's admin or by the person whose message it came from.
+
+Only the AI writes to a group's memory. That is on purpose: nobody can quietly type a "decision" in.
+
+### 3. Stay up to date without looking everywhere
+
+Your **Feed** is a private timeline. Two things fill it.
+
+**Something said in a group:**
+
+1. Open **Feed**, click the settings button, then **Who may post**, and click **Let the AI post**. You do this once.
+2. In the group, click the arrow under the message you want, **Take to my chat**.
+3. A new chat of your own opens with the message quoted. Type "post this to my feed" and send. Or, with the Plan Book turned on, "add this to my plan for Friday".
+
+**A helper that reports to you:**
+
+1. Click **Agents**, then **New agent**. Describe its job in plain words, for example "Every morning, list what is due in my Plan Book this week and post a short summary to my feed."
+2. Choose when it runs, and under **Which tools may it use?** allow the Feed (and the Plan Book, to read it).
+3. Read the result in your Feed. If the agent runs into trouble, the Feed tells you once.
+
+The rest of this guide explains each part in detail.
 
 ## Start in three steps
 
@@ -43,7 +124,7 @@ To change how Knitnox looks, open **Settings → Appearance**: choose **Auto**, 
 
 On a phone, **Enter** adds a new line and the arrow button sends.
 
-**Pictures and voice need a model.** If your admin shares a picture or voice model, both work for you with nothing to set up. If you added your own model of that kind, it is used when the admin shares none. To choose between them, or to turn one off, open **Feed → Settings → Pictures, voice and video**. If the speaker button is missing, or the AI says it cannot make pictures, no such model exists yet. Pictures are made in your own chats only, not in group chats. With the server's models there is a daily limit, shared with the Feed.
+**Pictures and voice need a model.** If your admin shares a picture or voice model, both work for you with nothing to set up. If you added your own model of that kind, it is used when the admin shares none. To choose between them, or to turn one off, open **Feed → Settings → Pictures, voice and video**. If the speaker button is missing, or the AI says it cannot make pictures, no such model exists yet. Pictures are made in your own chats only, not in groups. With the server's models there is a daily limit, shared with the Feed.
 
 ## Attach images and files
 
@@ -107,6 +188,15 @@ You are the group's **admin**: only you invite and remove people, change the nam
 - **One model**, chosen by the admin.
 
 Nobody's personal tools are used in a group, also not the admin's.
+
+### Ask in private about a group
+
+Did you miss something, or would you rather not ask in front of everyone?
+
+1. Click the arrow under a message in the group (**Take to my chat**), or open a new chat and switch the group on under **Tools → Your groups**.
+2. Ask there: "What did we decide about the budget, and why?" or "Explain what Leo meant, in simple words."
+
+The AI reads the group's memory and latest messages to answer. Your question and the answer stay in your own chat: nobody in the group sees them, and nothing is written back to the group.
 
 ### Use your own tools with something said in a group
 

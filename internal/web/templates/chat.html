@@ -6,7 +6,7 @@
 
   <main class="main" id="main" tabindex="-1">
   {{if .Thread}}
-    <div class="chat" id="chat" data-thread="{{.Thread.ID}}" data-max-files="{{.MaxFiles}}" data-owner="{{if eq .Role "owner"}}1{{else}}0{{end}}">
+    <div class="chat" id="chat" data-thread="{{.Thread.ID}}" data-max-files="{{.MaxFiles}}" data-owner="{{if eq .Role "owner"}}1{{else}}0{{end}}" data-thinking="{{if .ShowThinking}}1{{else}}0{{end}}">
       <header class="topbar">
         <button class="icon-btn only-mobile" type="button" data-toggle-sidebar aria-label="Open menu">{{template "i-panel"}}</button>
         <div class="topbar-title">
@@ -366,7 +366,23 @@
 {{end}}
 
 {{define "message"}}
-{{if eq .Role "user"}}
+{{if .ToolSteps}}
+<details class="tool tool-result tool-sum{{if .ToolFailed}} is-warn{{end}}" data-run="{{.RunID}}">
+  <summary title="Click to see what the tools did">{{template "i-wrench"}}<span>Used {{len .ToolSteps}} tool{{if ne (len .ToolSteps) 1}}s{{end}}{{if .ToolFailed}} · <b>{{.ToolFailed}} did not work</b>{{end}}</span>{{template "i-chevron-down"}}</summary>
+  <div class="tool-steps">
+    {{range .ToolSteps}}
+    <div class="tool-step">
+      <div class="tool-step-name">{{template "i-corner"}}<b class="mono">{{toolName .Name}}</b>{{if .Failed}}<span class="badge">did not work</span>{{end}}</div>
+      {{if and .Args (ne .Args "{}")}}<pre><code class="language-json">{{.Args}}</code></pre>{{end}}
+      {{if .Result}}<pre>{{.Result}}</pre>{{end}}
+    </div>
+    {{end}}
+    <p class="hint">To see every tool as a row of its own, turn on <a href="/settings#appearance">Settings → Appearance → Show tool details</a>.</p>
+  </div>
+</details>
+{{end}}
+{{if .Working}}<div class="run-note is-working" role="status">{{template "i-wrench"}}<span>Using <b class="mono">{{toolName .Working}}</b>…</span></div>{{end}}
+{{if .HideBody}}{{else if eq .Role "user"}}
 <div class="msg msg-user{{if .Mine}} is-mine{{end}}{{if .Queued}} is-queued{{end}}{{if .Summarised}} is-summarised{{end}}" id="m{{.ID}}" data-run="{{.RunID}}">
   {{if not .Mine}}<div class="avatar">{{initial .AuthorName}}</div>{{end}}
   <div class="msg-main">
@@ -406,7 +422,7 @@
 <div class="msg msg-ai{{if .Summarised}} is-summarised{{end}}" id="m{{.ID}}" data-status="{{.Status}}" data-run="{{.RunID}}">
   <div class="avatar ai"><span class="logo"></span></div>
   <div class="msg-main">
-    {{if or .Reasoning (eq .Status "streaming")}}
+    {{if and (not .NoThinking) (or .Reasoning (eq .Status "streaming"))}}
     <details class="thinking"{{if eq .Status "streaming"}} open{{end}}>
       <summary>{{template "i-brain"}}<span>{{if eq .Status "streaming"}}Thinking…{{else}}Thinking{{end}}</span>{{template "i-chevron-down"}}</summary>
       <div class="md thinking-md">{{.Reasoning}}</div>

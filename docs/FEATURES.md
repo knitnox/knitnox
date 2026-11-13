@@ -10,7 +10,8 @@ Everything Knitnox does today, grouped by area. Limits are listed at the end so 
 | Background generation | Answers keep being written after you close the tab |
 | Message queue | Up to 10 waiting messages per chat, answered in order |
 | Stop, edit, regenerate, retry | Stop an answer, edit your latest message, or ask again |
-| Thinking view | Models that share their reasoning show it in a collapsible block |
+| Thinking view | Models that share their reasoning show it in a collapsible block; each person can switch it off |
+| Quiet tool use | Tools the AI uses are one line per answer ("Used 2 tools") that opens on a click; each person can ask for every call as its own row |
 | Markdown and code | Tables, lists, quotes, syntax highlighting, a Copy button on code |
 | Long-chat memory | Older messages are summarised automatically; originals are kept |
 | Context meter | Shows how full the model's memory is for this chat |

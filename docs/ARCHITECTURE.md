@@ -320,6 +320,12 @@ Migration 015 turns every chat with more than one member into a group, copies th
 | The link is a copy in time | tomorrow's memory search is not published by a link made today | the owner has to update the link to show more |
 | The memory tables keep `user_id` and add `group_id` | no change for personal memory; a group's rows go when its owner's account goes | every memory query filters on two columns (`MemOwner`) |
 
+### What a person sees of the AI's work
+
+`users.show_thinking` (default on) and `users.show_tools` (default off) are display choices of the viewer, set under Settings → Appearance. They never change what is stored or what the model is sent, so they cost nothing in tokens or cache, and two people in one group can see the same run differently.
+
+With `show_tools` off, `viewMessages` draws nothing for tool messages and for assistant steps that only called tools, and puts all of a run's calls and answers (`toolSteps`) into one folded line before the run's last message. Kept visible in every case: a pending approval card, pictures a tool made, a count of calls that failed, and "Using …" while a run waits for a tool. Agent threads ignore both switches, because an agent's page is its log. A read-only link does not use them either: there the chat's owner decides.
+
 ## 11. Failure and recovery
 
 | Situation | Result |

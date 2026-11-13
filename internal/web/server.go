@@ -152,8 +152,11 @@ func (s *Server) parseTemplates() error {
 		},
 		"sharedModels": func(opts []store.ModelOption) []store.ModelOption { return modelsWhere(opts, false) }, // the server's models
 		"ownModels":    func(opts []store.ModelOption) []store.ModelOption { return modelsWhere(opts, true) },  // the person's own
-		"add":          func(a, b int) int { return a + b },
-		"kindLabel":    modelKindLabel, // image -> "Pictures"
+		"displayPrefs": func(u *store.User) map[string]any { // for the "display-prefs" partial
+			return map[string]any{"ShowThinking": u.ShowThinking, "ShowTools": u.ShowTools}
+		},
+		"add":       func(a, b int) int { return a + b },
+		"kindLabel": modelKindLabel, // image -> "Pictures"
 		"modelKinds": func() []string { // every kind, in the order shown
 			return []string{store.ModelChat, store.ModelEmbedding, store.ModelImage, store.ModelVoice, store.ModelVideo}
 		},
@@ -375,6 +378,7 @@ func (s *Server) Handler() http.Handler {
 	u("POST /settings/username", s.changeUsername)
 	u("POST /settings/instructions", s.saveInstructions)
 	u("POST /settings/timezone", s.saveTimezone)
+	u("POST /settings/display", s.saveDisplay)
 	u("POST /settings/logout-all", s.logoutEverywhere)
 	u("POST /settings/providers", s.userProviderCreate)
 	u("POST /settings/providers/{pid}/delete", s.userProviderDelete)

@@ -20,6 +20,8 @@ type User struct {
 	Instructions string // personal custom instructions (solo chats)
 	Timezone     string // IANA name, e.g. "Asia/Dhaka"; "" = not known yet
 	TimezoneAuto bool   // the browser keeps Timezone up to date
+	ShowThinking bool   // chats show the model's "Thinking" block
+	ShowTools    bool   // chats show every tool call as its own row (false = one quiet line per answer)
 }
 
 // Location is the user's time zone, or UTC while it is not known.
@@ -59,11 +61,17 @@ func (s *Store) SetTimezone(userID int64, tz string, auto bool) error {
 
 func (u *User) IsAdmin() bool { return u.Role == "admin" }
 
-const userCols = `id, username, role, disabled, created_at, instructions, timezone, timezone_auto`
+const userCols = `id, username, role, disabled, created_at, instructions, timezone, timezone_auto, show_thinking, show_tools`
+
+// SetDisplay saves what a person wants to see of the AI's work in a chat.
+func (s *Store) SetDisplay(userID int64, thinking, tools bool) error {
+	_, err := s.DB.Exec(`UPDATE users SET show_thinking = ?, show_tools = ? WHERE id = ?`, b2i(thinking), b2i(tools), userID)
+	return err
+}
 
 func scanUser(sc interface{ Scan(...any) error }) (*User, error) {
 	u := &User{}
-	err := sc.Scan(&u.ID, &u.Username, &u.Role, &u.Disabled, &u.CreatedAt, &u.Instructions, &u.Timezone, &u.TimezoneAuto)
+	err := sc.Scan(&u.ID, &u.Username, &u.Role, &u.Disabled, &u.CreatedAt, &u.Instructions, &u.Timezone, &u.TimezoneAuto, &u.ShowThinking, &u.ShowTools)
 	return u, err
 }
 
@@ -111,7 +119,7 @@ func (s *Store) UserAuth(username string) (*User, string, error) {
 	u := &User{}
 	var hash string
 	err := s.DB.QueryRow(`SELECT `+userCols+`, password_hash FROM users WHERE username = ?`, username).
-		Scan(&u.ID, &u.Username, &u.Role, &u.Disabled, &u.CreatedAt, &u.Instructions, &u.Timezone, &u.TimezoneAuto, &hash)
+		Scan(&u.ID, &u.Username, &u.Role, &u.Disabled, &u.CreatedAt, &u.Instructions, &u.Timezone, &u.TimezoneAuto, &u.ShowThinking, &u.ShowTools, &hash)
 	return u, hash, notFound(err)
 }
 
@@ -280,10 +288,10 @@ func (s *Store) CreateSession(userID int64, ttl time.Duration) (string, error) {
 func (s *Store) SessionUser(token string) (*User, string, error) {
 	u := &User{}
 	var csrf string
-	err := s.DB.QueryRow(`SELECT u.id, u.username, u.role, u.disabled, u.created_at, u.instructions, u.timezone, u.timezone_auto, s.csrf
+	err := s.DB.QueryRow(`SELECT u.id, u.username, u.role, u.disabled, u.created_at, u.instructions, u.timezone, u.timezone_auto, u.show_thinking, u.show_tools, s.csrf
 		FROM sessions s JOIN users u ON u.id = s.user_id
 		WHERE s.token_hash = ? AND s.expires_at > ? AND u.disabled = 0`, hashToken(token), Now()).
-		Scan(&u.ID, &u.Username, &u.Role, &u.Disabled, &u.CreatedAt, &u.Instructions, &u.Timezone, &u.TimezoneAuto, &csrf)
+		Scan(&u.ID, &u.Username, &u.Role, &u.Disabled, &u.CreatedAt, &u.Instructions, &u.Timezone, &u.TimezoneAuto, &u.ShowThinking, &u.ShowTools, &csrf)
 	return u, csrf, notFound(err)
 }
 

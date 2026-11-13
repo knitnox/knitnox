@@ -68,6 +68,17 @@ When a chat gets very long, older messages are summarised so the AI can keep goi
 - **In all your own chats:** **Settings → Custom instructions**. Example: "Answer in Bengali" or "Keep answers short".
 - **In one chat only:** open the chat, click **Share**, and fill in **Instructions for this chat**. In a group it is **People → Group settings**, and only the admin can change it. Your personal instructions are never used in a group.
 
+## Choose what you see of the AI's work
+
+Under **Settings → Appearance** two switches decide how much of the AI's work a chat shows you. They follow your account to every device and change only what you see.
+
+| Switch | At first | On | Off |
+|---|---|---|---|
+| **Show thinking** | on | Models that share their reasoning show it in a fold-away block | No such block |
+| **Show tool details** | off | Every tool the AI uses, and its answer, is a row of its own | One line under your message, like **Used 2 tools**; click it to see what they did |
+
+Some things are always shown: a tool that waits for your permission, a tool that did not work (the line says so), a note while a tool is running, and a picture the AI made. An agent's page always shows everything the agent did.
+
 ## Chat with other people: groups
 
 A chat is one of two kinds, and it stays that kind for good:

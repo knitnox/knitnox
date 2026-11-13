@@ -72,6 +72,7 @@ Dependencies point one way: `web → engine → (llm, mcp, hub, store) → secre
 | The date and time the AI is told | `engine/clock.go` (a time stamp on each user message; nothing in the system prompt, to keep prompt caching working) |
 | The LLM ⇄ tool loop | `engine/run.go → execute` |
 | Which tools a run gets | `engine/tools.go → openTools` |
+| What a person sees of tool calls and thinking (Settings → Appearance) | `web/chat.go → viewMessages` and `toolSteps`, the `message` template, `web/auth.go → saveDisplay`, `users.show_thinking / show_tools` (`migrations/016_display.sql`) |
 | What a chat is (personal or group) | `store/threads.go` (`threads.kind`, `IsGroup`, `CreateGroup`); it is set once and never changed |
 | A group's page for starting it, its memory, its tool servers | `web/groups.go`, `templates/group.html`, the `panel` template in `templates/chat.html` |
 | Whose memory is meant (a person's or a group's) | `store/memory.go → MemOwner`, `UserMemory`, `GroupMemory` |
@@ -189,6 +190,7 @@ gofmt -l .           # should print nothing
 | `internal/engine/memory_test.go` | Memory tools, per-user isolation, smart search, who is offered memory |
 | `internal/engine/groups_test.go` | A group's own memory and tool servers, that the kind of a chat never changes, looking into a group from a personal chat, losing membership |
 | `internal/web/groups_test.go` | Starting a group, who may manage it, the group memory page, the read-only link (no account, a copy in time, tools hidden, stopping), Take to my chat |
+| `internal/web/display_test.go` | Tool calls as one line or as rows, thinking on and off, and what is shown either way (approvals, failures, a running tool) |
 | `internal/store/groups_test.go` | Migration 015 on an old database: shared chats become groups and every memory survives |
 | `internal/web/web_test.go` | Login, CSRF, uploads, permissions, admin |
 | `internal/web/agents_test.go` | Agent pages, the store, connecting agents |

@@ -1037,7 +1037,7 @@
         if (!msg) continue;
         const md = $(".msg-main > .md", msg);
         if (md && st.c !== undefined) renderMD(md, st.c);
-        if (st.r) {
+        if (st.r && chat.dataset.thinking !== "0") { // "0": the person switched thinking off in Settings
           let think = $(".thinking", msg);
           if (!think) {
             think = document.createElement("details");

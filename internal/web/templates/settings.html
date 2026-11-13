@@ -55,7 +55,7 @@
         <section class="section" id="appearance">
           <div class="section-head">
             <div class="section-icon">{{template "i-eye"}}</div>
-            <div><h2>Appearance</h2><p>How Knitnox looks in this browser. Changes apply straight away.</p></div>
+            <div><h2>Appearance</h2><p>How Knitnox looks. Changes apply straight away.</p></div>
           </div>
           <div class="card stack">
             <div class="look-row">
@@ -71,7 +71,10 @@
                 {{end}}
               </div>
             </div>
+            <p class="hint">Theme and colour are kept in this browser.</p>
           </div>
+          <h3 class="sub">What you see of the AI's work</h3>
+          {{template "display-prefs" (displayPrefs .Me)}}
         </section>
 
         <section class="section" id="instructions">
@@ -222,5 +225,23 @@
     </header>
   </article>
   {{end}}
+</div>
+{{end}}
+
+{{/* The two switches for what a chat shows of the AI's work. Needs .ShowThinking and .ShowTools. */}}
+{{define "display-prefs"}}
+<div class="card stack" id="display-prefs">
+  <div class="look-row">
+    <div class="grow"><div class="field-label">Show thinking</div><p class="hint">Some models share how they reason. It appears in a fold-away block above the answer.</p></div>
+    <button type="button" class="switch-btn" role="switch" aria-checked="{{.ShowThinking}}" aria-label="Show thinking"
+            hx-post="/settings/display" hx-vals='{"key":"thinking","on":"{{if .ShowThinking}}0{{else}}1{{end}}"}' hx-target="#display-prefs" hx-swap="outerHTML"><span class="switch{{if .ShowThinking}} is-on{{end}}" aria-hidden="true"></span><span>{{if .ShowThinking}}On{{else}}Off{{end}}</span></button>
+  </div>
+  <hr>
+  <div class="look-row">
+    <div class="grow"><div class="field-label">Show tool details</div><p class="hint">{{if .ShowTools}}Every tool the AI uses, and what it answered, is a row of its own in the chat.{{else}}Tools the AI uses are tucked into one line under your message, like “Used 2 tools”. Click it to see what they did.{{end}}</p></div>
+    <button type="button" class="switch-btn" role="switch" aria-checked="{{.ShowTools}}" aria-label="Show tool details"
+            hx-post="/settings/display" hx-vals='{"key":"tools","on":"{{if .ShowTools}}0{{else}}1{{end}}"}' hx-target="#display-prefs" hx-swap="outerHTML"><span class="switch{{if .ShowTools}} is-on{{end}}" aria-hidden="true"></span><span>{{if .ShowTools}}On{{else}}Off{{end}}</span></button>
+  </div>
+  <p class="hint">These two follow your account to every device and change only what you see. A tool that waits for your permission, a tool that failed and a picture the AI made are always shown. An agent's page always shows everything it did.</p>
 </div>
 {{end}}

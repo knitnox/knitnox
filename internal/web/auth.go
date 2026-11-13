@@ -366,6 +366,33 @@ func (s *Server) saveInstructions(w http.ResponseWriter, r *http.Request) {
 	s.flash(w, r, "Instructions saved.")
 }
 
+// saveDisplay switches what the user sees of the AI's work in a chat: the
+// "Thinking" block, or every tool call as its own row (Settings → Appearance).
+// It changes the page only, never what is sent to the model.
+func (s *Server) saveDisplay(w http.ResponseWriter, r *http.Request) {
+	u := currentUser(r)
+	thinking, tools := u.ShowThinking, u.ShowTools
+	on := r.FormValue("on") == "1"
+	switch r.FormValue("key") {
+	case "thinking":
+		thinking = on
+	case "tools":
+		tools = on
+	default:
+		s.errorPage(w, r, http.StatusBadRequest, "Unknown setting.")
+		return
+	}
+	if err := s.st.SetDisplay(u.ID, thinking, tools); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	if !isHX(r) {
+		back(w, r, "/settings#appearance")
+		return
+	}
+	s.renderPartial(w, r, "settings", "display-prefs", map[string]any{"ShowThinking": thinking, "ShowTools": tools})
+}
+
 // saveTimezone stores the user's time zone. app.js calls it quietly when the
 // device's zone differs from the saved one; Settings → Account posts the form.
 func (s *Server) saveTimezone(w http.ResponseWriter, r *http.Request) {

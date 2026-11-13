@@ -333,6 +333,50 @@ type msgView struct {
 	Footer     string // run outcome shown under the run's last message
 	Down       string // tool servers the run could not reach, said in a sentence
 	CanTake    bool   // a finished message of a group: "Take to my chat"
+
+	// When the viewer does not want tool details (Settings → Appearance):
+	HideBody   bool       // this message is only a tool call or a tool result: draw nothing for it
+	NoThinking bool       // the viewer does not want the "Thinking" block
+	ToolSteps  []toolStep // on a run's last message: every tool the run used, for the one line "Used 2 tools"
+	ToolFailed int        // how many of them did not work
+	Working    string     // the run is waiting for this tool right now ("" = it is not)
+}
+
+// toolStep is one tool call of a run with what the tool answered.
+type toolStep struct {
+	Name, Args, Result string
+	Failed             bool
+}
+
+// toolSteps collects, per run, the tool calls in msgs and their answers.
+func toolSteps(msgs []store.Message) map[int64][]toolStep {
+	steps := map[int64][]toolStep{}
+	type at struct {
+		run int64
+		i   int
+	}
+	byCall := map[string]at{}
+	for _, m := range msgs {
+		switch {
+		case m.Role == "assistant" && m.ToolCalls != "":
+			var calls []struct {
+				ID       string                           `json:"id"`
+				Function struct{ Name, Arguments string } `json:"function"`
+			}
+			json.Unmarshal([]byte(m.ToolCalls), &calls)
+			for _, c := range calls {
+				byCall[c.ID] = at{m.RunID, len(steps[m.RunID])}
+				steps[m.RunID] = append(steps[m.RunID], toolStep{Name: c.Function.Name, Args: c.Function.Arguments})
+			}
+		case m.Role == "tool":
+			if p, ok := byCall[m.ToolCallID]; ok && p.run == m.RunID {
+				st := &steps[p.run][p.i]
+				st.Result = m.Content
+				st.Failed = strings.HasPrefix(m.Content, "Error:") || strings.HasPrefix(m.Content, "Tool reported an error:")
+			}
+		}
+	}
+	return steps
 }
 
 type callView struct{ Name, Args string }
@@ -366,6 +410,16 @@ func (s *Server) viewMessages(t *store.Thread, u *store.User, role string, msgs 
 		latest = max(latest, s.st.LastRunID(t.ID))
 	} else {
 		latest = -1
+	}
+	// What this viewer wants to see of the AI's work. An agent's page is its
+	// log, so it always shows everything.
+	showTools, showThinking := u.ShowTools, u.ShowThinking
+	if a, _ := s.st.AgentByThread(t.ID); a != nil {
+		showTools, showThinking = true, true
+	}
+	var steps map[int64][]toolStep
+	if !showTools {
+		steps = toolSteps(msgs)
 	}
 	atts, _ := s.st.AttachmentsByMessage(userMsgIDs)
 	pending, _ := s.st.PendingApprovals(t.ID)
@@ -435,6 +489,32 @@ func (s *Server) viewMessages(t *store.Thread, u *store.User, role string, msgs 
 			}
 			v.CanRetry = v.Footer != "" && isLatest && myRun && finished(m.RunStatus)
 		}
+		v.NoThinking = !showThinking
+		if !showTools {
+			// Tool calls and results are not rows of their own. What must stay
+			// visible stays: a call that waits for permission, a picture a tool
+			// made, text the AI wrote next to a call, and thinking if wanted.
+			switch {
+			case m.Role == "tool":
+				v.HideBody = true
+			case m.Role == "assistant" && m.ToolCalls != "":
+				v.Calls = nil
+				v.HideBody = strings.TrimSpace(m.Content) == "" && len(v.Images) == 0 && len(v.Approvals) == 0 &&
+					m.Status != store.MsgStreaming && (m.Reasoning == "" || !showThinking)
+			}
+			if lastOfRun && len(steps[m.RunID]) > 0 {
+				v.ToolSteps = steps[m.RunID]
+				for _, st := range v.ToolSteps {
+					if st.Failed {
+						v.ToolFailed++
+					}
+				}
+				// A sign of life while a tool runs: without it a slow tool looks like a frozen chat.
+				if last := v.ToolSteps[len(v.ToolSteps)-1]; m.RunStatus == store.RunRunning && last.Result == "" && len(v.Approvals) == 0 {
+					v.Working = last.Name
+				}
+			}
+		}
 		views[i] = v
 	}
 	var oldest int64
@@ -448,6 +528,8 @@ func (s *Server) viewMessages(t *store.Thread, u *store.User, role string, msgs 
 		"Messages":  views,
 		"OldestRun": oldest,
 		"HasOlder":  oldest > 0 && s.st.HasMessagesBefore(t.ID, oldest),
+		// app.js adds the "Thinking" block while an answer streams, unless told not to
+		"ShowThinking": showThinking,
 	}
 }
 

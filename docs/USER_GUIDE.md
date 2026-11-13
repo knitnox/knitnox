@@ -1,6 +1,6 @@
 # User guide
 
-Knitnox is a private AI harness for one person or a small team. It is one program with one portable database, and it works with a local model or a cloud provider.
+Knitnox is a private AI harness for personal use or a small pro-AI team. It is one program with one portable database, and it works with a local model or a cloud provider.
 
 With others, it puts your people and one AI in the same chat: you ask together, everyone sees the same answer, and it keeps what you agreed. On your own, it is a private assistant with a memory, a to-do list and helpers that work while you are away. It works the same for a small team, a club, a group of friends or a family.
 

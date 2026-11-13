@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Knitnox: decide together, with AI in the room</title>
-<meta name="description" content="Knitnox is a private AI harness for one person or a small team: one program, one portable database, any local or cloud model. Ask together in a group where the AI chairs like a speaker, ask privately in your own chat, and let agents work around the clock.">
+<meta name="description" content="Knitnox is a private AI harness for personal use or a small pro-AI team: one program, one portable database, any local or cloud model. Ask together in a group where the AI chairs like a speaker, ask privately in your own chat, and let agents work around the clock.">
 <meta property="og:title" content="Knitnox: decide together, with AI in the room">
-<meta property="og:description" content="One AI in the room for your team, club or family. It remembers what you decided, keeps your tasks and catches you up. One program, your own server.">
+<meta property="og:description" content="A private AI harness for personal use or a small pro-AI team. Ask together in a group, ask in private in a chat of your own, or let agents work around the clock. One program, one portable database, any local or cloud model.">
 <meta property="og:image" content="screenshots/chat-light.webp">
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0b0b0c" media="(prefers-color-scheme: dark)">
@@ -159,7 +159,9 @@ nav.top .btn { padding: 8px 16px; font-size: 14px; }
 .bridge b { background: var(--fg); color: var(--bg); padding: 7px 18px; border-radius: 999px; font-size: 14.5px; font-weight: 600; }
 .bridge small { color: var(--muted); font-size: 13.5px; margin-top: 6px; }
 .flow .note { flex: 3; align-self: center; color: var(--muted); font-size: 14.5px; }
-.story { list-style: none; counter-reset: st; margin: 44px 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; }
+.lane-name b { font: 700 18px var(--font); color: var(--fg); letter-spacing: -.02em; margin-right: 10px; }
+.story-name { margin: 44px 0 0; font: 500 12.5px var(--mono); color: var(--muted); letter-spacing: .04em; }
+.story { list-style: none; counter-reset: st; margin: 16px 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; }
 .story li { counter-increment: st; border-top: 1px solid var(--line-2); padding-top: 14px; }
 .story li::before { content: counter(st); display: block; font: 500 13px var(--mono); color: var(--muted); margin-bottom: 8px; }
 .story b { display: block; font-size: 15.5px; font-weight: 600; letter-spacing: -.01em; }
@@ -298,6 +300,7 @@ footer a:hover { color: var(--fg); }
   .pain-card { padding: 24px 22px 22px; }
   .explain > div { grid-template-columns: 1fr; gap: 2px; }
   .lane { padding: 18px 16px; }
+  .lane-name b { display: block; margin: 0 0 4px; }
   .flow .row { flex-direction: column; }
   .flow .row > .arrow { transform: rotate(90deg); }
   .trio { grid-template-columns: 1fr; }
@@ -346,13 +349,13 @@ footer a:hover { color: var(--fg); }
   <div class="wrap">
     <span class="badge"><b>Private</b> Self-hosted · open source · runs on your own machine</span>
     <h1>Decide together.<br><span class="soft">With AI in the room.</span></h1>
-    <p class="lead">Knitnox is a <strong>private AI harness</strong> for one person or a small team. Everyone asks their own AI and comes back with a different answer; here <strong>your people and one AI sit in the same chat</strong>. It remembers what you agreed, keeps your tasks and tells you what changed. Use it with others, or entirely on your own.</p>
+    <p class="lead">Knitnox is a <strong>private AI harness</strong> for personal use or a small pro-AI team. With your team, <strong>everyone and one AI sit in the same chat</strong> and see the same answer. On your own, it is an assistant with a memory, a to-do list and agents that work around the clock.</p>
     <div class="cta">
       <a class="btn btn-solid" href="#download">Download
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
       <a class="btn btn-line" href="#map">See how it fits together</a>
     </div>
-    <div class="ticks"><span>One program, one portable database</span><span>Local or cloud AI</span><span>Alone or as a team</span><span>On demand or around the clock</span></div>
+    <div class="ticks"><span>One program, one portable database</span><span>Local or cloud AI</span><span>Personal or as a team</span><span>On demand or around the clock</span></div>
 
     <div class="stage reveal">
       <div class="frame">
@@ -446,11 +449,12 @@ footer a:hover { color: var(--fg); }
   <div class="wrap">
     <div class="text reveal">
       <span class="num"><b>01</b> / Chats and groups</span>
-      <h2>Private chats.<br>Alone or together.</h2>
-      <p>A <strong>chat</strong> is you and the AI. A <strong>group</strong> is a chat for several people: you invite them with a link and everyone writes in the same place. There <strong>the AI works like the speaker of a small parliament</strong>: everyone gets a turn, it answers each person by name, and it keeps track of who said what.</p>
+      <h2>Chat alone.<br>Or decide together.</h2>
+      <p>A <strong>chat</strong> is you and the AI. A <strong>group</strong> is one chat for several people. There <strong>the AI works like the speaker of a small parliament</strong>: everyone gets a turn, it answers each person by name and keeps track of who said what.</p>
       <dl class="explain">
-        <div><dt>Solves</dt><dd>“ChatGPT said this, Gemini said that.” In a group there is one answer, and everyone saw it. Use it to brainstorm, or to settle a question.</dd></div>
-        <div><dt>How it works</dt><dd>Start a group and send the invite link. One AI model answers everyone; the person who started the group chooses it and can change it later.</dd></div>
+        <div><dt>Solves</dt><dd>“ChatGPT said this, Gemini said that.” In a group there is one answer, and everyone saw it. Use it to brainstorm or to settle a question.</dd></div>
+        <div><dt>How it works</dt><dd>Start a group and send the invite link. Everyone writes in the same place and one AI model answers. Whoever started the group chooses the model.</dd></div>
+        <div><dt>Who sees it</dt><dd>Your own chat: only you. A group: the people you invited.</dd></div>
         <div><dt>Connects to</dt><dd>Every group has its own <a href="#groupmem">memory</a>. Anything said there can be <a href="#connect">taken to your own chat</a>.</dd></div>
       </dl>
       <ul class="points">
@@ -476,10 +480,11 @@ footer a:hover { color: var(--fg); }
     <div class="text reveal">
       <span class="num"><b>02</b> / Group memory</span>
       <h2>What you decided.<br>Written down.</h2>
-      <p>While you talk, the AI writes down <strong>what the group agrees on</strong>: the date, who does what, what it costs. Everyone in the group can open the list at any time.</p>
+      <p>While you talk, the AI writes down <strong>what the group agrees on</strong>: the date, who does what, what it costs. Anyone in the group can open the list at any time.</p>
       <dl class="explain">
-        <div><dt>Solves</dt><dd>“Didn't we change that?” and “who said that?”. Each fact shows whose message it came from, and when.</dd></div>
+        <div><dt>Solves</dt><dd>“Didn't we change that?” “Who said that?” Each fact shows whose message it came from, and when.</dd></div>
         <div><dt>How it works</dt><dd>Only the AI writes there, so nobody can quietly slip a “decision” in. When something changes, tell the AI in the group and it corrects the fact. A wrong fact can be deleted.</dd></div>
+        <div><dt>Who sees it</dt><dd>Everyone in the group, and nobody outside it.</dd></div>
         <div><dt>Connects to</dt><dd>It belongs to the <a href="#chats">group</a>, not to one person. Your own chat can read it when you <a href="#connect">take something with you</a>.</dd></div>
       </dl>
     </div>
@@ -500,10 +505,11 @@ footer a:hover { color: var(--fg); }
     <div class="text reveal">
       <span class="num"><b>03</b> / Take to my chat</span>
       <h2>Ask in private.<br>Then get it done.</h2>
-      <p>Open a chat of your own that <strong>points at the group</strong>. It is yours alone: nobody in the group sees what you ask there. Use it to ask what you did not want to ask in front of everyone, or to do something with a decision.</p>
+      <p>A chat of your own that <strong>points at the group</strong>. Nobody in the group sees it. Ask what you did not want to ask in front of everyone, or act on what was decided.</p>
       <dl class="explain">
-        <div><dt>Solves</dt><dd>“I did not follow, but I do not want to ask in front of everybody.” Ask your own chat “what did we decide, and why?”. And: “we agreed, now I have to copy it into three places.” Say “post this to my feed and add it to my plan”.</dd></div>
-        <div><dt>How it works</dt><dd>Click the arrow under any message in a group. A new chat opens with that message quoted. It can read the group's memory and latest messages. It cannot write there.</dd></div>
+        <div><dt>Solves</dt><dd>“I did not follow, but I will not ask in front of everybody.” Ask here instead: “what did we decide, and why?” And when a decision needs doing, say “post this to my feed and add it to my plan”.</dd></div>
+        <div><dt>How it works</dt><dd>Click the arrow under any message in a group. A chat of your own opens with that message quoted. It can read the group's memory and latest messages. It cannot write there.</dd></div>
+        <div><dt>Who sees it</dt><dd>Only you. Your questions and the answers never reach the group.</dd></div>
         <div><dt>Connects to</dt><dd>It is the bridge from the <a href="#chats">group</a> to your own <a href="#plan">Plan Book</a>, <a href="#feed">Feed</a> and <a href="#memory">Memory</a>.</dd></div>
       </dl>
     </div>
@@ -523,11 +529,12 @@ footer a:hover { color: var(--fg); }
   <div class="wrap">
     <div class="text reveal">
       <span class="num"><b>04</b> / Plan Book</span>
-      <h2>Tasks and projects.<br>With a helper.</h2>
-      <p>Your own to-do list. A task has a due date and can sit in a project. You add tasks yourself, or <strong>the AI adds them when you ask in a chat</strong>.</p>
+      <h2>Your to-do list.<br>The AI helps fill it.</h2>
+      <p>Your own tasks, each with a due date, grouped into projects if you like. Add them yourself, or <strong>ask the AI in a chat to add them</strong>.</p>
       <dl class="explain">
         <div><dt>Solves</dt><dd>“Who asked me to do this, and by when?” Every task shows who added it (you, the AI or an agent) and which chat it came from.</dd></div>
-        <div><dt>How it works</dt><dd>Today, tomorrow and this week at a glance. Projects keep things together. A bin and a history of every change, so nothing disappears.</dd></div>
+        <div><dt>How it works</dt><dd>Today, tomorrow and this week at a glance. A bin and a history of every change, so nothing disappears.</dd></div>
+        <div><dt>Who sees it</dt><dd>Only you. An agent can read or change it if you allow that agent.</dd></div>
         <div><dt>Connects to</dt><dd>Filled from <a href="#connect">your chats</a>. An <a href="#agents">agent</a> can read it and remind you in your <a href="#feed">Feed</a>.</dd></div>
       </dl>
     </div>
@@ -550,8 +557,9 @@ footer a:hover { color: var(--fg); }
       <h2>Your private timeline.<br>The AI posts too.</h2>
       <p>Like a social feed, but <strong>just for you</strong>. Short posts from you, from the AI in your chats and from your agents, newest first.</p>
       <dl class="explain">
-        <div><dt>Solves</dt><dd>“I missed that, I was busy.” And checking five tools every morning. Here the news comes to you.</dd></div>
-        <div><dt>How it works</dt><dd>A post can carry a report, a chart, a picture or a voice recording. It stays private until you share it with everyone on your server.</dd></div>
+        <div><dt>Solves</dt><dd>“I missed that, I was busy.” You stop checking five tools every morning. The news comes to you.</dd></div>
+        <div><dt>How it works</dt><dd>A post can carry a report, a chart, a picture or a voice recording. The AI and your agents post only after you allow it.</dd></div>
+        <div><dt>Who sees it</dt><dd>Only you, until you share a post with everyone on your server.</dd></div>
         <div><dt>Connects to</dt><dd>Decisions you <a href="#connect">took from a group</a>, and what your <a href="#agents">agents</a> found. A morning brief can read your <a href="#plan">Plan Book</a>.</dd></div>
       </dl>
     </div>
@@ -578,11 +586,12 @@ footer a:hover { color: var(--fg); }
     <div class="text reveal">
       <span class="num"><b>06</b> / Memory</span>
       <h2>It remembers.<br>You stay in charge.</h2>
-      <p>Your <strong>own</strong> memory, separate from any group's. Tell the AI once that Ana is allergic to peanuts and it remembers in all of your own chats.</p>
+      <p>Your <strong>own</strong> memory, used in every chat of yours and separate from any group's. Tell the AI once that Ana is allergic to peanuts and it knows from then on.</p>
       <dl class="explain">
-        <div><dt>Solves</dt><dd>Repeating yourself. Starting every chat from zero.</dd></div>
+        <div><dt>Solves</dt><dd>“I told you that already.” You stop repeating yourself and starting every chat from zero.</dd></div>
         <div><dt>How it works</dt><dd>Off until you switch it on. People, places and projects are linked on a map you can explore. Read, change, pin or delete anything it knows.</dd></div>
-        <div><dt>Connects to</dt><dd>Used in <a href="#connect">your own chats</a> only, never in a <a href="#chats">group</a>. An <a href="#agents">agent</a> can read it if you allow that one agent.</dd></div>
+        <div><dt>Who sees it</dt><dd>Only you. An agent can read it if you allow that one agent, and can never change it.</dd></div>
+        <div><dt>Connects to</dt><dd>Used in <a href="#connect">your own chats</a> only, never in a <a href="#chats">group</a>.</dd></div>
       </dl>
     </div>
     <div class="reveal">
@@ -601,21 +610,21 @@ footer a:hover { color: var(--fg); }
   <div class="wrap">
     <div class="head reveal">
       <span class="num"><b>=</b> / How it fits together</span>
-      <h2>Two sides, and one bridge between them.</h2>
-      <p>What is shared with your people stays in the group. What is yours stays yours: every person has their own Memory, Plan Book and Feed. You carry things across, and nothing private ever flows back.</p>
+      <h2>The group is shared.<br>The rest is yours.</h2>
+      <p>One bridge carries a decision from the group to your own chat. Nothing private ever flows back.</p>
     </div>
     <div class="flow reveal" role="img" aria-label="A group and its memory are shared. Take to my chat is the bridge to your own chat, which uses your Plan Book, Feed and Memory. Agents post to your Feed.">
       <div class="lane">
-        <span class="lane-name">Shared with your people</span>
+        <span class="lane-name"><b>Shared</b> Everyone in the group sees it</span>
         <div class="row">
           <div class="node"><b>Group</b><small>everyone asks, one AI answers</small></div>
           <span class="arrow" aria-hidden="true">→</span>
           <div class="node"><b>Group memory</b><small>what was decided, and by whom</small></div>
         </div>
       </div>
-      <div class="bridge"><span class="arrow" aria-hidden="true">↓</span><b>Take to my chat</b><small>reads the group, never writes to it</small></div>
+      <div class="bridge"><span class="arrow" aria-hidden="true">↓</span><b>Take to my chat</b><small>one way: reads the group, never writes to it</small></div>
       <div class="lane">
-        <span class="lane-name">Yours alone</span>
+        <span class="lane-name"><b>Yours alone</b> Every person has their own. Nobody else sees it</span>
         <div class="row">
           <div class="node"><b>Your own chat</b><small>ask in private, “post this, add that”</small></div>
           <span class="arrow" aria-hidden="true">→</span>
@@ -625,14 +634,15 @@ footer a:hover { color: var(--fg); }
             <div class="node"><b>Memory</b><small>what it knows about you</small></div>
           </div>
         </div>
-        <div class="row agents-row" id="agents">
+        <div class="row agents-row">
           <div class="node"><b>Agents</b><small>work around the clock, or when asked</small></div>
           <span class="arrow" aria-hidden="true">→</span>
-          <p class="note">An agent has a job, such as “every morning, tell me what is due this week”. It can use tool servers (MCP) to reach the world outside. It runs by itself on a schedule, day and night, or only when you start it, and posts what it found to your Feed. You stay in control: you set how often it may run, which tools it may use, and you can pause it at any time.</p>
+          <p class="note">Helpers with a job, such as “every morning, tell me what is due this week”. They post what they found to your Feed. You set the limits and can pause one at any time.</p>
         </div>
       </div>
     </div>
 
+    <p class="story-name reveal">One example, in five steps</p>
     <ol class="story reveal">
       <li><b>Four friends ask in a group</b><p>“Which weekend works for the lake?” Everyone answers in the same place. The AI keeps count.</p></li>
       <li><b>The group's memory keeps the result</b><p>June 21, Leo drives, €89.50 each. Next month anyone can look it up.</p></li>
@@ -700,10 +710,10 @@ footer a:hover { color: var(--fg); }
     <div class="head reveal">
       <span class="num"><b>+</b> / And also</span>
       <h2>Quietly capable.</h2>
-      <p>The things that make it work every day, for one person, a household or a small team.</p>
+      <p>The things that make it work every day, for personal use, a household or a small team.</p>
     </div>
     <div class="grid reveal">
-      <div class="cell">
+      <div class="cell" id="agents">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="7" width="16" height="13" rx="3"/><path d="M12 7V3M8.5 13h.01M15.5 13h.01M9 17h6"/></svg>
         <h3>Agents, 24 hours a day</h3><p>Helpers with their own job, tools and to-do list. They work by themselves around the clock on a schedule, or only on demand. You set the limits and can pause one at any time. If one runs into trouble, your Feed says so once.</p>
       </div>
@@ -842,7 +852,7 @@ cd knitnox-linux-amd64
 <section class="end">
   <div class="wrap reveal">
     <h2>Talk it through.<br>Together.</h2>
-    <p>For your team, your club, your family. Private by default, and simple enough for everyone you invite.</p>
+    <p>For your team, your club, your family, or just you. Private by default, and simple enough for everyone you invite.</p>
     <div class="cta">
       <a class="btn btn-solid" href="#download">Download Knitnox</a>
       <a class="btn btn-line" href="https://github.com/knitnox/knitnox/blob/main/docs/USER_GUIDE.md">Read the guide</a>

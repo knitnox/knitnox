@@ -6,8 +6,9 @@
 
 ### Decide together. With AI in the room.
 
-A private AI harness for one person or a small team: one program, one portable database,<br>any local or cloud model. Ask together, ask in private, or let it work around the clock,<br>
-in one small program you run yourself.
+A private AI harness for personal use or a small pro-AI team.<br>
+One program, one portable database, any local or cloud model.<br>
+Ask together, ask in private, or let it work around the clock.
 
 [![test](https://github.com/knitnox/knitnox/actions/workflows/test.yml/badge.svg)](https://github.com/knitnox/knitnox/actions/workflows/test.yml)
 ![Go 1.26+](https://img.shields.io/badge/Go-1.26%2B-black?logo=go&logoColor=white)
@@ -45,7 +46,7 @@ Everyday problems, at work, in a club or at the kitchen table, and the part of K
 | "Nobody checked. I forgot to look." | **Agents**: helpers that work by themselves around the clock, or when you ask, and report to your Feed |
 | "It cannot do that. It is only a chatbot." | **Tools (MCP)**: connect a tool server and the AI can act, not only talk. Anything a tool server exists for can be added |
 
-It is for any few people who decide things together: a small team, a club or a class, friends and family. One person starts it, the others open a link. It is just as much for one person alone.
+It is for any few people who decide things together: a small team, a club or a class, friends and family. One person starts it, the others open a link. It is just as much a personal tool.
 
 ## Two ways to use it, two ways to run it
 
@@ -61,15 +62,15 @@ Every person has their own Memory, Plan Book and Feed. It all runs from a single
 ## How it fits together
 
 ```text
-  SHARED WITH YOUR PEOPLE
+  SHARED: everyone in the group sees it
   ┌────────────────────┐      ┌──────────────────────────────┐
   │ Group              │ ───▶ │ Group memory                 │
   │ everyone asks,     │      │ what was decided, and by whom│
   │ one AI answers     │      └──────────────────────────────┘
   └────────────────────┘
-            │  Take to my chat  (reads the group, never writes to it)
+            │  Take to my chat  (one way: reads the group, never writes to it)
             ▼
-  YOURS ALONE
+  YOURS ALONE: every person has their own, nobody else sees it
   ┌────────────────────┐      ┌───────────┐ ┌──────┐ ┌────────┐
   │ Your own chat      │ ───▶ │ Plan Book │ │ Feed │ │ Memory │
   │ "post this,        │      └───────────┘ └──────┘ └────────┘
@@ -77,18 +78,19 @@ Every person has their own Memory, Plan Book and Feed. It all runs from a single
   └────────────────────┘      Agents ──────────┘  helpers on a schedule
 ```
 
-What is shared stays in the group. What is yours stays yours. You carry things across, and nothing private flows back.
+The group is shared. The rest is yours. One bridge carries a decision from the group to your own chat, and nothing private flows back.
 
 ---
 
 ## 1. Chats and groups
 
-A **chat** is you and the AI. A **group** is a chat for several people: you invite them with a link and everyone writes in the same place. There the AI works like the speaker of a small parliament: everyone gets a turn, it answers each person by name, and it keeps track of who said what.
+A **chat** is you and the AI. A **group** is one chat for several people. There **the AI works like the speaker of a small parliament**: everyone gets a turn, it answers each person by name and keeps track of who said what.
 
 | | |
 |---|---|
-| **Solves** | "ChatGPT said this, Gemini said that." In a group there is one answer, and everyone saw it. Use it to brainstorm, or to settle a question. |
-| **How it works** | Start a group and send the invite link. One AI model answers everyone; the person who started the group chooses it and can change it later. |
+| **Solves** | "ChatGPT said this, Gemini said that." In a group there is one answer, and everyone saw it. Use it to brainstorm or to settle a question. |
+| **How it works** | Start a group and send the invite link. Everyone writes in the same place and one AI model answers. Whoever started the group chooses the model. |
+| **Who sees it** | Your own chat: only you. A group: the people you invited. |
 | **Connects to** | Every group has its own memory (2). Anything said there can be taken to your own chat (3). |
 
 - Answers keep coming after you close the tab; up to 10 messages wait in line
@@ -105,12 +107,13 @@ A **chat** is you and the AI. A **group** is a chat for several people: you invi
 
 ## 2. Group memory
 
-While you talk, the AI writes down **what the group agrees on**: the date, who does what, what it costs. Everyone in the group can open the list at any time.
+While you talk, the AI writes down **what the group agrees on**: the date, who does what, what it costs. Anyone in the group can open the list at any time.
 
 | | |
 |---|---|
-| **Solves** | "Didn't we change that?" and "who said that?". Each fact shows whose message it came from, and when. |
+| **Solves** | "Didn't we change that?" "Who said that?" Each fact shows whose message it came from, and when. |
 | **How it works** | Only the AI writes there, so nobody can quietly slip a "decision" in. When something changes, tell the AI in the group and it corrects the fact. A wrong fact can be deleted. |
+| **Who sees it** | Everyone in the group, and nobody outside it. |
 | **Connects to** | It belongs to the group (1), not to one person. Your own chat can read it when you take something with you (3). |
 
 <p align="center">
@@ -122,12 +125,13 @@ While you talk, the AI writes down **what the group agrees on**: the date, who d
 
 ## 3. Take to my chat
 
-Open a chat of your own that **points at the group**. It is yours alone: nobody in the group sees what you ask there. Use it to ask what you did not want to ask in front of everyone, or to do something with a decision.
+A chat of your own that **points at the group**. Nobody in the group sees it. Ask what you did not want to ask in front of everyone, or act on what was decided.
 
 | | |
 |---|---|
-| **Solves** | "I did not follow, but I do not want to ask in front of everybody." Ask your own chat "what did we decide, and why?". And: "we agreed, now I have to copy it into three places." Say "post this to my feed and add it to my plan". |
-| **How it works** | Click the arrow under any message in a group. A new chat opens with that message quoted. It can read the group's memory and latest messages. It cannot write there. |
+| **Solves** | "I did not follow, but I will not ask in front of everybody." Ask here instead: "what did we decide, and why?" And when a decision needs doing, say "post this to my feed and add it to my plan". |
+| **How it works** | Click the arrow under any message in a group. A chat of your own opens with that message quoted. It can read the group's memory and latest messages. It cannot write there. |
+| **Who sees it** | Only you. Your questions and the answers never reach the group. |
 | **Connects to** | It is the bridge from the group (1, 2) to your own Plan Book (4), Feed (5) and Memory (6). |
 
 <p align="center">
@@ -139,12 +143,13 @@ Open a chat of your own that **points at the group**. It is yours alone: nobody 
 
 ## 4. Plan Book
 
-Your own to-do list. A task has a due date and can sit in a project. You add tasks yourself, or **the AI adds them when you ask in a chat**.
+Your own tasks, each with a due date, grouped into projects if you like. Add them yourself, or **ask the AI in a chat to add them**.
 
 | | |
 |---|---|
 | **Solves** | "Who asked me to do this, and by when?" Every task shows who added it (you, the AI or an agent) and which chat it came from. |
-| **How it works** | Today, tomorrow and this week at a glance. Projects keep things together. A bin and a history of every change. |
+| **How it works** | Today, tomorrow and this week at a glance. A bin and a history of every change, so nothing disappears. |
+| **Who sees it** | Only you. An agent can read or change it if you allow that agent. |
 | **Connects to** | Filled from your chats (3). An agent can read it and remind you in your Feed (5). |
 
 <p align="center">
@@ -160,8 +165,9 @@ Like a social feed, but **just for you**. Short posts from you, from the AI in y
 
 | | |
 |---|---|
-| **Solves** | "I missed that, I was busy." And checking five tools every morning. Here the news comes to you. |
-| **How it works** | A post can carry a report, a chart, a picture or a voice recording. It stays private until you share it with everyone on your server. |
+| **Solves** | "I missed that, I was busy." You stop checking five tools every morning. The news comes to you. |
+| **How it works** | A post can carry a report, a chart, a picture or a voice recording. The AI and your agents post only after you allow it. |
+| **Who sees it** | Only you, until you share a post with everyone on your server. |
 | **Connects to** | Decisions you took from a group (3), and what your agents found. A morning brief can read your Plan Book (4). |
 
 <p align="center">
@@ -173,13 +179,14 @@ Like a social feed, but **just for you**. Short posts from you, from the AI in y
 
 ## 6. Memory
 
-Your **own** memory, separate from any group's. Tell the AI once that Ana is allergic to peanuts and it remembers in all of your own chats.
+Your **own** memory, used in every chat of yours and separate from any group's. Tell the AI once that Ana is allergic to peanuts and it knows from then on.
 
 | | |
 |---|---|
-| **Solves** | Repeating yourself. Starting every chat from zero. |
+| **Solves** | "I told you that already." You stop repeating yourself and starting every chat from zero. |
 | **How it works** | Off until you switch it on. People, places and projects are linked on a map you can explore. Read, change, pin or delete anything it knows. |
-| **Connects to** | Used in your own chats only (3), never in a group (1). An agent can read it if you allow that one agent. |
+| **Who sees it** | Only you. An agent can read it if you allow that one agent, and can never change it. |
+| **Connects to** | Used in your own chats only (3), never in a group (1). |
 
 <p align="center">
 <picture>

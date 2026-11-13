@@ -1,7 +1,7 @@
 {
   "name": "Knitnox",
   "short_name": "Knitnox",
-  "description": "A simple, self-hosted AI chat.",
+  "description": "A private AI harness for personal use or a small pro-AI team.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

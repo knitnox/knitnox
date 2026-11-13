@@ -1,6 +1,8 @@
 # Features
 
-Everything Knitnox does today, grouped by area. Limits are listed at the end so nothing here is a surprise.
+Knitnox is a private AI harness for personal use or a small pro-AI team: one program, one portable database, a local model or a cloud provider. Use it together in a group, in private in a chat of your own, on demand like a normal chat, or around the clock with agents.
+
+This is everything it does today, grouped by area. Limits are listed at the end so nothing here is a surprise.
 
 ## Chat
 

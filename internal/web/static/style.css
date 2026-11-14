@@ -777,6 +777,8 @@ pre, code { tab-size: 4; -moz-tab-size: 4; }
 .provider-name { font-weight: 600; }
 .provider-meta { display: flex; gap: 6px; font-size: var(--fs-sm); color: var(--muted); overflow: hidden; white-space: nowrap; }
 .provider-meta .mono { overflow: hidden; text-overflow: ellipsis; font-size: var(--fs-xs); }
+.agent-card .provider-meta { flex-wrap: wrap; white-space: normal; row-gap: 2px; }
+.agent-card .provider-meta > span { white-space: nowrap; }
 .test-result:not(:empty) { margin-top: 8px; font-size: var(--fs-sm); padding: 6px 10px; border-radius: var(--r-xs); background: var(--bg-subtle); overflow-wrap: anywhere; }
 .models { border-top: 1px solid var(--border); }
 .model-row { display: flex; align-items: center; gap: 8px; padding: 10px 18px; border-bottom: 1px solid var(--border); }

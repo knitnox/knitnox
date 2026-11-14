@@ -15,7 +15,7 @@ Self-hosted, multi-user, any OpenAI-compatible model, local or cloud.
 ![SQLite](https://img.shields.io/badge/SQLite-one%20file-black?logo=sqlite&logoColor=white)
 ![Self-hosted](https://img.shields.io/badge/self--hosted-Linux%20·%20macOS%20·%20Windows-black)
 
-[**Website**](https://knitnox.github.io/) · [**Download**](#download) · [Quick start](#quick-start-from-source-no-api-key-needed) · [Architecture](docs/ARCHITECTURE.md) · [Features](docs/FEATURES.md) · [User guide](docs/USER_GUIDE.md) · [Developer guide](docs/DEVELOPER_GUIDE.md)
+[**Website**](https://knitnox.github.io/knitnox/) · [**Download**](#download) · [Quick start](#quick-start-from-source-no-api-key-needed) · [Architecture](docs/ARCHITECTURE.md) · [Features](docs/FEATURES.md) · [User guide](docs/USER_GUIDE.md) · [Developer guide](docs/DEVELOPER_GUIDE.md)
 
 <br>
 

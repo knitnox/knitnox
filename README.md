@@ -4,224 +4,285 @@
 
 # Knitnox
 
-### Decide together. With AI in the room.
+### An AI harness for a small group. One Go binary. One SQLite file.
 
-A private AI harness for personal use or a small pro-AI team.<br>
-One program, one portable database, any local or cloud model.<br>
-Ask together, ask in private, or let it work around the clock.
+Private chats for each person, group chats where one AI answers everyone,<br>
+two kinds of memory, a task list, a feed, scheduled agents and MCP tools.<br>
+Self-hosted, multi-user, any OpenAI-compatible model, local or cloud.
 
 [![test](https://github.com/knitnox/knitnox/actions/workflows/test.yml/badge.svg)](https://github.com/knitnox/knitnox/actions/workflows/test.yml)
 ![Go 1.26+](https://img.shields.io/badge/Go-1.26%2B-black?logo=go&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-one%20file-black?logo=sqlite&logoColor=white)
 ![Self-hosted](https://img.shields.io/badge/self--hosted-Linux%20·%20macOS%20·%20Windows-black)
 
-[**Website**](https://knitnox.github.io/) · [**Download**](#download) · [Quick start](#quick-start-from-source-no-api-key-needed) · [User guide](docs/USER_GUIDE.md) · [Features](docs/FEATURES.md) · [Developer guide](docs/DEVELOPER_GUIDE.md)
+[**Website**](https://knitnox.github.io/) · [**Download**](#download) · [Quick start](#quick-start-from-source-no-api-key-needed) · [Architecture](docs/ARCHITECTURE.md) · [Features](docs/FEATURES.md) · [User guide](docs/USER_GUIDE.md) · [Developer guide](docs/DEVELOPER_GUIDE.md)
 
 <br>
 
 <picture>
   <source srcset="docs/screenshots/chat-dark.webp" media="(prefers-color-scheme: dark)">
-  <img src="docs/screenshots/chat-light.webp" width="900" alt="A Knitnox group: Leo and Mia say which weekend works, and the AI keeps track of who can come.">
+  <img src="docs/screenshots/chat-light.webp" width="900" alt="A Knitnox group: several people write in one chat and one AI answers each of them by name.">
 </picture>
 
 </div>
 
 <br>
 
-> **"Well, ChatGPT told me…" "Gemini said the opposite."**
-> In Knitnox your people and one AI are in the same chat. Everyone sees the same answer at the same time. Ask together, agree together.
-
-## What it is for
-
-Everyday problems, at work, in a club or at the kitchen table, and the part of Knitnox that solves each:
-
-| What people say | The part that solves it |
-|---|---|
-| "ChatGPT said this." "Gemini said the opposite." | **Groups**: everyone asks in one chat and sees the same answer |
-| "Wait, didn't we change that last week?" | **Group memory**: what was agreed, and whose message it came from |
-| "I did not follow, but I will not ask in front of everybody." | **Take to my chat**: a chat of your own that points at the group. Nobody in the group sees it |
-| "Who asked me to do this? And by when?" | **Plan Book**: your tasks, each with who added it |
-| "Sorry, I missed that. I was busy." | **Feed**: your chats and agents post short updates in one place |
-| "I told you that already." | **Memory**: your own memory. Tell the AI once and it knows it in all of your own chats |
-| "Nobody checked. I forgot to look." | **Agents**: helpers that work by themselves around the clock, or when you ask, and report to your Feed |
-| "It cannot do that. It is only a chatbot." | **Tools (MCP)**: connect a tool server and the AI can act, not only talk. Anything a tool server exists for can be added |
-
-It is for any few people who decide things together: a small team, a club or a class, friends and family. One person starts it, the others open a link. It is just as much a personal tool.
-
-## Two ways to use it, two ways to run it
+Each part of Knitnox is a set of tools the model can call, and the server decides on every run which of them it gets.
 
 | | |
 |---|---|
-| **With your people** | A group is a small parliament with the AI as its speaker: everyone gets a turn, it answers each person by name and keeps track of what was agreed. Use it to brainstorm or to settle a question. |
-| **In private** | Open a chat of your own that points at the group and ask what you did not want to ask in front of everyone. Nobody in the group sees it. Or use Knitnox entirely on your own. |
-| **On demand** | A normal chat: you write, it answers. |
-| **Around the clock** | Agents work by themselves on a schedule, 24 hours a day, and report to your Feed. You set the limits, choose the tools and can pause one at any time. |
+| **Runtime** | Pure Go, no CGO. One binary with the UI, migrations and docs embedded. |
+| **Storage** | One SQLite file. Copy the data folder and it runs on another machine. |
+| **Models** | Any OpenAI-compatible endpoint: Ollama, LM Studio, OpenAI, OpenRouter, Groq. Shared models with a token quota per person, or each person's own key. |
+| **Tools** | 32 built-in tools, plus any MCP server over Streamable HTTP. |
 
-Every person has their own Memory, Plan Book and Feed. It all runs from a single program with one portable database file, on a local model or a cloud provider.
+## The map: two scopes and one bridge
 
-## How it fits together
+Everything is either **shared by a group** or **owned by one person**. A personal chat can read a group. Nothing personal ever flows into one.
 
 ```text
-  SHARED: everyone in the group sees it
-  ┌────────────────────┐      ┌──────────────────────────────┐
-  │ Group              │ ───▶ │ Group memory                 │
-  │ everyone asks,     │      │ what was decided, and by whom│
-  │ one AI answers     │      └──────────────────────────────┘
-  └────────────────────┘
-            │  Take to my chat  (one way: reads the group, never writes to it)
+  SHARED: a group, every member sees all of it
+  ┌────────────────────┐      ┌───────────────────┐ ┌────────────────────┐
+  │ Group              │ ───▶ │ Group memory      │ │ Group tool servers │
+  │ many people,       │      │ written only by   │ │ MCP servers added  │
+  │ one queue, one AI  │      │ the AI            │ │ for this group     │
+  └────────────────────┘      └───────────────────┘ └────────────────────┘
+            │  Reference, "Take to my chat"
+            │  one way: three read-only tools, membership checked on every call
             ▼
-  YOURS ALONE: every person has their own, nobody else sees it
-  ┌────────────────────┐      ┌───────────┐ ┌──────┐ ┌────────┐
-  │ Your own chat      │ ───▶ │ Plan Book │ │ Feed │ │ Memory │
-  │ "post this,        │      └───────────┘ └──────┘ └────────┘
-  │  add that"         │                       ▲
-  └────────────────────┘      Agents ──────────┘  helpers on a schedule
+  PERSONAL: one owner, nobody else sees it
+  ┌────────────────────┐      ┌────────┐ ┌───────────┐ ┌──────┐
+  │ Personal chat      │ ───▶ │ Memory │ │ Plan Book │ │ Feed │
+  │ you and the AI,    │      └────────┘ └───────────┘ └──────┘
+  │ with your tools    │       ▲ read     ▲ none, read   ▲ post, with
+  └────────────────────┘       │ only     │ or write     │ a daily limit
+  ┌────────────────────┐       │          │              │
+  │ Agents             │ ──────┴──────────┴──────────────┘
+  │ scheduled or on    │
+  │ demand, fresh runs │
+  └────────────────────┘
+  Your MCP servers: used by your chats, ticked per agent.
+  An agent can also have servers of its own.
 ```
 
-The group is shared. The rest is yours. One bridge carries a decision from the group to your own chat, and nothing private flows back.
+Three rules hold it together:
+
+- **A chat's kind never changes.** A thread is a personal chat or a group from the moment it is made, so nothing a personal tool answered can leak by sharing.
+- **No personal tools in a group.** Not even the group admin's. Every member can make the AI use whatever is there, so only what belongs to the group is there.
+- **Text from elsewhere is data.** Group messages, memory, agent output and other people's posts reach a model only as tool results that are marked as data, not instructions.
 
 ---
 
-## 1. Chats and groups
+## Groups
 
-A **chat** is you and the AI. A **group** is one chat for several people. There **the AI works like the speaker of a small parliament**: everyone gets a turn, it answers each person by name and keeps track of who said what.
+In a group the AI works like **the chair of a meeting**, or the speaker of a small parliament. People do not each have their own assistant. All of them address the same one, it answers one message at a time, by name, and the whole room reads every answer.
 
 | | |
 |---|---|
-| **Solves** | "ChatGPT said this, Gemini said that." In a group there is one answer, and everyone saw it. Use it to brainstorm or to settle a question. |
-| **How it works** | Start a group and send the invite link. Everyone writes in the same place and one AI model answers. Whoever started the group chooses the model. |
-| **Who sees it** | Your own chat: only you. A group: the people you invited. |
-| **Connects to** | Every group has its own memory (2). Anything said there can be taken to your own chat (3). |
-
-- Answers keep coming after you close the tab; up to 10 messages wait in line
-- Attach PDFs, photos, code and notes; the AI can draw pictures and read answers aloud
-- Thinking models show their reasoning in a fold-away block; tool use stays out of the way as one line you can open
-- Show one of your own chats to anyone with a read-only link, no account needed
+| **Queue** | One FIFO queue per group and one worker per thread, so exactly one answer is being written at a time. Up to 10 messages wait their turn. |
+| **Who said it** | Each message reaches the model as `[username]: text`, and the system prompt lists the participants. |
+| **One model** | Chosen by the group's admin, from the server's shared models or the admin's own key. Members need no key of their own. |
+| **Same prompt** | The toolset is built the same way whoever wrote the message, so the prompt prefix is identical between members and provider-side caching keeps working. |
+| **Roles** | Admin, member and read-only viewer. People join by an invite link with an expiry date and a maximum number of uses. |
+| **Approvals** | A tool on an "ask first" server shows a card to the whole group. The message's author or the admin decides, and the queue waits. |
 
 <p align="center">
 <picture>
   <source srcset="docs/screenshots/chat-end-dark.webp" media="(prefers-color-scheme: dark)">
-  <img src="docs/screenshots/chat-end-light.webp" width="820" alt="The group agrees on June 21 and the AI splits the cost.">
+  <img src="docs/screenshots/chat-end-light.webp" width="820" alt="A group reaches a decision and the AI sums up the result for everyone.">
 </picture>
 </p>
 
-## 2. Group memory
+## Group memory
 
-While you talk, the AI writes down **what the group agrees on**: the date, who does what, what it costs. Anyone in the group can open the list at any time.
+While people talk, the AI saves **what the group agreed on** as short facts. It is the same memory engine a person has, with a second kind of owner: the group.
 
 | | |
 |---|---|
-| **Solves** | "Didn't we change that?" "Who said that?" Each fact shows whose message it came from, and when. |
-| **How it works** | Only the AI writes there, so nobody can quietly slip a "decision" in. When something changes, tell the AI in the group and it corrects the fact. A wrong fact can be deleted. |
-| **Who sees it** | Everyone in the group, and nobody outside it. |
-| **Connects to** | It belongs to the group (1), not to one person. Your own chat can read it when you take something with you (3). |
+| **Tools** | `memory_search` `memory_read` `memory_explore` `memory_save` `memory_update` `memory_delete`, scoped to this group |
+| **Writes** | The AI only. People cannot type a fact in, because a fact planted by one member would shape the answers for all of them. To correct one, say so in the group. |
+| **Source** | Every fact records whose message it came from and when. |
+| **Reads** | Every member, as a list and as a map of things and connections. Nobody outside the group. |
+| **Deletes** | The admin can delete any fact. A member can delete facts that came from their own messages. |
 
 <p align="center">
 <picture>
   <source srcset="docs/screenshots/groupmem-dark.webp" media="(prefers-color-scheme: dark)">
-  <img src="docs/screenshots/groupmem-light.webp" width="820" alt="The memory of the lake trip group: the date, who drives and the cost, each with the name of the person whose message it came from.">
+  <img src="docs/screenshots/groupmem-light.webp" width="820" alt="A group's memory: each fact with the name of the person whose message it came from.">
 </picture>
 </p>
 
-## 3. Take to my chat
+## Reference: a personal chat that can read a group
 
-A chat of your own that **points at the group**. Nobody in the group sees it. Ask what you did not want to ask in front of everyone, or act on what was decided.
+A group cannot post to your feed or add to your task list. The way out is a **reference**: a personal chat that points at a group you are in. There your own tools are available, and the group is readable.
 
 | | |
 |---|---|
-| **Solves** | "I did not follow, but I will not ask in front of everybody." Ask here instead: "what did we decide, and why?" And when a decision needs doing, say "post this to my feed and add it to my plan". |
-| **How it works** | Click the arrow under any message in a group. A chat of your own opens with that message quoted. It can read the group's memory and latest messages. It cannot write there. |
-| **Who sees it** | Only you. Your questions and the answers never reach the group. |
-| **Connects to** | It is the bridge from the group (1, 2) to your own Plan Book (4), Feed (5) and Memory (6). |
+| **Start** | "Take to my chat" under any group message opens a personal chat with that message quoted and the group connected. Or tick a group in the chat's Tools menu. |
+| **Tools** | `group_memory_search` `group_memory_read` `group_messages` (up to 30 recent turns, text only). None of them writes. |
+| **Prompt** | Only the names of the connected groups go into the system prompt. Group text arrives as tool results when the model decides to look. |
+| **Access** | Membership is checked on every call. Leave the group, or get removed, and the tools answer that it can no longer be read. |
+| **Use** | "What did we decide, and why?" in private. Or "post the decision to my feed and add booking the cabin to my plan". |
 
 <p align="center">
 <picture>
   <source srcset="docs/screenshots/connect-dark.webp" media="(prefers-color-scheme: dark)">
-  <img src="docs/screenshots/connect-light.webp" width="820" alt="Sam's own chat, connected to the lake trip group: the AI posts the decision to his feed and adds a task to his plan.">
+  <img src="docs/screenshots/connect-light.webp" width="820" alt="A personal chat connected to a group: the AI posts the decision to the owner's feed and adds a task to the owner's plan.">
 </picture>
 </p>
 
-## 4. Plan Book
+## Memory
 
-Your own tasks, each with a due date, grouped into projects if you like. Add them yourself, or **ask the AI in a chat to add them**.
-
-| | |
-|---|---|
-| **Solves** | "Who asked me to do this, and by when?" Every task shows who added it (you, the AI or an agent) and which chat it came from. |
-| **How it works** | Today, tomorrow and this week at a glance. A bin and a history of every change, so nothing disappears. |
-| **Who sees it** | Only you. An agent can read or change it if you allow that agent. |
-| **Connects to** | Filled from your chats (3). An agent can read it and remind you in your Feed (5). |
-
-<p align="center">
-<picture>
-  <source srcset="docs/screenshots/plan-dark.webp" media="(prefers-color-scheme: dark)">
-  <img src="docs/screenshots/plan-light.webp" width="820" alt="The Plan Book with tasks for today, tomorrow and this week.">
-</picture>
-</p>
-
-## 5. Feed
-
-Like a social feed, but **just for you**. Short posts from you, from the AI in your chats and from your agents, newest first.
+Per person, off until switched on. The AI saves short facts in one chat and looks them up in another. Facts, the **things** they mention and the **connections** between those things are four ordinary SQLite tables. There is no graph database and no vector extension.
 
 | | |
 |---|---|
-| **Solves** | "I missed that, I was busy." You stop checking five tools every morning. The news comes to you. |
-| **How it works** | A post can carry a report, a chart, a picture or a voice recording. The AI and your agents post only after you allow it. |
-| **Who sees it** | Only you, until you share a post with everyone on your server. |
-| **Connects to** | Decisions you took from a group (3), and what your agents found. A morning brief can read your Plan Book (4). |
-
-<p align="center">
-<picture>
-  <source srcset="docs/screenshots/feed-dark.webp" media="(prefers-color-scheme: dark)">
-  <img src="docs/screenshots/feed-light.webp" width="820" alt="The Feed: the lake trip decision posted by the AI, a morning brief from an agent and a chart.">
-</picture>
-</p>
-
-## 6. Memory
-
-Your **own** memory, used in every chat of yours and separate from any group's. Tell the AI once that Ana is allergic to peanuts and it knows from then on.
-
-| | |
-|---|---|
-| **Solves** | "I told you that already." You stop repeating yourself and starting every chat from zero. |
-| **How it works** | Off until you switch it on. People, places and projects are linked on a map you can explore. Read, change, pin or delete anything it knows. |
-| **Who sees it** | Only you. An agent can read it if you allow that one agent, and can never change it. |
-| **Connects to** | Used in your own chats only (3), never in a group (1). |
+| **Tools** | `memory_search` `memory_read` `memory_explore` `memory_save` `memory_update` `memory_delete` |
+| **Search** | FTS5 word search ranked by BM25 works with no setup. Add an embedding model and results are merged with a vector search by reciprocal rank fusion. |
+| **Budget** | A large memory cannot flood the context: 8 hits of 240 characters per search, full text fetched by id, the graph walked one hop per call, every answer cut at 6,000 characters. |
+| **Pinned** | Up to 12 pinned facts are always in the prompt. The rest is looked up. |
+| **Control** | Read, edit, pin, merge and delete everything on the Memory page. Export it all as a file, or wipe it. |
+| **Connects to** | Personal chats read and write it. An agent can read it if you allow that agent, and never writes. Groups never see it. |
 
 <p align="center">
 <picture>
   <source srcset="docs/screenshots/memory-dark.webp" media="(prefers-color-scheme: dark)">
-  <img src="docs/screenshots/memory-light.webp" width="820" alt="The memory map linking people, places and projects.">
+  <img src="docs/screenshots/memory-light.webp" width="820" alt="The memory map: people, places and projects linked by named connections.">
 </picture>
 </p>
 
-## And also
+## Plan Book
+
+One task list per person. You, the AI in your chats and your agents all work on **the same rows**, and every change records who made it.
 
 | | |
 |---|---|
-| **Agents** | Background helpers with their own instructions, tools and to-do list. On a schedule, on demand, or handed tasks by a chat. Ready-made ones in the agent store. |
-| **Tools (MCP)** | A tool server gives the AI hands: web search, a calendar, a tracker, a database, a service of your own. Add one to your own chats, give a group its own, or hand one to a single agent. Per server: run automatically, or show **Allow / Deny / Always allow** and wait for a person. |
-| **Any AI model** | Any OpenAI-compatible API: OpenAI, OpenRouter, Groq, Together, or fully local with Ollama, LM Studio and vLLM. Users can bring their own keys. |
-| **Admin panel** | Providers and models, users, daily or monthly allowances, usage and cost per person and model. |
-| **On your phone (PWA)** | Knitnox is a PWA: a web app you install straight from the browser, with no app store. You get push notifications when an answer is ready, a tool needs your OK, an agent finished, your feed has a new post or your Plan Book changed. |
-| **Find anything** | Full-text search across every chat, `Ctrl+K` to jump anywhere, export as Markdown or JSON. |
-| **Built to stay up** | Checked automatic backups, time limits for silent providers, login protection and an audit log. |
+| **Tools** | `plan_list` `plan_read` `plan_projects` `plan_add` `plan_update` `plan_delete` |
+| **History** | Each task keeps a log: you, the AI (and from which chat), or which agent. Deleted tasks sit in a bin for 30 days. |
+| **Agents** | Per agent: no access, read only (three tools), or read and write (all six). |
+| **Prompt** | No task list is put into the system prompt. The model calls `plan_list` when it needs to know, so the prompt prefix stays stable. |
 
-## Your server, your data
+<p align="center">
+<picture>
+  <source srcset="docs/screenshots/plan-dark.webp" media="(prefers-color-scheme: dark)">
+  <img src="docs/screenshots/plan-light.webp" width="820" alt="The Plan Book: tasks grouped by due date, some of them added by the AI from a chat.">
+</picture>
+</p>
+
+## Feed
+
+A private timeline per person. It is the **output channel** for anything that runs without you watching: a scheduled agent's report, a decision taken from a group, a chart of this week's numbers.
+
+| | |
+|---|---|
+| **Tools** | `feed_post` `feed_list` `feed_read` `feed_delete` |
+| **A post** | Up to 500 characters, with an optional Markdown report behind it, a bar or line chart drawn by the server from numbers, or an SVG the model draws. With a picture, voice or video model set up, also an image, a recording or a short clip. |
+| **Private first** | Posts by the AI or an agent are always private. You share one with the server by hand. |
+| **Agents** | An agent posts only if you allow it, with a cap on posts per day. |
+| **Isolation** | The tools read only the owner's posts, so another user's shared post cannot carry instructions into a run. |
+
+<p align="center">
+<picture>
+  <source srcset="docs/screenshots/feed-dark.webp" media="(prefers-color-scheme: dark)">
+  <img src="docs/screenshots/feed-light.webp" width="820" alt="The Feed: a decision posted by the AI, a morning brief from an agent and a chart.">
+</picture>
+</p>
+
+---
+
+## Tools: the toolset is worked out on every run
+
+Built-in tools and MCP tools sit in one list. At the start of each run the server looks at what kind of run it is and who owns it, and gives the model exactly the tools that follow from that. Nobody wires a tool to a chat by hand.
+
+| Tool set | Personal chat | Group | Agent run |
+|---|---|---|---|
+| **MCP servers** `s{id}_{tool}` | All of the owner's enabled servers | Only servers added for this group | Servers ticked for the agent, filtered by a per-tool allowlist, plus the agent's own servers |
+| **Memory** `memory_*` (6) | Read and write, the owner's, if switched on | Read and write, the group's own | Read only, the owner's, if allowed for this agent |
+| **Plan Book** `plan_*` (6) | All six, if switched on | None | None, three read tools, or all six: set per agent |
+| **Feed** `feed_*` (4) | All four, if the owner lets the AI post | None | Post, list and read, within a daily limit, if allowed |
+| **Pictures** `make_picture` | If the owner has a picture model | None | None |
+| **Manager tools** `run_agent`, `create_agent_task`, … (8) | For agents the owner connected to this chat | None | None: agents do not call agents |
+| **Group reference** `group_*` (3) | Read only, for groups connected to this chat | None | None |
+| **Own work queue** `list_tasks`, `add_task`, `update_task`, `save_memory` | None | None | Always |
+
+- **The Tools menu only switches things off.** Each chat can drop Memory, the Plan Book, the Feed, pictures, agents or any one server. It can never grant a chat something its owner has not enabled.
+- **Two servers can both have `search`.** MCP tools are exposed as `s{serverID}_{tool}`. Built-in tools run inside the engine, with no network hop and no approval step.
+- **A server that is down is skipped.** Servers are connected in parallel with a 15-second limit each; the run goes on without the one that did not answer.
+
+## Agents: a thread with a job
+
+A saved worker: instructions, a model, chosen tools, a to-do list and a schedule. Internally it is **an ordinary thread plus one row**, so the queue, streaming, Stop, tool approvals, quotas and push notifications apply to agents with no extra machinery.
+
+| | |
+|---|---|
+| **Triggers** | A schedule from every 15 minutes to weekly, **Run now**, a message typed in its chat, or a connected chat calling `run_agent`. |
+| **Fresh runs** | No conversation history is carried over, so cost per run stays flat. A run sees its instructions, notes, own memory, open tasks and a digest of its last 3 runs. |
+| **Limits** | Steps per run, automatic runs per day, "only when there are open tasks", and a pause switch. Every run is billed to and approved by its owner. |
+| **Manager** | Agents never talk to each other. The only manager is a chat's AI, for agents you connected to that chat: it creates tasks, starts runs, reads results and adjusts notes. It cannot change instructions, tools, schedule or limits. |
+| **Results** | Starting an agent only queues a run; the chat never waits. When the task is done, the result is posted back into the chat that asked. |
+| **Store** | Publish an agent's configuration for others on the server. Tasks, memory, notes and MCP addresses are never copied. |
+
+## MCP: external tools, with rules about repeating them
+
+Knitnox speaks MCP over **Streamable HTTP** with a client of its own, about 300 lines: `initialize`, `tools/list`, `tools/call`. Add a server by URL and optional headers, which are encrypted at rest.
+
+| | |
+|---|---|
+| **Three scopes** | A server belongs to a person (all their personal chats), to one group, or to one agent. The three never mix. |
+| **Two modes** | Run automatically, or ask first: an approval card with **Allow once / Deny / Always allow** and a push notification. An unanswered card expires. |
+| **At most once** | A call is retried only when it cannot have reached the tool (connection refused, DNS failure, 429, 503). After a timeout or a dropped connection the model is told the tool may have run. |
+| **Bounded** | Tool output is capped at 20,000 characters. At the step limit one last call is made without tools, so there is always an answer. |
+| **Network guard** | Addresses a user typed in are checked at connect time, after DNS. Link-local is always refused; the admin can also close off loopback and private ranges. |
+
+## The engine
+
+**Generation belongs to the server, not to the browser tab.** Sending a message only stores it and queues a run. A worker goroutine per busy thread does the model and tool work and publishes progress; browsers are viewers that subscribe over SSE.
+
+- **Survives the browser.** Close the tab or let the laptop sleep: the run goes on, and the stream resumes from a snapshot.
+- **Survives a restart.** The queue is rows in SQLite. Running turns are marked interrupted, never silently re-run; queued ones start again.
+- **Compaction.** Past 50 turns, or 70% of the model's context window, older turns are folded into a rolling summary. The last 10 stay verbatim and the originals are never deleted.
+- **Cache-friendly prompts.** No clock, task list or post list in the system prompt. Time arrives as a stamp on each user message, so the prompt prefix is byte-identical from turn to turn.
+- **Nothing holds a slot forever.** An idle watchdog on the provider stream, a time limit per run, an approval timeout and a cap on parallel runs.
+
+[ARCHITECTURE.md](docs/ARCHITECTURE.md) explains all of it in depth.
+
+## Under the hood
 
 ```text
-  your browser or phone
+  browser or installed PWA     server-rendered HTML · htmx · SSE
           │
       ┌───▼────┐
-      │knitnox │   one program on your machine: no Docker, no Node, no database server
+      │knitnox │               web → engine → llm · mcp · hub · store
       └───┬────┘
           │
-     knitnox.db    one SQLite file holds everything
+        data/                  knitnox.db · secret.key · uploads · backups
           │
-   the AI you choose  (cloud or fully local)
+       outside                 any OpenAI-compatible model endpoint · MCP servers over HTTP
 ```
 
+- **Pure Go, no CGO.** SQLite is the pure-Go `modernc.org/sqlite`. One Linux runner cross-compiles all six targets: Windows, macOS and Linux, each on amd64 and arm64.
+- **One self-contained binary.** Templates, CSS, JS, fonts, SQL migrations, the guides and time-zone data are compiled in.
+- **Four direct dependencies.** SQLite, Web Push, a PDF text reader and `x/crypto`. The LLM client and the MCP client are written in-house, with no SDK.
+- **No frontend build.** Server-rendered `html/template`, htmx, and about 95 KB of hand-written vanilla JS. No npm, no bundler. Four vendored libraries (htmx, marked, DOMPurify, highlight.js); nothing is loaded from a CDN.
+- **SQLite in WAL mode.** FTS5 for chat and memory search. A daily backup is written with `VACUUM INTO` and verified with an integrity check.
+- **Security.** API keys and MCP headers sealed with AES-256-GCM, a strict CSP with no inline scripts or styles, sanitised model output, a login limiter, per-user token quotas and an audit log.
+- **Installable.** A PWA with Web Push for answers, approvals, finished agents, new Feed posts and due tasks.
+
 Help is built in: the user guide, feature list and developer guide are inside the app under **Help**, plus an **Issues** page for bugs and ideas.
+
+## What you can build
+
+| Parts | Result |
+|---|---|
+| Agent + Plan Book (read) + Feed | **A morning brief**: a daily agent reads what is due and posts "three things today" to your Feed. |
+| Agent + MCP + Feed chart | **A weekly numbers post**: an agent pulls figures from your database and posts a bar chart with a report behind it. |
+| Group + group memory + group MCP | **A decision room**: the AI looks things up in front of everyone and records what the team settles on. |
+| Reference + Plan Book + Feed | **From a decision to your own list**: "add my part to my plan, due Friday". The group sees none of it. |
+| Chat + manager tools + agents | **A chat that hands work out**: the chat's AI creates tasks for connected agents and gets each result posted back. |
+| Ollama + network guard | **Fully local**: a local chat model and a local embedding model, and nothing leaves the box. |
+
+**What it does not do:** it runs as a single process (no horizontal scale); MCP is HTTP only, with no stdio servers and no OAuth flow; agents do not call other agents; there is no e-mail, so passwords are reset by an admin; Word, Excel, PowerPoint and scanned PDFs are not read. The full list is in [FEATURES.md](docs/FEATURES.md#known-limits).
 
 ---
 

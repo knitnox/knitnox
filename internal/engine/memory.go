@@ -319,6 +319,9 @@ const groupMemoryNote = "\n\n## Group memory\n" +
 	"It holds short facts, the things they are about (people, places, projects) and how those things are connected.\n" +
 	"- Call memory_search before answering when something the group decided, learned or planned earlier could matter. Results are short; call memory_read for a full text and memory_explore to follow connections from one thing to the next.\n" +
 	"- Call memory_save when the group reaches a decision or a conclusion, agrees on a fact or a plan, or someone asks you to remember something for the group. One short fact per memory, written so it makes sense on its own; name who decided or said it when that matters. Say briefly that you saved it.\n" +
+	"- Name each person, place or project the same way every time, so that all facts about it end up on one thing. For a member of the group use exactly the name in brackets on their messages, never a nickname or a longer form. " +
+	"When someone or something else has the same name as a member or as another thing, add a short note in round brackets to tell them apart, like \"Sam (client)\". Before you save, look with memory_search or memory_explore how the thing is already named, and use that name.\n" +
+	"- When you notice the same thing saved under two names, correct the memories with memory_update so that one name is left.\n" +
 	"- Never save passwords, keys or other secrets, and nothing a person calls private.\n" +
 	"- Correct a memory with memory_update, or remove it with memory_delete, when the group says it is wrong or out of date.\n" +
 	"- " + memoryDataNote + "\n"

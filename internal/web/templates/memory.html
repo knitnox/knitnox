@@ -121,7 +121,7 @@
           </div>
 
           {{if or .Things .Query}}
-          {{if and .Stats.Relations (not .Query)}}{{template "mem-map" (wrap "Focus" 0)}}{{end}}
+          {{if and .Stats.Relations (not .Query)}}{{template "mem-map" (wrap "Focus" 0 "Base" "/memory")}}{{end}}
           <form class="search-form" action="/memory/things" method="get" role="search">
             <label class="search-box">
               {{template "i-search"}}
@@ -176,7 +176,7 @@
         <section class="section">
           <h2 class="sub first">How it is connected</h2>
           {{if .Relations}}
-          {{template "mem-map" (wrap "Focus" .Thing.ID)}}
+          {{template "mem-map" (wrap "Focus" .Thing.ID "Base" "/memory")}}
           <ul class="rel-list">
             {{range .Relations}}
             <li class="rel">
@@ -372,18 +372,4 @@
     <button type="submit" class="btn primary">Save changes</button>
   </div>
 </form>
-{{end}}
-
-{{/* The map: memory.js draws it from /memory/graph. .Focus = thing to start from (0 = overview). */}}
-{{define "mem-map"}}
-<div class="card graph-card">
-  <div class="graph-head">
-    <p class="hint">{{if .Focus}}This thing and what it is linked to.{{else}}Your best-connected things.{{end}} Arrows show which way a connection reads. <b>Click a circle</b> to see what else it connects to. Drag circles to tidy up.</p>
-    <button type="button" class="btn ghost sm" data-graph-reset>{{template "i-refresh"}}Start over</button>
-  </div>
-  <div class="graph{{if .Focus}} is-focus{{end}}" id="mem-graph" data-src="/memory/graph" data-focus="{{.Focus}}" role="group" aria-label="Map of the things in your memory">
-    <p class="graph-empty hint">Drawing the map…</p>
-  </div>
-  <div class="graph-info" id="mem-graph-info" aria-live="polite"></div>
-</div>
 {{end}}

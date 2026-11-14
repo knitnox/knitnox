@@ -301,7 +301,8 @@ func TestMemoryToolsAreOffered(t *testing.T) {
 	if strings.Contains(inGroup.System, "prefers tea") || strings.Contains(inGroup.System, "## Long-term memory") {
 		t.Fatal("a group was given the owner's memory")
 	}
-	if !inGroup.hasTool("memory_search") || !strings.Contains(inGroup.System, "## Group memory") {
+	if !inGroup.hasTool("memory_search") || !strings.Contains(inGroup.System, "## Group memory") ||
+		!strings.Contains(inGroup.System, "use exactly the name in brackets on their messages") {
 		t.Fatal("a group was not given its own memory")
 	}
 	group, _ := f.st.ThreadByID(gid)

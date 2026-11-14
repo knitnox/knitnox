@@ -64,6 +64,7 @@ Nobody needs to paste an answer from another AI. If someone does, paste it into 
 2. Weeks later, anyone can ask in the group: "What did we decide about the language?" The AI looks it up.
 3. When a decision changes, tell the AI in the group: "We changed our mind: Python, not Go." It corrects the fact.
 4. A fact that is simply wrong can be deleted on the Memory page, by the group's admin or by the person whose message it came from.
+5. To look around instead of searching, open **Things & connections** on the Memory page. It lists the people, places and projects the facts name, and draws them as a **map**: click a circle to bring in everything it is linked to. This part is for reading only; nobody can rename or change a thing there.
 
 Only the AI writes to a group's memory. That is on purpose: nobody can quietly type a "decision" in.
 

@@ -132,8 +132,14 @@ func (s *Server) parseTemplates() error {
 		},
 		"toolName": func(n string) string { return toolPrefix.ReplaceAllString(n, "") }, // s12_clock -> clock
 		"asset":    func(p string) string { return "/static/" + p + "?v=" + s.assetVersion },
-		"schedule": scheduleLabel,                                                            // 60 -> "Every hour"
-		"wrap":     func(key string, v any) map[string]any { return map[string]any{key: v} }, // pass one value to a partial
+		"schedule": scheduleLabel, // 60 -> "Every hour"
+		"wrap": func(kv ...any) map[string]any { // pass named values to a partial: wrap "A" 1 "B" 2
+			m := map[string]any{}
+			for i := 0; i+1 < len(kv); i += 2 {
+				m[fmt.Sprint(kv[i])] = kv[i+1]
+			}
+			return m
+		},
 		"aboutOnly": func(m store.Memory) []store.MemoryEntity { // things a memory names outside its connections
 			inRel := map[int64]bool{}
 			for _, r := range m.Relations {
@@ -278,6 +284,9 @@ func (s *Server) Handler() http.Handler {
 	u("POST /groups", s.groupCreate)
 	u("POST /t/{id}/notice", s.groupNoticeDismiss)
 	u("GET /t/{id}/memory", s.groupMemory)
+	u("GET /t/{id}/memory/things", s.groupMemoryThings)
+	u("GET /t/{id}/memory/things/{eid}", s.groupMemoryThing)
+	u("GET /t/{id}/memory/graph", s.groupMemoryGraph)
 	u("POST /t/{id}/memory/settings", s.groupMemorySettings)
 	u("POST /t/{id}/memory/{mid}/delete", s.groupMemoryDelete)
 	u("POST /t/{id}/mcp", s.groupMCPCreate)

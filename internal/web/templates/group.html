@@ -1,10 +1,12 @@
-{{define "title"}}{{if eq .Tab "memory"}}Memory · {{.Thread.Title}}{{else}}New group{{end}} · Knitnox{{end}}
+{{define "title"}}{{if eq .Tab "new"}}New group{{else}}{{if eq .Tab "thing"}}{{.Thing.Name}} · {{end}}Memory · {{.Thread.Title}}{{end}} · Knitnox{{end}}
+
+{{define "head"}}{{if or (eq .Tab "things") (eq .Tab "thing")}}<script src="{{asset "memory.js"}}" defer></script>{{end}}{{end}}
 
 {{define "content"}}
 <div class="shell">
   {{template "sidebar" .}}
   <main class="main" id="main" tabindex="-1">
-    {{if eq .Tab "memory"}}{{template "page-top" "Group memory"}}{{else}}{{template "page-top" "New group"}}{{end}}
+    {{if eq .Tab "new"}}{{template "page-top" "New group"}}{{else}}{{template "page-top" "Group memory"}}{{end}}
     <div class="page-scroll">
       <div class="page">
 
@@ -77,10 +79,16 @@
           </div>
         </form>
 
-        {{else if eq .Tab "memory"}}
+        {{else}}
         <a class="back-link" href="/t/{{.Thread.ID}}">{{template "i-chevron-left"}}Back to {{.Thread.Title}}</a>
         {{if eq .Notice "search"}}<div class="notice">{{template "i-check"}}Saved. The group's memories are being prepared in the background.</div>{{end}}
 
+        <nav class="tabs" aria-label="Sections of the group's memory">
+          <a href="/t/{{.Thread.ID}}/memory" class="{{if eq .Tab "memory"}}is-active{{end}}"{{if eq .Tab "memory"}} aria-current="page"{{end}}>{{template "i-brain"}}Memories{{if .Stats.Memories}} <span class="badge hide-phone">{{.Stats.Memories}}</span>{{end}}</a>
+          <a href="/t/{{.Thread.ID}}/memory/things" class="{{if ne .Tab "memory"}}is-active{{end}}"{{if eq .Tab "things"}} aria-current="page"{{end}}>{{template "i-graph"}}<span>Things<span class="hide-phone"> &amp; connections</span></span>{{if .Stats.Entities}} <span class="badge hide-phone">{{.Stats.Entities}}</span>{{end}}</a>
+        </nav>
+
+        {{if eq .Tab "memory"}}
         <section class="section">
           <div class="section-head">
             <div class="section-icon">{{template "i-brain"}}</div>
@@ -115,33 +123,10 @@
           {{end}}
 
           <div class="mem-list" id="memories">
-            {{range .Memories}}
-            <article class="mem" id="gmem-{{.ID}}">
-              <div class="mem-body">
-                <p class="mem-text">{{.Content}}</p>
-                {{if or .Entities .Relations}}
-                <div class="mem-links">
-                  {{range .Relations}}<span class="rel"><b>{{.Subject}}</b><i>{{.Predicate}}</i><b>{{.Object}}</b></span>{{end}}
-                  {{range aboutOnly .Memory}}<span class="chip thing-chip"><span>{{.Name}}</span></span>{{end}}
-                </div>
-                {{end}}
-                <div class="mem-meta">
-                  <span class="badge st-busy">Saved by the AI</span>
-                  {{if .SaidByName}}<span>from a message by <b>{{.SaidByName}}</b></span>{{end}}
-                  <span title="Last changed {{.UpdatedAt}} UTC">{{short .UpdatedAt}}</span>
-                </div>
-              </div>
-              {{if .CanDelete}}
-              <div class="mem-actions">
-                <button type="button" class="icon-btn sm danger-hover" hx-post="/t/{{$.Thread.ID}}/memory/{{.ID}}/delete" hx-target="#gmem-{{.ID}}" hx-swap="outerHTML"
-                        hx-confirm="Delete this from the group's memory, for everyone?" title="Delete: it is wrong, or should not be kept" aria-label="Delete this memory">{{template "i-trash"}}</button>
-              </div>
-              {{end}}
-            </article>
-            {{end}}
+            {{range .Memories}}{{template "gmem-card" (wrap "M" . "Base" $.Base)}}{{end}}
             <div class="empty-card">
               <div class="empty-icon">{{template "i-brain"}}</div>
-              {{if .Query}}<p>Nothing found</p><span>Try other words, or <a href="/t/{{.Thread.ID}}/memory">show everything</a>.</span>
+              {{if .Query}}<p>Nothing found</p><span>Try other words, look under <a href="{{.Base}}/things">Things &amp; connections</a>, or <a href="/t/{{.Thread.ID}}/memory">show everything</a>.</span>
               {{else}}<p>Nothing remembered yet</p><span>When the group decides or agrees on something, the AI notes it here. You can also ask it in the group: “remember that we chose Go”.</span>{{end}}
             </div>
           </div>
@@ -180,6 +165,90 @@
             {{end}}
           </div>
         </section>
+
+        {{else if eq .Tab "things"}}
+        <section class="section">
+          <div class="section-head">
+            <div class="section-icon">{{template "i-graph"}}</div>
+            <div>
+              <div class="h-row"><h2>Things and how they connect</h2>
+                {{template "tip-open" "What is a thing?"}}A <b>thing</b> is a person, place, project or anything else with a name that the group's memories talk about. A <b>connection</b> says how two things belong together, like “Sam writes the tests”. The AI names things and connects them when it saves a fact. This page is for looking around: nobody can add, rename or change anything here.{{template "tip-close"}}
+              </div>
+              <p>The people, places and projects the memories of <b>{{.Thread.Title}}</b> mention. Open one to see everything the group knows about it, or use the map to wander from one to the next.</p>
+            </div>
+          </div>
+
+          {{if or .Things .Query}}
+          {{if and .Stats.Relations (not .Query)}}{{template "mem-map" (wrap "Focus" 0 "Base" .Base "Group" true)}}{{end}}
+          <form class="search-form" action="{{.Base}}/things" method="get" role="search">
+            <label class="search-box">
+              {{template "i-search"}}
+              <input type="search" name="q" value="{{.Query}}" placeholder="Find a person, place or project…" aria-label="Find a thing by name" autocomplete="off" maxlength="80">
+            </label>
+            <button type="submit" class="btn primary">Find</button>
+          </form>
+          <div class="thing-grid">
+            {{range .Things}}
+            <a class="thing" href="{{$.Base}}/things/{{.ID}}">
+              <b>{{.Name}}</b>
+              <small>{{.Memories}} memor{{if eq .Memories 1}}y{{else}}ies{{end}}{{if .Links}} · {{.Links}} connection{{if ne .Links 1}}s{{end}}{{end}}</small>
+            </a>
+            {{end}}
+          </div>
+          {{if not .Things}}
+          <div class="empty-card">
+            <div class="empty-icon">{{template "i-search"}}</div>
+            <p>No thing is called “{{.Query}}”</p><span>Try part of the name, or <a href="{{.Base}}/things">show all things</a>.</span>
+          </div>
+          {{end}}
+          {{else}}
+          <div class="empty-card">
+            <div class="empty-icon">{{template "i-graph"}}</div>
+            <p>No things yet</p>
+            <span>When the AI saves a fact that names a person, place or project, it shows up here by itself.</span>
+          </div>
+          {{end}}
+        </section>
+
+        {{else if eq .Tab "thing"}}
+        <section class="section">
+          <p class="back"><a href="{{.Base}}/things">{{template "i-chevron-left"}}All things</a></p>
+          <div class="card thing-hero">
+            <div class="provider-icon">{{template "i-graph"}}</div>
+            <div class="grow">
+              <h2>{{.Thing.Name}}</h2>
+              <p class="hint">{{.MemTotal}} memor{{if eq .MemTotal 1}}y{{else}}ies{{end}} about it · {{.RelTotal}} connection{{if ne .RelTotal 1}}s{{end}} to other things</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2 class="sub first">How it is connected</h2>
+          {{if .Relations}}
+          {{template "mem-map" (wrap "Focus" .Thing.ID "Base" .Base "Group" true)}}
+          <ul class="rel-list">
+            {{range .Relations}}
+            <li class="rel">
+              {{if eq .SubjectID $.Thing.ID}}<b>{{.Subject}}</b>{{else}}<a href="{{$.Base}}/things/{{.SubjectID}}">{{.Subject}}</a>{{end}}
+              <i>{{.Predicate}}</i>
+              {{if eq .ObjectID $.Thing.ID}}<b>{{.Object}}</b>{{else}}<a href="{{$.Base}}/things/{{.ObjectID}}">{{.Object}}</a>{{end}}
+            </li>
+            {{end}}
+          </ul>
+          {{if gt .RelTotal (len .Relations)}}<p class="hint">Showing the newest {{len .Relations}} of {{.RelTotal}} connections.</p>{{end}}
+          {{else}}
+          <p class="hint">No connections yet. The AI adds them when it saves a fact that links this to something else.</p>
+          {{end}}
+        </section>
+
+        <section class="section">
+          <h2 class="sub first">Memories about {{.Thing.Name}}</h2>
+          <div class="mem-list">
+            {{range .Memories}}{{template "gmem-card" (wrap "M" . "Base" $.Base)}}{{end}}
+          </div>
+          {{if gt .MemTotal (len .Memories)}}<p class="hint">Showing the newest {{len .Memories}} of {{.MemTotal}}. <a href="{{.Base}}?q={{.Thing.Name}}">Search for more</a></p>{{end}}
+        </section>
+        {{end}}
         {{end}}
 
       </div>
@@ -187,6 +256,32 @@
   </main>
 </div>
 {{end}}
+
+{{/* One fact of a group's memory. Needs .M (a groupMemView) and .Base (/t/{id}/memory). Read-only but for Delete. */}}
+{{define "gmem-card"}}{{$base := .Base}}{{with .M}}
+<article class="mem" id="gmem-{{.ID}}">
+  <div class="mem-body">
+    <p class="mem-text">{{.Content}}</p>
+    {{if or .Entities .Relations}}
+    <div class="mem-links">
+      {{range .Relations}}<span class="rel"><a href="{{$base}}/things/{{.SubjectID}}">{{.Subject}}</a><i>{{.Predicate}}</i><a href="{{$base}}/things/{{.ObjectID}}">{{.Object}}</a></span>{{end}}
+      {{range aboutOnly .Memory}}<a class="chip thing-chip" href="{{$base}}/things/{{.ID}}"><span>{{.Name}}</span></a>{{end}}
+    </div>
+    {{end}}
+    <div class="mem-meta">
+      <span class="badge st-busy">Saved by the AI</span>
+      {{if .SaidByName}}<span>from a message by <b>{{.SaidByName}}</b></span>{{end}}
+      <span title="Last changed {{.UpdatedAt}} UTC">{{short .UpdatedAt}}</span>
+    </div>
+  </div>
+  {{if .CanDelete}}
+  <div class="mem-actions">
+    <button type="button" class="icon-btn sm danger-hover" hx-post="{{$base}}/{{.ID}}/delete" hx-target="#gmem-{{.ID}}" hx-swap="outerHTML"
+            hx-confirm="Delete this from the group's memory, for everyone?" title="Delete: it is wrong, or should not be kept" aria-label="Delete this memory">{{template "i-trash"}}</button>
+  </div>
+  {{end}}
+</article>
+{{end}}{{end}}
 
 {{/* The embedding model of a group: the server's, or one the admin may use. Needs .EmbedOptions, .EmbedModelID, .ServerEmbed. */}}
 {{define "embed-select"}}

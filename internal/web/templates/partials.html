@@ -324,3 +324,18 @@
   </form>
 </details>
 {{end}}
+
+{{/* The map of things and connections: memory.js draws it from .Base/graph and links to .Base/things/{id}.
+     .Focus = thing to start from (0 = overview). .Group = it is a group's memory, not the reader's own. */}}
+{{define "mem-map"}}
+<div class="card graph-card">
+  <div class="graph-head">
+    <p class="hint">{{if .Focus}}This thing and what it is linked to.{{else if .Group}}The group's best-connected things.{{else}}Your best-connected things.{{end}} Arrows show which way a connection reads. <b>Click a circle</b> to see what else it connects to. Drag circles to tidy up.</p>
+    <button type="button" class="btn ghost sm" data-graph-reset>{{template "i-refresh"}}Start over</button>
+  </div>
+  <div class="graph{{if .Focus}} is-focus{{end}}" id="mem-graph" data-src="{{.Base}}/graph" data-things="{{.Base}}/things" data-focus="{{.Focus}}" role="group" aria-label="Map of the things in {{if .Group}}the group's{{else}}your{{end}} memory">
+    <p class="graph-empty hint">Drawing the map…</p>
+  </div>
+  <div class="graph-info" id="mem-graph-info" aria-live="polite"></div>
+</div>
+{{end}}

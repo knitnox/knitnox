@@ -18,6 +18,7 @@ import (
 //
 //	/groups/new          start a group: a page of its own, like a new agent
 //	/t/{id}/memory       what a group's AI keeps for the group, for every member to read
+//	/t/{id}/memory/things  the things and connections of that memory, and the map of them (read-only)
 //	/t/{id}/mcp          the group's own tool servers (its admin only)
 //	/t/{id}/share        the read-only link of a personal chat (its owner only)
 //	/s/{token}           what that link shows; the only chat page that needs no account
@@ -171,6 +172,30 @@ func canDeleteGroupMemory(role string, userID int64, m *store.Memory) bool {
 	return role == "owner" || (role == "member" && m.SaidBy == userID)
 }
 
+// groupMemData is the part of a group's memory page every tab shows.
+func (s *Server) groupMemData(r *http.Request, t *store.Thread, role, tab string) map[string]any {
+	owner := store.GroupMemory(t)
+	ev, key := embedView{}, ""
+	if em := s.eng.MemoryEmbedder(owner); em != nil {
+		ev, key = embedView{On: true, Model: em.Model, Provider: em.Provider, Personal: em.Personal}, em.Key
+	}
+	stats := s.st.MemoryStats(owner, key)
+	if ev.On {
+		ev.Pending = stats.Memories - stats.Indexed
+	}
+	return map[string]any{"Tab": tab, "Thread": t, "Role": role, "Stats": stats, "Embed": ev, "Base": fmt.Sprintf("/t/%d/memory", t.ID),
+		"Notice": r.URL.Query().Get("done"), "MemoryOn": !s.st.ThreadToolsOff(t.ID)[store.ToolMemory], "EmbedModelID": int64(0)}
+}
+
+// groupMemViews adds to each fact what the viewer may do with it.
+func groupMemViews(role string, userID int64, mems []store.Memory) []groupMemView {
+	views := make([]groupMemView, len(mems))
+	for i := range mems {
+		views[i] = groupMemView{mems[i], canDeleteGroupMemory(role, userID, &mems[i])}
+	}
+	return views
+}
+
 func (s *Server) groupMemory(w http.ResponseWriter, r *http.Request) {
 	t, role, ok := s.loadGroup(w, r)
 	if !ok {
@@ -182,16 +207,8 @@ func (s *Server) groupMemory(w http.ResponseWriter, r *http.Request) {
 	if rs := []rune(q); len(rs) > 200 {
 		q = string(rs[:200])
 	}
-	ev, key := embedView{}, ""
-	if em := s.eng.MemoryEmbedder(owner); em != nil {
-		ev, key = embedView{On: true, Model: em.Model, Provider: em.Provider, Personal: em.Personal}, em.Key
-	}
-	stats := s.st.MemoryStats(owner, key)
-	if ev.On {
-		ev.Pending = stats.Memories - stats.Indexed
-	}
-	data := map[string]any{"Tab": "memory", "Thread": t, "Role": role, "Query": q, "Stats": stats, "Embed": ev,
-		"Notice": r.URL.Query().Get("done"), "MemoryOn": !s.st.ThreadToolsOff(t.ID)[store.ToolMemory], "EmbedModelID": int64(0)}
+	data := s.groupMemData(r, t, role, "memory")
+	data["Query"] = q
 
 	var mems []store.Memory
 	var err error
@@ -211,11 +228,7 @@ func (s *Server) groupMemory(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	views := make([]groupMemView, len(mems))
-	for i := range mems {
-		views[i] = groupMemView{mems[i], canDeleteGroupMemory(role, u.ID, &mems[i])}
-	}
-	data["Memories"] = views
+	data["Memories"] = groupMemViews(role, u.ID, mems)
 	if role == "owner" { // the admin chooses how the group's memory is searched
 		data["EmbedOptions"], _ = s.st.KindModelOptions(u.ID, store.ModelEmbedding)
 		gs, _ := s.st.GroupSettingsFor(t.ID)
@@ -225,6 +238,65 @@ func (s *Server) groupMemory(w http.ResponseWriter, r *http.Request) {
 		data["ServerEmbed"] = s.serverEmbedModel()
 	}
 	s.render(w, r, "group", data)
+}
+
+// The things and connections of a group's memory. Every member can look
+// around; nothing here changes anything, so there is no rename or merge as
+// on a person's own Memory page. The AI keeps the names tidy.
+
+func (s *Server) groupMemoryThings(w http.ResponseWriter, r *http.Request) {
+	t, role, ok := s.loadGroup(w, r)
+	if !ok {
+		return
+	}
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	if rs := []rune(q); len(rs) > 80 {
+		q = string(rs[:80])
+	}
+	things, err := s.st.ListEntities(store.GroupMemory(t), q, 300)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	data := s.groupMemData(r, t, role, "things")
+	data["Query"], data["Things"] = q, things
+	s.render(w, r, "group", data)
+}
+
+func (s *Server) groupMemoryThing(w http.ResponseWriter, r *http.Request) {
+	t, role, ok := s.loadGroup(w, r)
+	if !ok {
+		return
+	}
+	owner := store.GroupMemory(t)
+	thing, err := s.st.EntityByID(owner, pathID(r, "eid"))
+	if err != nil {
+		s.errorPage(w, r, http.StatusNotFound, "That thing is not in this group's memory (any more).")
+		return
+	}
+	rels, relTotal, err := s.st.EntityRelations(owner, thing.ID, memoryThingRels, 0)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	mems, memTotal, err := s.st.EntityMemories(owner, thing.ID, memoryThingMems)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	data := s.groupMemData(r, t, role, "thing")
+	data["Thing"], data["Relations"], data["RelTotal"] = thing, rels, relTotal
+	data["Memories"], data["MemTotal"] = groupMemViews(role, currentUser(r).ID, mems), memTotal
+	s.render(w, r, "group", data)
+}
+
+// groupMemoryGraph answers the map on those pages: a small part of the graph as JSON.
+func (s *Server) groupMemoryGraph(w http.ResponseWriter, r *http.Request) {
+	t, _, ok := s.loadGroup(w, r)
+	if !ok {
+		return
+	}
+	s.writeMemoryGraph(w, r, store.GroupMemory(t))
 }
 
 func (s *Server) groupMemoryDelete(w http.ResponseWriter, r *http.Request) {

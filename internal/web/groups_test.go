@@ -245,6 +245,107 @@ func TestGroupMemoryPage(t *testing.T) {
 	}
 }
 
+// The things and connections of a group's memory: every member can walk
+// them on a map, nobody outside can, and nothing there can be changed.
+func TestGroupMemoryThings(t *testing.T) {
+	a := newApp(t)
+	alice := a.register("alice")
+	bob := a.register("bob")
+	carol := a.register("carol")
+	gid, _ := a.st.CreateGroup(alice.id, 0, "Team")
+	g, _ := a.st.ThreadByID(gid)
+	inv, _ := a.st.CreateInvite(gid, alice.id, "member", 24*3600*1e9, 5)
+	a.st.AcceptInvite(inv, bob.id)
+	owner := store.GroupMemory(g)
+	a.st.CreateMemory(owner, store.MemoryInput{Content: "Bob writes the tests for Apollo.", About: []string{"Lisbon"}, Source: store.MemoryFromAI, ThreadID: gid, SaidBy: bob.id,
+		Relations: []store.RelationInput{{Subject: "Bob", Predicate: "writes tests for", Object: "Apollo"}}})
+	a.st.CreateMemory(store.UserMemory(alice.id), store.MemoryInput{Content: "Private.",
+		Relations: []store.RelationInput{{Subject: "Zed", Predicate: "knows", Object: "Yara"}}})
+	base := fmt.Sprintf("/t/%d/memory", gid)
+	apollo, _ := a.st.EntityByName(owner, "Apollo")
+	zed, _ := a.st.EntityByName(store.UserMemory(alice.id), "Zed")
+	thing := fmt.Sprintf("%s/things/%d", base, apollo.ID)
+
+	// The memory list leads to the things, and each name is a link.
+	list := bob.get(base)
+	for _, want := range []string{base + `/things"`, thing + `">Apollo</a>`, `class="chip thing-chip" href="` + base + "/things/"} {
+		if !strings.Contains(list, want) {
+			t.Errorf("the group's memory list lacks %q", want)
+		}
+	}
+	if strings.Contains(list, "memory.js") {
+		t.Error("the memory list loads the map's script, which it does not need")
+	}
+
+	// The list of things with the map, for a member as for the admin.
+	for _, c := range []*client{alice, bob} {
+		page := c.get(base + "/things")
+		for _, want := range []string{"Things and how they connect", `id="mem-graph"`, `data-src="` + base + `/graph"`, `data-things="` + base + `/things"`,
+			`src="/static/memory.js`, ">Apollo<", ">Bob<", ">Lisbon<", "The group's best-connected things"} {
+			if !strings.Contains(page, want) {
+				t.Errorf("the group's things page lacks %q", want)
+			}
+		}
+		if strings.Contains(page, "Zed") {
+			t.Fatal("a personal thing shows up among the group's things")
+		}
+	}
+	if found := bob.get(base + "/things?q=apo"); !strings.Contains(found, ">Apollo<") || strings.Contains(found, ">Lisbon<") || strings.Contains(found, `id="mem-graph"`) {
+		t.Error("finding a thing by name is wrong")
+	}
+
+	// One thing: its connections, its memories, the map around it, and no way to change it.
+	page := bob.get(thing)
+	for _, want := range []string{"<h2>Apollo</h2>", "<i>writes tests for</i>", "Bob writes the tests for Apollo.", fmt.Sprintf(`data-focus="%d"`, apollo.ID),
+		"from a message by <b>bob</b>", `aria-label="Delete this memory"`} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the page of a group's thing lacks %q", want)
+		}
+	}
+	for _, not := range []string{"Rename", `name="name"`, `name="content"`, "/edit", "Save name"} {
+		if strings.Contains(page, not) {
+			t.Errorf("the page of a group's thing offers to change something: %q", not)
+		}
+	}
+	if code, _, _ := alice.post(thing, url.Values{"name": {"Renamed"}}); code == http.StatusSeeOther || code == http.StatusOK {
+		t.Fatalf("renaming a group's thing: %d", code)
+	}
+	if e, err := a.st.EntityByID(owner, apollo.ID); err != nil || e.Name != "Apollo" {
+		t.Fatalf("the thing after trying to rename it: %+v %v", e, err)
+	}
+
+	// The map's data.
+	graph := bob.get(base + "/graph")
+	if !strings.Contains(graph, `"name":"Apollo"`) || !strings.Contains(graph, `"p":"writes tests for"`) || strings.Contains(graph, "Zed") {
+		t.Fatalf("the group's graph = %s", graph)
+	}
+	if around := bob.get(fmt.Sprintf("%s/graph?focus=%d", base, apollo.ID)); !strings.Contains(around, `"name":"Bob"`) {
+		t.Fatalf("the graph around a thing = %s", around)
+	}
+
+	// Closed to everyone outside, and the two kinds of memory cannot reach into each other.
+	for _, p := range []string{base + "/things", thing, base + "/graph"} {
+		if code := carol.getStatus(p); code != http.StatusNotFound {
+			t.Errorf("someone outside the group GET %s = %d, want 404", p, code)
+		}
+	}
+	for _, p := range []string{fmt.Sprintf("%s/things/%d", base, zed.ID), fmt.Sprintf("%s/graph?focus=%d", base, zed.ID),
+		fmt.Sprintf("/memory/things/%d", apollo.ID), fmt.Sprintf("/memory/graph?focus=%d", apollo.ID)} {
+		if code := alice.getStatus(p); code != http.StatusNotFound {
+			t.Errorf("GET %s = %d, want 404", p, code)
+		}
+	}
+	if strings.Contains(alice.get("/memory/things"), "Apollo") || strings.Contains(alice.get("/memory/graph"), "Apollo") {
+		t.Fatal("a group's thing shows up in the admin's personal memory")
+	}
+
+	// A personal chat has no such pages.
+	solo, _ := a.st.CreateThread(alice.id, 0)
+	if alice.getStatus(fmt.Sprintf("/t/%d/memory/things", solo)) != http.StatusNotFound || alice.getStatus(fmt.Sprintf("/t/%d/memory/graph", solo)) != http.StatusNotFound {
+		t.Fatal("a personal chat has pages for a group's things")
+	}
+}
+
 // The read-only link of a personal chat: anyone who has it can read, nobody
 // can write, it shows the chat as it was when last updated, and tool results
 // only when the owner says so.

@@ -218,7 +218,7 @@ This is everything it does today, grouped by area. Limits are listed at the end 
 - **Files.** No OCR for scanned PDFs; Word, Excel and PowerPoint are not read.
 - **Search.** Matches the beginnings of words in message text, not inside attached files.
 - **Approval waits.** A tool call waiting for approval holds that chat's queue until someone decides.
-- **Groups.** A group's memory has no page for things and connections and no pinning; it is searched and listed only. A chat cannot be turned into a group or back. When the admin changes the model, the chat does not say so. The AI of a connected chat reads a group; it cannot write to it.
+- **Groups.** A group's memory has no pinning. Its things and connections can be looked at on a map but not renamed or merged: only the AI changes them. A chat cannot be turned into a group or back. When the admin changes the model, the chat does not say so. The AI of a connected chat reads a group; it cannot write to it.
 - **Read-only links.** One link per chat. Recordings made with Read aloud are not part of it.
 - **Plan Book.** Due dates are days, not times; there are no reminders, subtasks, repeating tasks or shared projects yet.
 - **Feed.** No likes, comments or follows. One picture, recording or video per post; you cannot upload your own files to a post. Video uses one format only (`POST /videos`, then asking until it is done), which OpenRouter and DeepInfra offer; OpenAI shut its own video service down in September 2026, and Gemini's voice and video are not reachable through its OpenAI-compatible address. The read count is the number of other people who were shown a shared post.

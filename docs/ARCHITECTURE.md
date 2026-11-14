@@ -262,6 +262,7 @@ The code is in `store/groups.go`, `engine/groups.go`, `web/groups.go`, `template
 |---|---|---|
 | Who writes | the person on the Memory page, and the AI | the AI only, with the same tools (`memory_save`, …) |
 | Who reads | the person | every member, on `/t/{id}/memory` |
+| Things and the map | `/memory/things`, with rename and merge | `/t/{id}/memory/things`, read-only: same `mem-map` partial and `memory.js`, pointed at the group by `data-src` and `data-things` |
 | Who deletes | the person | the admin any fact; a member the facts from their own messages (`memories.said_by`) |
 | Pinned memories in the prompt | up to 12 | none: the note is a constant, so the prefix never changes |
 | Embedding model | the person's or the server's | the admin's choice in `group_settings` (a shared model or one of the admin's own), else the server's |

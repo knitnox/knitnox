@@ -36,6 +36,7 @@
   if (!box) return;
   const info = $("#mem-graph-info");
   const src = box.dataset.src;
+  const things = box.dataset.things || "/memory/things"; // pages of the things (a group has its own)
   const home = Number(box.dataset.focus) || 0; // thing to start from (0 = overview)
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const MAX_NODES = 250;
@@ -209,13 +210,13 @@
     const head = htmlEl("div", { className: "graph-info-head" }, info);
     htmlEl("b", { textContent: n.name }, head);
     htmlEl("span", { className: "hint", textContent: `${plural(n.memories, "memory", "memories")} · ${plural(n.links, "connection", "connections")}` }, head);
-    htmlEl("a", { className: "btn sm", href: `/memory/things/${n.id}`, textContent: "Open its page" }, head);
+    htmlEl("a", { className: "btn sm", href: `${things}/${n.id}`, textContent: "Open its page" }, head);
     const mine = edges.filter((e) => e.s === n || e.t === n);
     if (!mine.length) { htmlEl("p", { className: "hint", textContent: "It is not connected to anything yet." }, info); return; }
     const list = htmlEl("ul", { className: "rel-list" }, info);
     const end = (parent, node) => {
       if (node === n) { htmlEl("b", { textContent: node.name }, parent); return; }
-      const a = htmlEl("a", { href: `/memory/things/${node.id}`, textContent: node.name, title: "Show this on the map" }, parent);
+      const a = htmlEl("a", { href: `${things}/${node.id}`, textContent: node.name, title: "Show this on the map" }, parent);
       a.addEventListener("click", (e) => { e.preventDefault(); select(node); });
     };
     for (const e of mine.slice(0, 14)) {

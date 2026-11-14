@@ -278,8 +278,14 @@ func (s *Server) memoryThingRename(w http.ResponseWriter, r *http.Request) {
 
 // memoryGraph answers the map on the page: a small part of the graph as JSON.
 func (s *Server) memoryGraph(w http.ResponseWriter, r *http.Request) {
+	s.writeMemoryGraph(w, r, store.UserMemory(currentUser(r).ID))
+}
+
+// writeMemoryGraph sends the part of o's graph around ?focus= (0 = overview).
+// The caller has already checked that the reader may see o's memory.
+func (s *Server) writeMemoryGraph(w http.ResponseWriter, r *http.Request, o store.MemOwner) {
 	focus, _ := parseInt(r.URL.Query().Get("focus"))
-	g, err := s.st.MemoryGraphAround(store.UserMemory(currentUser(r).ID), focus, memoryGraphNodes)
+	g, err := s.st.MemoryGraphAround(o, focus, memoryGraphNodes)
 	if err != nil {
 		http.Error(w, "not found", http.StatusNotFound)
 		return

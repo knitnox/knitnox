@@ -333,6 +333,8 @@ type msgView struct {
 	Footer     string // run outcome shown under the run's last message
 	Down       string // tool servers the run could not reach, said in a sentence
 	CanTake    bool   // a finished message of a group: "Take to my chat"
+	When       string // an answer's date and time in the viewer's time zone, "14 Nov, 15:04"; never "5 min ago", so the row's HTML stays the same
+	WhenFull   string // the same, in full, for the tooltip
 
 	// When the viewer does not want tool details (Settings → Appearance):
 	HideBody   bool       // this message is only a tool call or a tool result: draw nothing for it
@@ -428,9 +430,14 @@ func (s *Server) viewMessages(t *store.Thread, u *store.User, role string, msgs 
 		return status == store.RunDone || status == store.RunFailed || status == store.RunCancelled || status == store.RunInterrupted
 	}
 
+	loc := u.Location()
 	views := make([]msgView, len(msgs))
 	for i, m := range msgs {
 		v := msgView{Message: m}
+		if at, err := time.Parse("2006-01-02 15:04:05", m.CreatedAt); err == nil && m.Role == "assistant" {
+			at = at.In(loc)
+			v.When, v.WhenFull = at.Format("2 Jan, 15:04"), at.Format("Monday 2 January 2006, 15:04")
+		}
 		for _, a := range atts[m.ID] {
 			switch {
 			case a.IsImage():
@@ -615,7 +622,7 @@ func (s *Server) threadEvents(w http.ResponseWriter, r *http.Request) {
 			if s.st.MemberRole(t.ID, userID) == "" { // removed from the chat
 				return
 			}
-			fmt.Fprint(w, ": ping\n\n")
+			fmt.Fprint(w, "event: ping\ndata:\n\n") // a named event, so the page hears it and knows the connection is alive
 			flusher.Flush()
 		}
 	}

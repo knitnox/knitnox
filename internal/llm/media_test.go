@@ -73,18 +73,20 @@ func TestSpeakWrapsRawSound(t *testing.T) {
 	}
 }
 
-// "alloy" is only a first try: a provider that does not know it is asked
-// again without a voice. A voice the user chose is never dropped.
+// No voice name is sent unless one was chosen. Only a provider that refuses
+// to speak without a name is asked again with "alloy". A voice the user chose
+// is never replaced.
 func TestSpeakVoiceFallback(t *testing.T) {
 	var voices []string
+	needsName := false // an OpenAI-like provider: no voice name, no speech
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /audio/speech", func(w http.ResponseWriter, r *http.Request) {
 		in := mediaBody(r)
 		v, has := in["voice"]
 		voices = append(voices, fmt.Sprint(v))
-		if has {
+		if has != needsName || v == "nova" {
 			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprint(w, `{"error":{"message":"unknown voice"}}`)
+			fmt.Fprint(w, `{"error":{"message":"voice: wrong or missing"}}`)
 			return
 		}
 		if _, asked := in["response_format"]; asked {
@@ -96,8 +98,13 @@ func TestSpeakVoiceFallback(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 	m, err := Speak(context.Background(), MediaRequest{BaseURL: srv.URL, Model: "tts", Prompt: "hello"})
-	if err != nil || m.Mime != "audio/wav" || strings.Join(voices, ",") != "alloy,<nil>" {
+	if err != nil || m.Mime != "audio/wav" || strings.Join(voices, ",") != "<nil>" {
 		t.Fatalf("speech = %+v, %v; voices asked: %v", m, err, voices)
+	}
+	voices, needsName = nil, true
+	m, err = Speak(context.Background(), MediaRequest{BaseURL: srv.URL, Model: "tts", Prompt: "hello"})
+	if err != nil || m.Mime != "audio/wav" || strings.Join(voices, ",") != "<nil>,alloy" {
+		t.Fatalf("a provider that needs a name: %+v, %v; voices asked: %v", m, err, voices)
 	}
 	voices = nil
 	_, err = Speak(context.Background(), MediaRequest{BaseURL: srv.URL, Model: "tts", Prompt: "hello", Voice: "nova"})

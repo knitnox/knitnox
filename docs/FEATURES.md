@@ -168,7 +168,7 @@ This is everything it does today, grouped by area. Limits are listed at the end 
 | Feature | What it means |
 |---|---|
 | Install as an app | Works as a PWA on desktop and phone |
-| Push notifications | When an answer is ready or a tool needs approval |
+| Push notifications | An answer is ready, a tool needs approval, an agent finished, a new Feed post, a Plan Book change or tasks due today. Each kind has its own switch, and each opens the exact place |
 | Phone layout | Slide-out sidebar and bottom-sheet menus |
 | Light and dark theme | Follows your device, or choose one yourself |
 | Accent colour | Six colours to pick from, saved per browser |

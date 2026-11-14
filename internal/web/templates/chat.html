@@ -424,7 +424,7 @@
 </div>
 {{else if eq .Role "assistant"}}
 <div class="msg msg-ai{{if .Summarised}} is-summarised{{end}}" id="m{{.ID}}" data-status="{{.Status}}" data-run="{{.RunID}}">
-  <div class="avatar ai"><span class="logo"></span></div>
+  <div class="msg-top"><div class="avatar ai"><span class="logo"></span></div>{{if .When}}<time class="msg-when" title="{{.WhenFull}}">{{.When}}</time>{{end}}</div>
   <div class="msg-main">
     {{if and (not .NoThinking) (or .Reasoning (eq .Status "streaming"))}}
     <details class="thinking"{{if eq .Status "streaming"}} open{{end}}>

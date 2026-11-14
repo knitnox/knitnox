@@ -44,6 +44,23 @@ func (s *Store) PushSubscriptionsFor(userID int64) ([]PushSubscription, error) {
 	return out, rows.Err()
 }
 
+// PushUserIDs lists the users who have at least one device that takes notifications.
+func (s *Store) PushUserIDs() []int64 {
+	rows, err := s.DB.Query(`SELECT DISTINCT user_id FROM push_subscriptions ORDER BY user_id`)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var out []int64
+	for rows.Next() {
+		var id int64
+		if rows.Scan(&id) == nil {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
 func (s *Store) PushSubscriptionCount(userID int64) int {
 	var n int
 	s.DB.QueryRow(`SELECT COUNT(*) FROM push_subscriptions WHERE user_id = ?`, userID).Scan(&n)

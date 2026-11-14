@@ -443,7 +443,9 @@ func (s *Server) feedEvents(w http.ResponseWriter, r *http.Request) {
 	h.Set("Connection", "keep-alive")
 	h.Set("X-Accel-Buffering", "no")
 
-	mine, stopMine := s.hub.Subscribe(hub.FeedUser(currentUser(r).ID))
+	me := currentUser(r).ID
+	defer s.watchThread(hub.FeedUser(me), me)() // no "new post" notification while the Feed is open
+	mine, stopMine := s.hub.Subscribe(hub.FeedUser(me))
 	defer stopMine()
 	shared, stopShared := s.hub.Subscribe(hub.FeedPublic)
 	defer stopShared()
@@ -461,7 +463,7 @@ func (s *Server) feedEvents(w http.ResponseWriter, r *http.Request) {
 		case b := <-shared:
 			fmt.Fprintf(w, "data: %s\n\n", b)
 		case <-ping.C:
-			fmt.Fprint(w, ": ping\n\n")
+			fmt.Fprint(w, "event: ping\ndata:\n\n") // a named event, so the page hears it and knows the connection is alive
 		}
 		flusher.Flush()
 	}
@@ -634,6 +636,7 @@ func (s *Server) feedShare(w http.ResponseWriter, r *http.Request) {
 	}
 	if public && !p.Public {
 		s.hub.Publish(hub.FeedPublic, engine.EvFeed, map[string]any{"id": p.ID})
+		go s.pushShared(p.UserID, p.ID)
 	}
 	s.feedAfter(w, r, p.ID)
 }

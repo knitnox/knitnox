@@ -510,7 +510,14 @@ Memory always finds notes that share words with your question. With an **embeddi
 
 ## Notifications and installing as an app
 
-- **Notifications:** **Settings → Notifications → Enable on this device**. You are notified when an answer finishes while you are away, or when a tool needs your approval.
+- **Notifications:** **Settings → Notifications → Enable on this device**. You are notified when:
+  - an answer in one of your chats is ready or failed after you left the chat;
+  - a tool needs your approval;
+  - one of your agents finished a run, or could not finish it;
+  - the AI or an agent posted to your feed, or someone shared a post with everyone;
+  - the AI or an agent added a task to your Plan Book or ticked one off, and once in the morning when tasks are due today.
+
+  Tapping a notification opens the exact place: the answer in its chat, the post in the Feed, the task in the Plan Book. Under **What to notify me about** you switch each kind on or off. You are never notified about the page you are looking at.
 - **Install as an app:** use your browser's "Install" or "Add to Home Screen" option. On iPhone, add it to the Home Screen first, then enable notifications.
 
 Both need the site to be served over `https://`.

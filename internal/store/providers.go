@@ -27,6 +27,7 @@ type Model struct {
 	Enabled       bool
 	Vision        bool   // accepts image input
 	Kind          string // chat | embedding | image | voice | video
+	VoiceName     string // a voice model: the voice it speaks with, "" = its usual one
 }
 
 // ModelOption is a model a user can pick, with its provider.
@@ -134,7 +135,7 @@ func (s *Store) ProviderByID(id int64) (*Provider, error) {
 }
 
 func (s *Store) ListModels(providerID int64) ([]Model, error) {
-	rows, err := s.DB.Query(`SELECT id, provider_id, name, context_window, input_price, output_price, enabled, vision, kind
+	rows, err := s.DB.Query(`SELECT id, provider_id, name, context_window, input_price, output_price, enabled, vision, kind, voice_name
 		FROM models WHERE provider_id = ? ORDER BY kind != 'chat', kind, name`, providerID)
 	if err != nil {
 		return nil, err
@@ -143,7 +144,7 @@ func (s *Store) ListModels(providerID int64) ([]Model, error) {
 	var out []Model
 	for rows.Next() {
 		var m Model
-		if err := rows.Scan(&m.ID, &m.ProviderID, &m.Name, &m.ContextWindow, &m.InputPrice, &m.OutputPrice, &m.Enabled, &m.Vision, &m.Kind); err != nil {
+		if err := rows.Scan(&m.ID, &m.ProviderID, &m.Name, &m.ContextWindow, &m.InputPrice, &m.OutputPrice, &m.Enabled, &m.Vision, &m.Kind, &m.VoiceName); err != nil {
 			return nil, err
 		}
 		out = append(out, m)
@@ -182,9 +183,9 @@ func (s *Store) ToggleModelVision(id int64) error {
 
 func (s *Store) ModelByID(id int64) (*Model, error) {
 	m := &Model{}
-	err := s.DB.QueryRow(`SELECT id, provider_id, name, context_window, input_price, output_price, enabled, vision, kind
+	err := s.DB.QueryRow(`SELECT id, provider_id, name, context_window, input_price, output_price, enabled, vision, kind, voice_name
 		FROM models WHERE id = ?`, id).
-		Scan(&m.ID, &m.ProviderID, &m.Name, &m.ContextWindow, &m.InputPrice, &m.OutputPrice, &m.Enabled, &m.Vision, &m.Kind)
+		Scan(&m.ID, &m.ProviderID, &m.Name, &m.ContextWindow, &m.InputPrice, &m.OutputPrice, &m.Enabled, &m.Vision, &m.Kind, &m.VoiceName)
 	return m, notFound(err)
 }
 
@@ -286,6 +287,12 @@ func (s *Store) SetModelKind(id int64, kind string) error {
 		return ErrNotFound
 	}
 	_, err := s.DB.Exec(`UPDATE models SET kind = ?, vision = CASE WHEN ? = 'chat' THEN vision ELSE 0 END WHERE id = ?`, kind, kind, id)
+	return err
+}
+
+// SetModelVoiceName sets the voice a voice model speaks with ("" = its usual one).
+func (s *Store) SetModelVoiceName(id int64, name string) error {
+	_, err := s.DB.Exec(`UPDATE models SET voice_name = ? WHERE id = ?`, clip(strings.TrimSpace(name), 60), id)
 	return err
 }
 

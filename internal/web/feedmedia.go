@@ -229,6 +229,20 @@ func (s *Server) adminModelKind(w http.ResponseWriter, r *http.Request) {
 	s.modelKind(w, r, adminScope())
 }
 
+// modelVoice sets the voice a voice model speaks with. For a model the server
+// shares, it is the voice everyone hears unless they chose their own in Feed settings.
+func (s *Server) modelVoice(w http.ResponseWriter, r *http.Request, sc scope) {
+	name := r.FormValue("voice_name")
+	s.modelAction(w, r, sc, "model.voice", func(id int64) error { return s.st.SetModelVoiceName(id, name) })
+}
+
+func (s *Server) userModelVoice(w http.ResponseWriter, r *http.Request) {
+	s.modelVoice(w, r, userScope(r))
+}
+func (s *Server) adminModelVoice(w http.ResponseWriter, r *http.Request) {
+	s.modelVoice(w, r, adminScope())
+}
+
 // modelKindWords is what the kinds are called on the page.
 var modelKindWords = map[string]string{store.ModelChat: "Chat", store.ModelEmbedding: "Embedding (memory search)",
 	store.ModelImage: "Pictures", store.ModelVoice: "Voice", store.ModelVideo: "Video"}

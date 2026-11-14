@@ -203,7 +203,7 @@ Your **own** memory, used in every chat of yours and separate from any group's. 
 | **Tools (MCP)** | A tool server gives the AI hands: web search, a calendar, a tracker, a database, a service of your own. Add one to your own chats, give a group its own, or hand one to a single agent. Per server: run automatically, or show **Allow / Deny / Always allow** and wait for a person. |
 | **Any AI model** | Any OpenAI-compatible API: OpenAI, OpenRouter, Groq, Together, or fully local with Ollama, LM Studio and vLLM. Users can bring their own keys. |
 | **Admin panel** | Providers and models, users, daily or monthly allowances, usage and cost per person and model. |
-| **On your phone (PWA)** | Knitnox is a PWA: a web app you install straight from the browser, with no app store. You get push notifications when an answer is ready or a tool needs your OK. |
+| **On your phone (PWA)** | Knitnox is a PWA: a web app you install straight from the browser, with no app store. You get push notifications when an answer is ready, a tool needs your OK, an agent finished, your feed has a new post or your Plan Book changed. |
 | **Find anything** | Full-text search across every chat, `Ctrl+K` to jump anywhere, export as Markdown or JSON. |
 | **Built to stay up** | Checked automatic backups, time limits for silent providers, login protection and an audit log. |
 

@@ -39,7 +39,7 @@ type MediaRequest struct {
 	APIKey  string
 	Model   string
 	Prompt  string // what to draw or film, or the text to speak
-	Voice   string // voice name for speech; "" = "alloy", or the model's usual one where that name is refused
+	Voice   string // voice name for speech; "" = the model's usual one ("alloy" only where the provider refuses to speak without a name)
 	UserURL bool   // a user's own provider: guarded addresses are refused
 }
 
@@ -160,9 +160,9 @@ func GenerateImage(ctx context.Context, req MediaRequest) (*Media, error) {
 
 // Speak asks a voice model to read a text aloud.
 func Speak(ctx context.Context, req MediaRequest) (*Media, error) {
-	body := map[string]any{"model": req.Model, "input": req.Prompt, "voice": req.Voice}
-	if req.Voice == "" {
-		body["voice"] = "alloy"
+	body := map[string]any{"model": req.Model, "input": req.Prompt}
+	if req.Voice != "" {
+		body["voice"] = req.Voice
 	}
 	if strings.Contains(req.BaseURL, "openrouter.ai") {
 		body["response_format"] = "mp3" // it sends raw PCM otherwise
@@ -180,8 +180,9 @@ func Speak(ctx context.Context, req MediaRequest) (*Media, error) {
 		}
 	}
 	if s := statusOf(err); req.Voice == "" && (s == http.StatusBadRequest || s == http.StatusUnprocessableEntity) {
-		// "alloy" is an OpenAI name. Where it is unknown, let the model use its own voice.
-		delete(body, "voice")
+		// No name was chosen, and this provider (OpenAI and the like) will not
+		// speak without one. "alloy" is the name those providers know.
+		body["voice"] = "alloy"
 		if alt, err2 := call(); err2 == nil {
 			resp, err = alt, nil
 		}

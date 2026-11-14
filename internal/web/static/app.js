@@ -54,6 +54,85 @@
   const ICON_X = '<svg class="i" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
   const ICON_FILE = '<svg class="i" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>';
 
+  // ---------- coming back to the app ----------
+  // A phone freezes a page that is not in front and quietly drops its live
+  // connection, while the browser may go on calling it "open". So nothing here
+  // trusts that word: every live part catches up when the page is in front
+  // again, when the network is back, and when the server has been silent too long.
+  const returnFns = [];
+  const onReturn = (fn) => returnFns.push(fn); // fn(ms the page was away; 0 = the network came back)
+  let hiddenAt = document.hidden ? Date.now() : 0, lastBack = 0;
+  function cameBack(away) {
+    if (Date.now() - lastBack < 1500) return; // two signals for one return
+    lastBack = Date.now();
+    for (const fn of returnFns) { try { fn(away); } catch (err) { console.error(err); } }
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) { hiddenAt = Date.now(); return; }
+    const away = hiddenAt ? Date.now() - hiddenAt : 0;
+    hiddenAt = 0;
+    if (away >= 4000) cameBack(away);
+  });
+  window.addEventListener("online", () => { if (!document.hidden) cameBack(0); });
+  window.addEventListener("pageshow", (e) => { if (e.persisted) cameBack(3600e3); }); // shown again from the browser's memory
+
+  // One live connection to the server. onData gets every message; catchUp runs
+  // each time the connection is made again, because what was sent in between is lost.
+  // The server sends a "ping" every 20 to 25 seconds: a minute of silence means
+  // the connection is dead, whatever the browser says.
+  function liveStream(url, onData, catchUp) {
+    let es = null, heard = 0, first = true;
+    const open = () => {
+      es?.close();
+      const mine = es = new EventSource(url);
+      let again = !first;
+      first = false;
+      heard = Date.now();
+      mine.onopen = () => { heard = Date.now(); if (again) catchUp(); again = true; };
+      mine.onmessage = (e) => { heard = Date.now(); onData(e); };
+      mine.addEventListener("ping", () => { heard = Date.now(); });
+      mine.onerror = () => { // the browser tries again by itself, unless the server said no
+        if (mine.readyState === EventSource.CLOSED) setTimeout(() => { if (es === mine && !document.hidden) open(); }, 5000);
+      };
+    };
+    open();
+    onReturn(open);
+    setInterval(() => { if (es && !document.hidden && Date.now() - heard > 60e3) open(); }, 15e3);
+    // A browser allows only six connections to one server, and a live stream
+    // holds one for as long as it is open. Give it back the moment the page is
+    // left, so the next page never waits for it; cameBack takes it again.
+    window.addEventListener("pagehide", () => { es?.close(); es = null; });
+    // On a phone the connection is given back as soon as the app is not in
+    // front. The server takes an open connection as "this person is looking at
+    // the page" and sends no notification; a phone would keep a frozen
+    // connection open for minutes, and the notification would never come.
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) { if (isTouch) { es?.close(); es = null; } }
+      else if (!es) open(); // cameBack did not do it: the app was away only for a moment
+    });
+    return { reopen: open };
+  }
+
+  // A page that shows work done in the background (main[data-fresh]) is loaded
+  // again after a longer time away, unless something typed would be lost.
+  const freshMain = $("main[data-fresh]");
+  if (freshMain) onReturn((away) => {
+    if (away < 30e3 || $("dialog[open]") || $(".is-editing")) return;
+    for (const f of $$("textarea, input", freshMain)) {
+      if (["hidden", "checkbox", "radio", "submit", "button", "file"].includes(f.type)) continue;
+      if (f.value !== f.defaultValue) return;
+    }
+    location.reload();
+  });
+
+  // Adding a model by name: show only the boxes that fit what the model is for
+  // ("Accepts images" for a chat model, "Voice name" for a voice model).
+  document.addEventListener("change", (e) => {
+    const pick = e.target.closest?.("[data-kind-pick]");
+    if (!pick) return;
+    for (const el of $$("[data-kind-only]", pick.form)) el.hidden = el.dataset.kindOnly !== pick.value;
+  });
+
   // CSP forbids inline styles, so meters get their width here.
   function applyMeters(root) {
     for (const el of $$("[data-pct]", root)) {
@@ -182,33 +261,126 @@
     showHeld(holder, btn.dataset.heldSrc, btn.dataset.alt);
     btn.replaceWith(holder.firstChild);
   });
-  function renderMD(el, raw) {
+  // Draws markdown into el. An answer is drawn many times while it is written,
+  // so the text is cut into its top-level parts (a paragraph, a list, a code
+  // block…) and only the parts that changed are drawn again, normally just the
+  // last one. What is already on the screen stays untouched: no flicker, a
+  // selection survives, and a phone has little to do.
+  const MD_OPTS = { gfm: true, breaks: true };
+  function mdParts(raw) {
+    try {
+      const tokens = marked.lexer(raw, MD_OPTS);
+      // Raw HTML can open in one part and close in a later one, and a link
+      // defined at the bottom changes parts above it: both are drawn as a whole.
+      if (!tokens.some((t) => t.type === "html") && !Object.keys(tokens.links || {}).length) {
+        return tokens.filter((t) => t.type !== "space").map((t) => ({ raw: t.raw, html: () => marked.parser([t], MD_OPTS) }));
+      }
+    } catch { /* fall through: draw it whole */ }
+    return [{ raw: "\u0000" + raw, html: () => marked.parse(raw, MD_OPTS) }];
+  }
+  // fade: the answer is being written right now, so words that were not on the
+  // screen before come in softly (see fadeNew).
+  function renderMD(el, raw, fade) {
+    if (el._raw === raw && el._parts) return;
     el._raw = raw;
-    if (window.marked && window.DOMPurify) {
-      el.innerHTML = DOMPurify.sanitize(marked.parse(raw, { gfm: true, breaks: true }), { FORBID_ATTR: ["style", "background", "poster"] });
-      for (const img of $$("img[data-held-src]", el)) { // pictures from other sites wait for a click
-        const src = img.dataset.heldSrc;
-        let host = "another site";
-        try { host = new URL(src).hostname || host; } catch { /* not an address: the button says so */ }
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "held-img";
-        if (shownPictures.has(src)) { showHeld(btn, src, img.alt); img.replaceWith(btn.firstChild || btn); continue; }
-        btn.dataset.heldSrc = src;
-        btn.dataset.alt = img.alt || "";
-        btn.title = src;
-        btn.textContent = `Show picture from ${host}`;
-        img.replaceWith(btn);
+    if (!(window.marked && window.DOMPurify)) { el.textContent = raw; return; }
+    const parts = mdParts(raw), old = el._parts || [];
+    if (!el._parts) el.textContent = ""; // the server's plain text
+    let keep = 0;
+    while (keep < old.length && keep < parts.length && old[keep].raw === parts[keep].raw) keep++;
+    // How many letters were on the screen, and how many of them stay as they are.
+    let marks = null, at = 0;
+    const now = performance.now();
+    if (fade) {
+      let shown = 0;
+      old.forEach((p, i) => { shown += partLen(p); if (i < keep) at = shown; });
+      marks = (el._marks || []).filter((m) => now - m.t < FADE_MS && m.pos < shown);
+      marks.push({ pos: shown, t: now });
+      el._marks = marks;
+    }
+    for (const p of old.slice(keep)) for (const n of p.nodes) n.remove();
+    const done = old.slice(0, keep);
+    for (const p of parts.slice(keep)) {
+      const box = document.createElement("div");
+      box.innerHTML = DOMPurify.sanitize(p.html(), { FORBID_ATTR: ["style", "background", "poster"] });
+      dressMD(box);
+      const part = { raw: p.raw, nodes: null, len: undefined };
+      if (marks) {
+        const texts = textNodes([box]);
+        part.len = texts.reduce((n, t) => n + t.data.length, 0);
+        fadeNew(texts, at, marks, now);
+        at += part.len;
       }
-      enhanceCode(el);
-      for (const table of $$("table", el)) { // wide tables scroll instead of breaking the layout
-        if (table.parentElement.classList.contains("table-wrap")) continue;
-        const wrap = document.createElement("div");
-        wrap.className = "table-wrap";
-        table.replaceWith(wrap);
-        wrap.append(table);
+      part.nodes = [...box.childNodes];
+      el.append(...part.nodes);
+      done.push(part);
+    }
+    el._parts = done;
+  }
+  // The text of some drawn nodes, piece by piece, without the bar above a code block.
+  function textNodes(nodes) {
+    const out = [];
+    for (const n of nodes) {
+      if (n.nodeType === 3) { out.push(n); continue; }
+      if (n.nodeType !== 1) continue;
+      const walk = document.createTreeWalker(n, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+        acceptNode: (x) => x.nodeType === 3 ? NodeFilter.FILTER_ACCEPT : x.classList.contains("code-head") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_SKIP,
+      });
+      while (walk.nextNode()) out.push(walk.currentNode);
+    }
+    return out;
+  }
+  const partLen = (p) => p.len ?? (p.len = textNodes(p.nodes).reduce((n, t) => n + t.data.length, 0));
+  // Words that are new since the last drawing fade in. The part that is still
+  // being written is drawn again about ten times a second, so "new" cannot mean
+  // "drawn just now": that would make the whole paragraph blink. Instead the
+  // letters are counted. marks says at which letter each of the last drawings
+  // began and when; text after such a letter is wrapped in a span whose fade is
+  // already as far along as its age, so a word fades once, across drawings.
+  const FADE_MS = 320; // the same time as .fresh in style.css
+  function fadeNew(texts, at, marks, now) {
+    for (const t of texts) {
+      const from = at, s = t.data;
+      at += s.length;
+      if (at <= marks[0].pos || !s.trim()) continue; // on the screen before, or only spacing (which must stay bare inside a table)
+      const cuts = [0, ...marks.map((m) => m.pos - from).filter((c) => c > 0 && c < s.length), s.length];
+      const pieces = document.createDocumentFragment();
+      for (let i = 0; i + 1 < cuts.length; i++) {
+        const text = s.slice(cuts[i], cuts[i + 1]);
+        const mark = marks.findLast((m) => m.pos <= from + cuts[i]);
+        if (!mark) { pieces.append(text); continue; }
+        const span = document.createElement("span");
+        span.className = "fresh";
+        span.style.animationDelay = `${Math.round(mark.t - now)}ms`; // minus its age
+        span.textContent = text;
+        pieces.append(span);
       }
-    } else el.textContent = raw;
+      t.replaceWith(pieces);
+    }
+  }
+  function dressMD(el) {
+    for (const img of $$("img[data-held-src]", el)) { // pictures from other sites wait for a click
+      const src = img.dataset.heldSrc;
+      let host = "another site";
+      try { host = new URL(src).hostname || host; } catch { /* not an address: the button says so */ }
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "held-img";
+      if (shownPictures.has(src)) { showHeld(btn, src, img.alt); img.replaceWith(btn.firstChild || btn); continue; }
+      btn.dataset.heldSrc = src;
+      btn.dataset.alt = img.alt || "";
+      btn.title = src;
+      btn.textContent = `Show picture from ${host}`;
+      img.replaceWith(btn);
+    }
+    enhanceCode(el);
+    for (const table of $$("table", el)) { // wide tables scroll instead of breaking the layout
+      if (table.parentElement.classList.contains("table-wrap")) continue;
+      const wrap = document.createElement("div");
+      wrap.className = "table-wrap";
+      table.replaceWith(wrap);
+      wrap.append(table);
+    }
   }
   // The server sends markdown source as escaped text; render it once.
   function renderAll(root) {
@@ -347,29 +519,19 @@
       if (scroller.scrollTop < 40 && !$(".is-editing", feedList) && !feedList.contains(document.activeElement)) load();
     };
     feedNew.addEventListener("click", () => { load(); scroller.scrollTo({ top: 0, behavior: "smooth" }); });
-    let feedTimer, feedEvents;
-    const listen = () => {
-      feedEvents = new EventSource("/feed/events");
+    let feedTimer;
+    liveStream("/feed/events", (e) => {
+      let data = {};
+      try { data = JSON.parse(e.data).data || {}; } catch { /* a plain nudge */ }
+      if (data.changed) { // a picture, recording or video is ready: show it on its post, if that post is on the page
+        const card = $(`#fp-${Number(data.id)}`);
+        if (card && !card.classList.contains("is-editing") && window.htmx) htmx.ajax("GET", `/feed/p/${Number(data.id)}`, { target: card, swap: "outerHTML" });
+        return;
+      }
       // Wait a moment: a post written on this page is already in the list by then.
-      feedEvents.onmessage = (e) => {
-        let data = {};
-        try { data = JSON.parse(e.data).data || {}; } catch { /* a plain nudge */ }
-        if (data.changed) { // a picture, recording or video is ready: show it on its post, if that post is on the page
-          const card = $(`#fp-${Number(data.id)}`);
-          if (card && !card.classList.contains("is-editing") && window.htmx) htmx.ajax("GET", `/feed/p/${Number(data.id)}`, { target: card, swap: "outerHTML" });
-          return;
-        }
-        clearTimeout(feedTimer); feedTimer = setTimeout(check, 700);
-      };
-      feedEvents.onerror = () => { if (feedEvents.readyState === EventSource.CLOSED) setTimeout(listen, 5000); };
-    };
-    listen();
+      clearTimeout(feedTimer); feedTimer = setTimeout(check, 700);
+    }, check);
     document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); }); // catch up after the tab was away
-    // A browser allows only six connections to one server, and a live stream
-    // holds one for as long as it is open. Give it back the moment the page is
-    // left, so the next page never waits for it; take it again if the page comes back.
-    window.addEventListener("pagehide", () => { feedEvents?.close(); feedEvents = null; });
-    window.addEventListener("pageshow", (e) => { if (e.persisted && !feedEvents) { listen(); check(); } });
   }
 
   // ---------- Feed: post times stay true ("5 min ago" moves on by itself) ----------
@@ -768,6 +930,7 @@
   if (sbAgents) {
     setInterval(agentsPulse, 15000);
     document.addEventListener("visibilitychange", agentsPulse);
+    onReturn(agentsPulse);
     document.addEventListener("htmx:afterRequest", (e) => {
       if ((e.detail.pathInfo?.requestPath || "").startsWith("/agents/")) setTimeout(agentsPulse, 1200);
     });
@@ -790,13 +953,24 @@
 
   // in-page links on long pages (Settings): scroll inside the page area, and
   // open the right place when arriving with /settings#tools
-  const jumpTo = (hash) => { try { $(hash)?.scrollIntoView({ behavior: "smooth", block: "start" }); } catch { /* not a selector */ } };
+  // Goes to the part of a page named after the # in the address, and marks a
+  // post or a task for a moment (a notification opens the page at it).
+  const jumpTo = (hash) => {
+    let el = null;
+    try { el = $(hash); } catch { /* not a selector */ }
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: el.matches(".feed-post, .plan-task") ? "center" : "start" });
+    if (el.matches(".feed-post, .plan-task")) { el.classList.add("is-target"); setTimeout(() => el.classList.remove("is-target"), 2500); }
+  };
+  window.addEventListener("hashchange", () => { if (location.hash && $(".page-scroll")) jumpTo(location.hash); });
   document.addEventListener("click", (e) => {
     const a = e.target.closest('a[href^="#"]');
     if (a && a.getAttribute("href").length > 1 && !a.classList.contains("skip-link")) { e.preventDefault(); jumpTo(a.getAttribute("href")); }
   });
   if (location.hash && $(".page-scroll")) jumpTo(location.hash);
 
+  // The chat list remembers what the server sent for each row, before it is drawn (see swapMessages).
+  for (const row of $("#messages")?.children || []) row._src = row.outerHTML;
   renderAll(document);
 
   // ---------- help pages: "On this page" list built from the guide's headings ----------
@@ -1090,9 +1264,29 @@
   const toBottomBtn = $("#to-bottom");
   const nearBottom = () => scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 160;
   const toBottom = (smooth) => scroller.scrollTo({ top: scroller.scrollHeight, behavior: smooth ? "smooth" : "auto" });
-  const updateToBottom = () => { if (toBottomBtn) toBottomBtn.hidden = nearBottom(); };
+  // The arrow shows as soon as something is below the view: an answer that stopped following may end just out of sight.
+  const updateToBottom = () => { if (toBottomBtn) toBottomBtn.hidden = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 24; };
   scroller.addEventListener("scroll", updateToBottom, { passive: true });
-  toBottomBtn?.addEventListener("click", () => toBottom(true));
+
+  // While an answer is written the view follows it only until the answer's
+  // first line reaches the top of the screen. From there the page stays still
+  // and the text grows below, so what is being read does not move. The round
+  // arrow goes to the end and follows the whole answer (followAll), until the
+  // reader scrolls by hand or the answer is finished.
+  const TOP_GAP = 12;
+  let followAll = false, jump = 0; // jump: until this moment, show the end whatever the view was (the reader just sent something)
+  function follow() {
+    const end = scroller.scrollHeight - scroller.clientHeight;
+    let to = end;
+    const last = $$("#messages > .msg").pop();
+    if (!followAll && last?.classList.contains("msg-ai")) {
+      const top = last.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - TOP_GAP;
+      to = Math.min(end, Math.max(top, scroller.scrollTop)); // never past the answer's first line, never back up
+    }
+    if (to > scroller.scrollTop) scroller.scrollTop = to;
+  }
+  toBottomBtn?.addEventListener("click", () => { followAll = !!$("#messages .msg-ai[data-status=streaming]"); toBottom(true); });
+  for (const ev of ["wheel", "touchmove", "keydown"]) scroller.addEventListener(ev, () => { followAll = false; }, { passive: true });
 
   // Deep link from search: /t/ID#mNNN scrolls to the message and highlights it.
   function jumpToHash() {
@@ -1102,6 +1296,7 @@
     else toBottom();
   }
   jumpToHash();
+  window.addEventListener("hashchange", () => { if (location.hash) jumpToHash(); }); // a notification tapped while this chat is open
 
   // A freshly installed agent opens with its settings panel (/t/ID#setup).
   if (location.hash === "#setup") {
@@ -1141,12 +1336,16 @@
   // list refreshes because the database copy can lag by up to ~1s.
   const live = new Map();
   const dirty = new Set();
-  let frame = 0;
+  // Words arrive far faster than they can be read. The answer is drawn at most
+  // about ten times a second: steady for the eye and light for a phone.
+  const PAINT_EVERY = 90;
+  let frame = 0, lastPaint = 0;
   function paint(id) {
     dirty.add(id);
     if (frame) return;
-    frame = requestAnimationFrame(() => {
+    frame = setTimeout(() => requestAnimationFrame(() => {
       frame = 0;
+      lastPaint = performance.now();
       const stick = nearBottom();
       for (const mid of dirty) {
         const st = live.get(mid);
@@ -1154,7 +1353,7 @@
         const msg = $(`#m${mid}`);
         if (!msg) continue;
         const md = $(".msg-main > .md", msg);
-        if (md && st.c !== undefined) renderMD(md, st.c);
+        if (md && st.c !== undefined) renderMD(md, st.c, true);
         if (st.r && chat.dataset.thinking !== "0") { // "0": the person switched thinking off in Settings
           let think = $(".thinking", msg);
           if (!think) {
@@ -1163,13 +1362,13 @@
             think.innerHTML = '<summary><span>Thinking…</span></summary><div class="md thinking-md"></div>';
             $(".msg-main", msg).prepend(think);
           }
-          renderMD($(".thinking-md", think), st.r);
+          renderMD($(".thinking-md", think), st.r, true);
         }
       }
       dirty.clear();
-      if (stick) toBottom();
+      if (stick || followAll) follow();
       updateToBottom();
-    });
+    }), Math.max(0, PAINT_EVERY - (performance.now() - lastPaint)));
   }
   const liveState = (id) => {
     if (!live.has(id)) {
@@ -1199,7 +1398,6 @@
     if (refreshing) { again = true; return; }
     refreshing = true;
     try {
-      const stick = nearBottom();
       const r = await fetch(`/t/${threadID}/messages${historyFrom ? `?from=${historyFrom}` : ""}`);
       if (r.status === 401) { location.href = "/login"; return; }
       if (r.status === 404) { location.href = "/"; return; }
@@ -1208,26 +1406,87 @@
       tmp.innerHTML = await r.text();
       const fresh = tmp.firstElementChild;
       const openKeys = new Set($$("#messages details[open]").map(detailsKey));
-      const prevTop = scroller.scrollHeight - scroller.scrollTop;
-      $("#messages").replaceWith(fresh);
-      renderAll(fresh);
-      markSummarised(fresh);
-      for (const d of $$("details", fresh)) if (openKeys.has(detailsKey(d))) d.open = true;
+      const list = $("#messages");
+      const stick = nearBottom();
+      // The row at the top of the view, to keep it where it is when rows above it change.
+      const edge = scroller.getBoundingClientRect().top;
+      const held = [...list.children].find((el) => el.getBoundingClientRect().bottom > edge);
+      const heldTop = held?.getBoundingClientRect().top;
+      for (const el of swapMessages(list, fresh)) { renderAll(el); window.htmx?.process(el); }
+      markSummarised(list);
+      for (const d of $$("details", list)) if (openKeys.has(detailsKey(d))) d.open = true;
       for (const [id] of live) {
         const msg = $(`#m${id}`);
         if (!msg || msg.dataset.status !== "streaming") live.delete(id);
         else paint(id);
       }
       updateState();
-      updateContext(fresh);
-      if (stick) toBottom(); else scroller.scrollTop = scroller.scrollHeight - prevTop;
+      updateContext(list);
+      if (Date.now() < jump) toBottom();
+      else if (stick || followAll) follow();
+      else {
+        const now = held && (held.isConnected ? held : held.id && $("#" + held.id));
+        if (now) scroller.scrollTop += now.getBoundingClientRect().top - heldTop;
+      }
+      jump = 0;
+      if (!live.size) followAll = false; // the answer is finished
       updateToBottom();
+    } catch (err) {
+      console.warn("The chat could not be read again; it is tried when the connection is back.", err);
     } finally {
       refreshing = false;
       if (again) { again = false; refresh(); }
     }
   }
   const detailsKey = (d) => (d.previousElementSibling?.id || d.closest("[id]")?.id || "") + "|" + (d.querySelector("summary")?.textContent || "");
+
+  // Puts the server's new list into the page without drawing everything again.
+  // Each row remembers the HTML the server sent for it (_src). A row the server
+  // sends unchanged stays exactly as it is on the screen; only new and changed
+  // rows are put in, and only new ones slide in. Returns the rows put in.
+  function swapMessages(list, fresh) {
+    for (const n of [...list.childNodes]) if (n.nodeType !== 1 || n.classList.contains("summary-divider")) n.remove();
+    const old = new Map();
+    for (const o of [...list.children]) {
+      const key = o.id || o._src;
+      if (key === undefined || old.has(key)) o.remove(); else old.set(key, o);
+    }
+    const put = [];
+    let prev = null;
+    for (const f of [...fresh.children]) {
+      const src = f.outerHTML, key = f.id || src;
+      const o = old.get(key);
+      old.delete(key);
+      let row = o;
+      if (!o || o._src !== src) {
+        row = f;
+        f._src = src;
+        if (o) { f.classList.add("no-rise"); keepDrawn(o, f); }
+        put.push(f);
+      }
+      const here = prev ? prev.nextElementSibling : list.firstElementChild;
+      if (row !== here) list.insertBefore(row, here);
+      if (o && o !== row) o.remove();
+      prev = row;
+    }
+    for (const o of old.values()) o.remove();
+    for (const a of [...fresh.attributes]) list.setAttribute(a.name, a.value);
+    return put;
+  }
+  // An answer that changed (it grew, or it is finished now) keeps the text
+  // already drawn; only the difference is drawn. While it is still being
+  // written, the words that came over the live connection are ahead of the
+  // server's saved copy, so those are used.
+  function keepDrawn(o, f) {
+    const st = f.dataset.status === "streaming" ? live.get(Number(f.id.slice(1))) : null;
+    for (const [sel, k] of [[".msg-main > .md", "c"], [".thinking-md", "r"]]) {
+      const was = $(sel, o), now = $(sel, f);
+      if (!was || !now || !was._parts) continue;
+      const raw = (st && st[k]) || now.textContent;
+      now.replaceWith(was);
+      renderMD(was, raw);
+    }
+  }
 
   // ---------- load earlier messages ----------
   async function loadEarlier(btn) {
@@ -1241,6 +1500,7 @@
       const page = tmp.firstElementChild;
       const list = $("#messages");
       const prevHeight = scroller.scrollHeight;
+      for (const row of page.children) row._src = row.outerHTML;
       renderAll(page);
       const nodes = [...page.children];
       btn.after(...nodes);
@@ -1284,7 +1544,7 @@
             r = await post(`/t/${threadID}/messages`, { content: text });
           }
         } catch { flash("Network error. The message was not sent."); return; }
-        if (r.ok) { clear(); toBottom(true); } else flash(await errorText(r));
+        if (r.ok) { clear(); jump = Date.now() + 1500; followAll = false; toBottom(true); } else flash(await errorText(r));
       },
     });
     if (!isTouch) composer.ta.focus();
@@ -1381,45 +1641,34 @@
     btn.disabled = true;
     try {
       const r = await post(box.dataset.edit, { content: $("textarea", box).value.trim() });
-      if (r.ok) { closeEdit(msg); toBottom(true); } else flash(await errorText(r));
+      if (r.ok) { closeEdit(msg); jump = Date.now() + 1500; followAll = false; toBottom(true); } else flash(await errorText(r));
     } catch { flash("Network error. Please try again."); }
     finally { btn.disabled = false; }
   });
 
   // ---------- server-sent events ----------
   const reader = $("#reader");
-  let es, opened = false, lastResync = 0;
-  function connect() {
-    es = new EventSource(`/t/${threadID}/events`);
-    es.onopen = () => { if (opened) refresh(); opened = true; };
-    es.onmessage = (e) => {
-      let ev;
-      try { ev = JSON.parse(e.data); } catch { return; }
-      switch (ev.type) {
-        case "token": onToken(ev.data); break;
-        case "snapshot": onSnapshot(ev.data); break;
-        case "queue": updateState(ev.data.pending); break;
-        case "approval": refresh(); if (document.visibilityState !== "visible") document.title = "● Approval needed · " + document.title.replace(/^● Approval needed · /, ""); break;
-        case "messages": case "run": case "compacted": refresh(); break;
-      }
-    };
-  }
+  let lastResync = 0;
+  // Every new connection starts with a snapshot of the answer being written,
+  // and the list is read again: nothing that happened in between is missed.
+  const stream = liveStream(`/t/${threadID}/events`, (e) => {
+    let ev;
+    try { ev = JSON.parse(e.data); } catch { return; }
+    switch (ev.type) {
+      case "token": onToken(ev.data); break;
+      case "snapshot": onSnapshot(ev.data); break;
+      case "queue": updateState(ev.data.pending); break;
+      case "approval": refresh(); if (document.visibilityState !== "visible") document.title = "● Approval needed · " + document.title.replace(/^● Approval needed · /, ""); break;
+      case "messages": case "run": case "compacted": refresh(); break;
+    }
+  }, () => refresh());
   function resync() { // reconnecting yields a fresh snapshot
     const now = Date.now();
     if (now - lastResync < 2000) return;
     lastResync = now;
-    es.close();
-    connect();
+    stream.reopen();
   }
-  connect();
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") {
-      document.title = document.title.replace(/^● Approval needed · /, "");
-      if (es.readyState === EventSource.CLOSED) connect();
-    }
+    if (document.visibilityState === "visible") document.title = document.title.replace(/^● Approval needed · /, "");
   });
-  // Give the connection back the moment the chat is left (a browser allows only
-  // six per server), and take it again if the page is shown again from memory.
-  window.addEventListener("pagehide", () => es.close());
-  window.addEventListener("pageshow", (e) => { if (e.persisted && es.readyState === EventSource.CLOSED) connect(); });
 })();

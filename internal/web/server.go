@@ -43,6 +43,7 @@ type Server struct {
 	logins    *loginLimiter
 
 	vapidPublic, vapidPrivate string
+	pushSink                  func(userID int64, p pushPayload) // tests: gets each notification instead of the push service
 	watchMu                   sync.Mutex
 	watchers                  map[int64]map[int64]int // thread -> user -> open SSE streams
 	assetVersion              string                  // hash of the embedded static files, for cache busting
@@ -82,6 +83,8 @@ func New(st *store.Store, eng *engine.Engine, h *hub.Hub, log *slog.Logger, opt 
 	}
 	eng.OnRunFinished = s.onRunFinished
 	eng.OnApproval = s.onApproval
+	eng.OnFeedPost = s.onFeedPost
+	eng.OnPlanTask = s.onPlanTask
 	return s, nil
 }
 
@@ -401,6 +404,7 @@ func (s *Server) Handler() http.Handler {
 	u("POST /settings/models/{mid}/toggle", s.userModelToggle)
 	u("POST /settings/models/{mid}/vision", s.userModelVision)
 	u("POST /settings/models/{mid}/kind", s.userModelKind)
+	u("POST /settings/models/{mid}/voice", s.userModelVoice)
 	u("POST /settings/mcp", s.mcpCreate)
 	u("POST /settings/mcp/{sid}/delete", s.mcpDelete)
 	u("POST /settings/mcp/{sid}/toggle", s.mcpToggle)
@@ -409,6 +413,7 @@ func (s *Server) Handler() http.Handler {
 	u("POST /settings/push", s.pushSubscribe)
 	u("POST /settings/push/unsubscribe", s.pushUnsubscribe)
 	u("POST /settings/push/test", s.pushTest)
+	u("POST /settings/push/kinds", s.pushKindsSave)
 
 	// admins
 	a := func(p string, h http.HandlerFunc) { mux.Handle(p, s.requireUser(s.requireAdmin(h))) }
@@ -426,6 +431,7 @@ func (s *Server) Handler() http.Handler {
 	a("POST /admin/models/{mid}/toggle", s.adminModelToggle)
 	a("POST /admin/models/{mid}/vision", s.adminModelVision)
 	a("POST /admin/models/{mid}/kind", s.adminModelKind)
+	a("POST /admin/models/{mid}/voice", s.adminModelVoice)
 	a("GET /admin/users", s.adminUsers)
 	a("POST /admin/users", s.adminUserCreate)
 	a("POST /admin/users/{uid}/quota", s.adminUserQuota)
@@ -729,6 +735,7 @@ func (s *Server) StartJanitor(ctx context.Context) {
 		} else if n > 0 {
 			s.log.Info("removed orphaned uploads", "count", n)
 		}
+		s.planReminders(time.Now())
 		s.housekeeping()
 		s.autoBackup() // last: it copies the folders the sweeps above just tidied
 	}

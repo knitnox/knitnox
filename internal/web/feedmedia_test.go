@@ -69,6 +69,40 @@ func TestFeedModelsAndKinds(t *testing.T) {
 	if m, _ := a.st.ModelByID(speaker); m.Kind != store.ModelVoice {
 		t.Fatalf("speaker-1 is now %q", m.Kind)
 	}
+	// The admin chooses the voice the shared voice model speaks with. It is what
+	// everyone hears until they choose a voice of their own in Feed settings.
+	if code, _ := alice.hx(fmt.Sprintf("/admin/models/%d/voice", speaker), url.Values{"voice_name": {" onyx "}}); code != http.StatusOK {
+		t.Fatalf("set the voice name: %d", code)
+	}
+	if code, _ := bob.hx(fmt.Sprintf("/admin/models/%d/voice", speaker), url.Values{"voice_name": {"echo"}}); code != http.StatusForbidden {
+		t.Errorf("a member changed the voice of a shared model: %d", code)
+	}
+	if code, _ := bob.hx(fmt.Sprintf("/settings/models/%d/voice", speaker), url.Values{"voice_name": {"echo"}}); code != http.StatusNotFound {
+		t.Errorf("a member changed the voice of a shared model through their own settings: %d", code)
+	}
+	m, _ := a.st.ModelByID(speaker)
+	if m.VoiceName != "onyx" || a.st.VoiceNameFor(bob.id, m) != "onyx" {
+		t.Fatalf("voice of speaker-1 = %q, for bob %q", m.VoiceName, a.st.VoiceNameFor(bob.id, m))
+	}
+	a.st.SaveFeedModels(bob.id, store.FeedModels{VoiceName: "shimmer"})
+	if got := a.st.VoiceNameFor(bob.id, m); got != "shimmer" {
+		t.Errorf("bob's own voice does not win: %q", got)
+	}
+	a.st.SaveFeedModels(bob.id, store.FeedModels{})
+	alice.hx(fmt.Sprintf("/admin/providers/%d/models", pid), url.Values{"name": {"reader-2"}, "kind": {"voice"}, "voice_name": {"Kore"}, "vision": {"1"}})
+	if m, _ := a.st.ModelByID(a.st.ModelIDByName(pid, "reader-2")); m == nil || m.Kind != store.ModelVoice || m.VoiceName != "Kore" || m.Vision {
+		t.Fatalf("voice model added with a voice name = %+v", m)
+	}
+	a.st.DeleteModel(a.st.ModelIDByName(pid, "reader-2"))
+	// A voice model has a box for its voice name and no "Images" switch; no name is filled in for anyone.
+	providers := alice.get("/admin/providers")
+	if !strings.Contains(providers, fmt.Sprintf(`hx-post="/admin/models/%d/voice"`, speaker)) || !strings.Contains(providers, `value="onyx"`) ||
+		strings.Contains(providers, fmt.Sprintf(`hx-post="/admin/models/%d/vision"`, speaker)) {
+		t.Error("the voice model's row is not: a voice name box, no Images switch")
+	}
+	if fs := bob.get("/feed/settings"); strings.Contains(fs, "alloy\"") || !strings.Contains(fs, `name="voice_name" value=""`) {
+		t.Error("the Feed's voice name box is not empty")
+	}
 	alice.hx(fmt.Sprintf("/admin/providers/%d/models", pid), url.Values{"name": {"clip-maker"}, "kind": {"video"}})
 	if m, _ := a.st.ModelByID(a.st.ModelIDByName(pid, "clip-maker")); m == nil || m.Kind != store.ModelVideo || m.Vision {
 		t.Fatalf("model added with a kind = %+v", m)

@@ -48,6 +48,21 @@ type ApprovalEvent struct {
 	ToolName, ServerName        string
 }
 
+// FeedEvent is passed to the OnFeedPost hook when a post is added to a feed.
+type FeedEvent struct {
+	UserID, PostID int64 // whose feed, which post
+	Public         bool  // shared with everyone on the server
+	By             store.FeedActor
+}
+
+// PlanEvent is passed to the OnPlanTask hook when the AI or an agent adds a
+// task to someone's Plan Book, or ticks one off.
+type PlanEvent struct {
+	UserID, TaskID int64
+	Done           bool // ticked off (false = added)
+	By             store.PlanActor
+}
+
 type Engine struct {
 	st  *store.Store
 	hub *hub.Hub
@@ -56,6 +71,8 @@ type Engine struct {
 	// Optional hooks, called in their own goroutine (used for push notifications).
 	OnRunFinished func(RunEvent)
 	OnApproval    func(ApprovalEvent)
+	OnFeedPost    func(FeedEvent)
+	OnPlanTask    func(PlanEvent)
 	// ApprovalTimeout overrides the admin setting when > 0 (tests).
 	ApprovalTimeout time.Duration
 	// runLimit, when set, replaces the length of the per-run time limit (tests).

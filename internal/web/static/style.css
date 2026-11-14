@@ -368,6 +368,13 @@ kbd { font: 500 var(--fs-xs) var(--font); color: var(--faint); border: 1px solid
 /* message rows */
 .msg { display: flex; gap: 14px; margin-bottom: 28px; animation: rise .22s var(--ease); }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+.msg.no-rise { animation: none; } /* a row that was already on the screen and only changed */
+/* Words of an answer that is being written come in softly (fadeNew in app.js keeps the time: FADE_MS). */
+.md .fresh { animation: fresh .32s ease-out both; }
+@keyframes fresh { from { opacity: 0; } }
+/* The logo of an answer and, on a phone, its date and time. On a wide screen the logo stands beside the answer. */
+.msg-top { display: contents; }
+.msg-when { display: none; font-size: var(--fs-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
 .msg-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .msg-author { font-size: var(--fs-sm); font-weight: 600; margin-bottom: 4px; }
 
@@ -488,7 +495,7 @@ kbd { font: 500 var(--fs-xs) var(--font); color: var(--faint); border: 1px solid
 @media (hover: hover) { .load-earlier:hover { background: var(--bg-subtle); color: var(--fg); } }
 .summary-divider { display: flex; align-items: center; gap: 12px; margin: -8px 0 28px; font-size: var(--fs-xs); color: var(--faint); text-transform: uppercase; letter-spacing: .04em; }
 .summary-divider::before, .summary-divider::after { content: ""; flex: 1; border-top: 1px dashed var(--border-2); }
-.msg.is-target { animation: target 2.4s var(--ease); }
+.msg.is-target, .feed-post.is-target, .plan-task.is-target, .approval.is-target { animation: target 2.4s var(--ease); }
 @keyframes target { 0%, 60% { background: var(--accent-soft); box-shadow: 0 0 0 8px var(--accent-soft); border-radius: var(--r); } }
 
 /* context meter in the top bar */
@@ -911,11 +918,16 @@ pre, code { tab-size: 4; -moz-tab-size: 4; }
   .msg { gap: 10px; margin-bottom: 22px; }
   .msg-ai .avatar, .msg-user .avatar { width: 28px; height: 28px; font-size: var(--fs-xs); }
   .msg-ai .avatar .logo { width: 26px; height: 26px; }
+  /* An answer uses the full width: the logo and the time share one row above it. */
+  .msg-ai { flex-direction: column; gap: 6px; }
+  .msg-ai .msg-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .msg-ai .avatar { margin-top: 0; }
+  .msg-when { display: block; }
   .bubble { max-width: 88%; }
   .msg-images { max-width: 88%; }
   .img-thumb { width: 112px; height: 112px; }
   .msg-images:has(.img-thumb:only-child) .img-thumb { max-width: 240px; max-height: 260px; }
-  .tool-result, .run-note { margin-left: 38px; }
+  .tool-result, .run-note { margin-left: 0; } /* in line with the answer, which starts at the left edge here */
   .msg-actions { opacity: 1; }
   .msg-ai .msg-actions, .msg-user .msg-actions { margin-left: -6px; }
   .msg-user.is-mine .msg-actions { margin-left: 0; margin-right: -6px; }
@@ -957,6 +969,13 @@ pre, code { tab-size: 4; -moz-tab-size: 4; }
   .stat b { font-size: var(--fs-2xl); }
   .tabs a { padding: 8px 12px; }
   .provider-head { padding: 14px; }
+  /* An agent in the list: its name and description use the full width, and the buttons get a row of their own below. */
+  .agent-card .provider-head { align-items: flex-start; gap: 12px; }
+  .agent-card .provider-name { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; overflow-wrap: anywhere; }
+  .agent-card .provider-meta { flex-wrap: wrap; white-space: normal; gap: 2px 12px; }
+  .agent-card .provider-meta .dot { display: none; }
+  .agent-acts { flex-basis: 100%; justify-content: flex-start; }
+  .agent-acts .btn { flex: 1; justify-content: center; min-height: 38px; }
   .model-row { padding: 10px 14px; flex-wrap: wrap; }
   .model-row .grow { flex-basis: 100%; }
   .tbl th, .tbl td { padding: 10px 12px; }
@@ -1674,6 +1693,8 @@ form:has([data-quick-provider]) .quick-new-provider { display: none; }
 form:has([data-quick-provider] option[value="0"]:checked) .quick-new-provider { display: grid; }
 .quick-new-provider { padding: 0; }
 /* what a model is for, in the providers list */
+.model-row input.model-voice:not([type=checkbox]) { width: 132px; flex: 0 0 auto; min-height: 28px; padding: 2px 12px; font-size: var(--fs-sm); border-radius: 99px; box-shadow: none; } /* the voice a voice model speaks with */
+.feed-voice-name { margin-top: -4px; padding-left: 12px; border-left: 2px solid var(--border-2); } /* belongs to the Voice choice right above it */
 select.model-kind { width: auto; min-height: 28px; padding: 2px 30px 2px 10px; font-size: var(--fs-sm); border-radius: 99px; box-shadow: none; background-position: right 9px center; }
 
 @media (max-width: 640px) {

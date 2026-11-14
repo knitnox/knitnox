@@ -118,6 +118,10 @@ func (e *Engine) CreateFeedPost(userID int64, in store.FeedPostInput, by store.F
 		return 0, err
 	}
 	e.announceFeed(userID, id, in.Public, false)
+	if e.OnFeedPost != nil {
+		ev := FeedEvent{UserID: userID, PostID: id, Public: in.Public, By: by}
+		e.hook("feed-post hook", func() { e.OnFeedPost(ev) })
+	}
 	if in.MediaKind != "" {
 		e.wg.Add(1)
 		go func() {
@@ -196,7 +200,7 @@ func (e *Engine) makeFeedMedia(userID, postID int64, kind, prompt string, checkM
 		case store.MediaImage:
 			return llm.GenerateImage(ctx, req)
 		case store.MediaVoice:
-			req.Voice = e.st.FeedModelsFor(userID).VoiceName
+			req.Voice = e.st.VoiceNameFor(userID, m)
 			return llm.Speak(ctx, req)
 		}
 		return llm.GenerateVideo(ctx, req, e.VideoPoll)

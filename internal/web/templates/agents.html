@@ -3,7 +3,7 @@
 {{define "content"}}
 <div class="shell">
   {{template "sidebar" .}}
-  <main class="main" id="main" tabindex="-1">
+  <main class="main" id="main" tabindex="-1" data-fresh>
     {{template "page-top" .PageTitle}}
     <div class="page-scroll">
       <div class="page">
@@ -139,7 +139,7 @@
           {{end}}
           <div class="stack">
             {{range .Agents}}
-            <article class="provider{{if not .Enabled}} is-off{{end}}">
+            <article class="provider agent-card{{if not .Enabled}} is-off{{end}}">
               <header class="provider-head">
                 <div class="provider-icon">{{template "i-bot"}}</div>
                 <div class="grow">
@@ -154,7 +154,7 @@
                     {{if gt .ScheduleMinutes 0}}<span class="dot">·</span><span title="Automatic runs are counted from midnight UTC">{{.RunsToday}} of {{.DailyRuns}} runs today</span>{{end}}
                   </div>
                 </div>
-                <div class="row wrap end">
+                <div class="row wrap end agent-acts">
                   <button class="btn ghost sm" hx-post="/agents/{{.ID}}/run" hx-vals='{"go":"1"}' hx-swap="none">{{template "i-arrow-up"}}Run now</button>
                   <button class="btn ghost sm" hx-post="/agents/{{.ID}}/toggle" hx-swap="none" title="{{if .Enabled}}Stop scheduled runs until you resume{{else}}Let it run on its schedule again{{end}}">{{if .Enabled}}Pause{{else}}Resume{{end}}</button>
                   <a class="btn sm" href="/t/{{.ThreadID}}" title="See its runs, tasks and settings">Open</a>

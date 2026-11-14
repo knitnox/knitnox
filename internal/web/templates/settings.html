@@ -132,7 +132,7 @@
         <section class="section" id="notifications">
           <div class="section-head">
             <div class="section-icon">{{template "i-bell"}}</div>
-            <div><h2>Notifications</h2><p>Get a notification when a reply finishes while you're away, or when a tool needs your approval.</p></div>
+            <div><h2>Notifications</h2><p>Get a notification on your phone or computer when something happens while you are not looking at it. Tapping one opens the right place.</p></div>
           </div>
           <div class="card" id="push-card" data-devices="{{.PushDevices}}">
             <div class="row wrap">
@@ -147,6 +147,15 @@
               </div>
             </div>
           </div>
+          <h3 class="sub">What to notify me about</h3>
+          <form class="card stack" method="post" action="/settings/push/kinds">
+            <input type="hidden" name="_csrf" value="{{.CSRF}}">
+            {{range .PushKinds}}
+            <label class="check"><input type="checkbox" name="kind" value="{{.Key}}" {{if .On}}checked{{end}}> <span><b>{{.Label}}</b><br><small class="muted">{{.Hint}}</small></span></label>
+            {{end}}
+            <p class="hint">This is for all your devices. You are never notified about the page you are looking at.</p>
+            <div class="row"><button type="submit" class="btn primary">Save</button></div>
+          </form>
         </section>
 
         <section class="section" id="username">

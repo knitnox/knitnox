@@ -97,6 +97,13 @@ func planNote(write bool) string {
 
 // addPlanTools gives a run access to userID's Plan Book. by says who the run
 // is (the chat's AI or a named agent); write == false leaves only the reading tools.
+// planChanged tells the OnPlanTask hook that the AI or an agent added a task or ticked one off.
+func (e *Engine) planChanged(ev PlanEvent) {
+	if e.OnPlanTask != nil {
+		e.hook("plan-task hook", func() { e.OnPlanTask(ev) })
+	}
+}
+
 func (e *Engine) addPlanTools(ts *toolset, userID int64, by store.PlanActor, write bool, loc *time.Location) {
 	// project resolves a project name to its id; create makes it when missing.
 	project := func(name string, create bool) (int64, string) {
@@ -243,6 +250,7 @@ func (e *Engine) addPlanTools(ts *toolset, userID int64, by store.PlanActor, wri
 			if err != nil {
 				return "Error: " + err.Error()
 			}
+			e.planChanged(PlanEvent{UserID: userID, TaskID: id, By: by})
 			t, _ := e.st.PlanTaskByID(userID, id)
 			return "Added: " + planLine(*t, PlanToday(loc))
 		})
@@ -274,6 +282,9 @@ func (e *Engine) addPlanTools(ts *toolset, userID int64, by store.PlanActor, wri
 					return fmt.Sprintf("Error: there is no task #%d.", in.ID)
 				}
 				return "Error: " + err.Error()
+			}
+			if in.Status != nil && *in.Status == store.PlanDone {
+				e.planChanged(PlanEvent{UserID: userID, TaskID: in.ID, Done: true, By: by})
 			}
 			t, _ := e.st.PlanTaskByID(userID, in.ID)
 			return "Now: " + planLine(*t, PlanToday(loc))

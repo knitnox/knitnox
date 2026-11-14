@@ -103,6 +103,12 @@ func (s *Server) modelCreate(w http.ResponseWriter, r *http.Request, sc scope) {
 		s.serverError(w, r, err)
 		return
 	}
+	if voice := strings.TrimSpace(r.FormValue("voice_name")); voice != "" && kind == store.ModelVoice {
+		if err := s.st.SetModelVoiceName(s.st.ModelIDByName(pid, name), voice); err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+	}
 	if sc.owner == nil {
 		s.audit(r, "model.create", name, "")
 	}
@@ -155,6 +161,7 @@ func GuessVision(name string) bool {
 
 type discoveredModel struct {
 	Name   string
+	Kind   string // what it is for, guessed from the name
 	Vision bool
 	Known  bool // already configured
 }
@@ -236,7 +243,7 @@ func (s *Server) providerDiscover(w http.ResponseWriter, r *http.Request, sc sco
 			continue
 		}
 		seen[m.ID] = true
-		out = append(out, discoveredModel{Name: m.ID, Vision: GuessVision(m.ID), Known: known[m.ID]})
+		out = append(out, discoveredModel{Name: m.ID, Kind: store.GuessModelKind(m.ID), Vision: GuessVision(m.ID), Known: known[m.ID]})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	s.renderPartial(w, r, sc.page, "discover", map[string]any{"Provider": p, "Base": sc.base, "Models": out})
@@ -292,6 +299,7 @@ func (s *Server) settingsPage(w http.ResponseWriter, r *http.Request) {
 		"Providers": providers, "Base": sc.base, "MCPServers": servers,
 		"Quota": q, "Used": used, "Threads": threads,
 		"PushDevices": s.st.PushSubscriptionCount(u.ID), "Sessions": s.st.SessionCount(u.ID),
+		"PushKinds": s.pushKindViews(u.ID),
 	})
 }
 

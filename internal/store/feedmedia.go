@@ -95,7 +95,17 @@ func fitSVG(svg string) string {
 // 0 = the server's model, -1 = off, otherwise a model id.
 type FeedModels struct {
 	Image, Voice, Video int64
-	VoiceName           string // the voice to speak with, "" = the model's usual one
+	VoiceName           string // the voice to speak with, "" = the one set on the model, or the model's usual one
+}
+
+// VoiceNameFor is the voice a recording for userID is spoken with by model m:
+// the name the person chose in their Feed settings, else the one set on the
+// model, else "" (the model's usual voice).
+func (s *Store) VoiceNameFor(userID int64, m *Model) string {
+	if own := s.FeedModelsFor(userID).VoiceName; own != "" {
+		return own
+	}
+	return m.VoiceName
 }
 
 func (s *Store) FeedModelsFor(userID int64) FeedModels {

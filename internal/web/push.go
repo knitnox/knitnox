@@ -2,15 +2,11 @@ package web
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
-
-	"knitnox/internal/engine"
-	"knitnox/internal/store"
 )
 
 // ---- VAPID keys ----
@@ -79,6 +75,10 @@ func (s *Server) sendPush(userID int64, p pushPayload) {
 	if err != nil || len(subs) == 0 {
 		return
 	}
+	if s.pushSink != nil {
+		s.pushSink(userID, p)
+		return
+	}
 	body, _ := json.Marshal(p)
 	for _, sub := range subs {
 		resp, err := webpush.SendNotification(body, &webpush.Subscription{
@@ -95,56 +95,6 @@ func (s *Server) sendPush(userID int64, p pushPayload) {
 		if resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound {
 			s.st.DeletePushSubscription(0, sub.Endpoint) // browser unsubscribed
 		}
-	}
-}
-
-// onRunFinished notifies the author when a reply finishes while they are away.
-func (s *Server) onRunFinished(ev engine.RunEvent) {
-	if ev.AuthorID == 0 || s.isWatching(ev.ThreadID, ev.AuthorID) {
-		return
-	}
-	t, err := s.st.ThreadByID(ev.ThreadID)
-	if err != nil {
-		return
-	}
-	p := pushPayload{Title: t.Title, URL: fmt.Sprintf("/t/%d", ev.ThreadID), Tag: fmt.Sprintf("run-%d", ev.ThreadID)}
-	switch ev.Status {
-	case store.RunDone:
-		p.Body = "Your reply is ready."
-		if msgs, err := s.st.RunMessages(ev.RunID); err == nil {
-			for i := len(msgs) - 1; i >= 0; i-- {
-				if msgs[i].Role == "assistant" && msgs[i].Content != "" {
-					p.Body = preview(msgs[i].Content, 120)
-					break
-				}
-			}
-		}
-	case store.RunFailed:
-		p.Body = "The reply failed: " + preview(ev.Error, 100)
-		if a, _ := s.st.AgentByThread(ev.ThreadID); a != nil { // the title already is the agent's name
-			p.Body = "Could not finish its run: " + preview(ev.Error, 100)
-		}
-	default:
-		return
-	}
-	s.sendPush(ev.AuthorID, p)
-}
-
-// onApproval asks the people who may approve a tool call, if they are away.
-func (s *Server) onApproval(ev engine.ApprovalEvent) {
-	t, err := s.st.ThreadByID(ev.ThreadID)
-	if err != nil {
-		return
-	}
-	for _, uid := range ev.Approvers {
-		if s.isWatching(ev.ThreadID, uid) {
-			continue
-		}
-		s.sendPush(uid, pushPayload{
-			Title: "Tool approval needed · " + t.Title,
-			Body:  fmt.Sprintf("Knitnox wants to run %s on %s. Open the chat to allow or deny it.", ev.ToolName, ev.ServerName),
-			URL:   fmt.Sprintf("/t/%d", ev.ThreadID), Tag: fmt.Sprintf("approval-%d", ev.ApprovalID),
-		})
 	}
 }
 

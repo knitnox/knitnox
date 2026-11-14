@@ -223,6 +223,9 @@
         </select>
         {{if eq .Kind "chat"}}<button class="chip{{if .Vision}} is-on{{end}}" hx-post="{{$.Base}}/models/{{.ID}}/vision" hx-target="#providers" hx-swap="outerHTML"
                 title="Click to toggle image support">{{template "i-eye"}}{{if .Vision}}Images{{else}}Text only{{end}}</button>{{end}}
+        {{if eq .Kind "voice"}}<input class="model-voice" name="voice_name" value="{{.VoiceName}}" maxlength="60" placeholder="Voice name" autocomplete="off" autocapitalize="off" spellcheck="false"
+               aria-label="Voice name for {{.Name}}" title="Which voice this model speaks with, as the provider calls it (OpenAI: alloy, nova… Gemini: Kore, Puck…). Empty = the model's usual voice. Saved when you leave the box."
+               hx-post="{{$.Base}}/models/{{.ID}}/voice" hx-trigger="change" hx-target="#providers" hx-swap="outerHTML">{{end}}
         <button class="chip{{if .Enabled}} is-on{{end}}" hx-post="{{$.Base}}/models/{{.ID}}/toggle" hx-target="#providers" hx-swap="outerHTML">{{if .Enabled}}Enabled{{else}}Disabled{{end}}</button>
         <button class="icon-btn sm danger-hover" hx-post="{{$.Base}}/models/{{.ID}}/delete" hx-target="#providers" hx-swap="outerHTML"
                 hx-confirm="Delete model {{.Name}}?" aria-label="Delete model">{{template "i-x"}}</button>
@@ -242,11 +245,13 @@
           <input type="hidden" name="_csrf" value="{{$.CSRF}}">
           <label>Model ID <input name="name" placeholder="e.g. gpt-4o-mini" required></label>
           <label>What it is for <small class="muted">chat models answer in chats; the others are used by Memory and the Feed</small>
-            <select name="kind">{{range modelKinds}}<option value="{{.}}">{{kindLabel .}}</option>{{end}}</select></label>
+            <select name="kind" data-kind-pick>{{range modelKinds}}<option value="{{.}}">{{kindLabel .}}</option>{{end}}</select></label>
+          <label data-kind-only="voice" hidden>Voice name <small class="muted">which voice it speaks with, as the provider calls it (OpenAI: alloy, nova… Gemini: Kore, Puck…); leave empty for the model's usual voice</small>
+            <input name="voice_name" maxlength="60" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
           <label>Context window <input name="context_window" type="number" placeholder="128000" min="1000"></label>
           <label>$ / 1M input <input name="input_price" type="number" step="any" placeholder="0"></label>
           <label>$ / 1M output <input name="output_price" type="number" step="any" placeholder="0"></label>
-          <label class="check"><input type="checkbox" name="vision" value="1" checked> Accepts images</label>
+          <label class="check" data-kind-only="chat"><input type="checkbox" name="vision" value="1" checked> Accepts images</label>
           <div class="span-2"><button type="submit" class="btn primary">Add model</button></div>
         </form>
       </details>
@@ -272,7 +277,7 @@
   <form hx-post="{{.Base}}/providers/{{.Provider.ID}}/models/bulk" hx-target="#providers" hx-swap="outerHTML">
     <div class="discover-head">
       <b>{{len .Models}} models found</b>
-      <span class="hint">Tick the ones you want. “Images” and what each model is for (chat, pictures, voice…) are guessed from the name; you can change both afterwards.</span>
+      <span class="hint">Tick the ones you want. What each model is for (chat, pictures, voice…) and whether a chat model accepts images (the eye) are guessed from the name; you can change both afterwards.</span>
       <button type="button" class="link" data-check-all>Select all</button>
     </div>
     <div class="discover-list">
@@ -281,7 +286,8 @@
         <input type="checkbox" name="names" value="{{.Name}}" {{if .Known}}disabled{{end}}>
         <span class="mono grow">{{.Name}}</span>
         {{if .Known}}<span class="badge">added</span>{{else}}
-        <label class="check-mini" title="Accepts images"><input type="checkbox" name="vision" value="{{.Name}}" {{if .Vision}}checked{{end}}>{{template "i-eye"}}</label>
+        {{if eq .Kind "chat"}}<label class="check-mini" title="Accepts images"><input type="checkbox" name="vision" value="{{.Name}}" {{if .Vision}}checked{{end}}>{{template "i-eye"}}</label>
+        {{else}}<span class="badge">{{kindLabel .Kind}}</span>{{end}}
         {{end}}
       </label>
       {{end}}

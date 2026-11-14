@@ -234,12 +234,11 @@
         <option value="-1" {{if eq .Chosen -1}}selected{{end}}>Off: never make {{if eq .Kind "image"}}pictures{{else if eq .Kind "voice"}}recordings{{else}}videos{{end}}</option>
       </select>
     </label>
+    {{if eq .Kind "voice"}}
+    <label class="feed-voice-name">Voice name <small class="muted">which voice the voice model above speaks with. Leave it empty for the model's usual voice, or the one your admin set for it. The names differ per provider (OpenAI: alloy, nova, onyx… Gemini: Kore, Puck…); the model's page lists them.</small>
+      <input name="voice_name" value="{{$.VoiceName}}" maxlength="60" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
     {{end}}
-    <details class="advanced">
-      <summary>Advanced</summary>
-      <label>Voice name <small class="muted">which voice the voice model speaks with; leave empty for its usual one. The names differ per provider (OpenAI: alloy, nova, onyx… Gemini: Kore, Puck…); the model's page lists them.</small>
-        <input name="voice_name" value="{{.VoiceName}}" maxlength="60" placeholder="alloy" autocomplete="off"></label>
-    </details>
+    {{end}}
     <div class="row wrap">
       <button type="submit" class="btn primary">Save</button>
       {{if .MediaDaily}}<span class="hint">With the server's models you can make up to {{.MediaDaily}} pictures, recordings and videos a day. Your own models have no limit here.</span>{{end}}

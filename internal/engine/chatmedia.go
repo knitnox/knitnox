@@ -197,7 +197,7 @@ func (e *Engine) SpeakMessage(ctx context.Context, userID int64, msg *store.Mess
 	cctx, cancel := context.WithTimeout(ctx, chatSpeakTimeout)
 	defer cancel()
 	media, err := llm.Speak(cctx, llm.MediaRequest{BaseURL: p.BaseURL, APIKey: p.APIKey, Model: m.Name, Prompt: text,
-		Voice: e.st.FeedModelsFor(userID).VoiceName, UserURL: !shared})
+		Voice: e.st.VoiceNameFor(userID, m), UserURL: !shared})
 	if err != nil {
 		e.log.Warn("read aloud failed", "message", msg.ID, "err", err)
 		return nil, errors.New("the recording could not be made: " + providerWords(err))

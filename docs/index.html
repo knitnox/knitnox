@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Knitnox: decide together, with AI in the room</title>
-<meta name="description" content="Knitnox is a private AI harness for personal use or a small pro-AI team: one program, one portable database, any local or cloud model. Ask together in a group where the AI chairs like a speaker, ask privately in your own chat, and let agents work around the clock.">
-<meta property="og:title" content="Knitnox: decide together, with AI in the room">
-<meta property="og:description" content="A private AI harness for personal use or a small pro-AI team. Ask together in a group, ask in private in a chat of your own, or let agents work around the clock. One program, one portable database, any local or cloud model.">
+<title>Knitnox: a self-hosted AI harness in one Go binary</title>
+<meta name="description" content="Knitnox is a self-hosted, multi-user AI harness: groups where one AI answers everyone, group memory, personal memory, a Plan Book, a Feed, scheduled agents and MCP tools. Pure Go, no CGO, one binary, one SQLite file, any OpenAI-compatible model.">
+<meta property="og:title" content="Knitnox: a self-hosted AI harness in one Go binary">
+<meta property="og:description" content="Groups where one AI answers everyone, group memory, personal memory, a Plan Book, a Feed, scheduled agents and MCP tools. Pure Go, no CGO, one binary, one SQLite file, any OpenAI-compatible model.">
 <meta property="og:image" content="screenshots/chat-light.webp">
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0b0b0c" media="(prefers-color-scheme: dark)">
@@ -30,7 +30,6 @@
   --invert-fg: #f5f5f3;
   --invert-muted: #9a9a9f;
   --invert-line: #26262a;
-  --shadow: 0 1px 2px rgba(0,0,0,.04), 0 12px 32px -12px rgba(0,0,0,.12);
   --shadow-lg: 0 2px 6px rgba(0,0,0,.04), 0 40px 80px -24px rgba(0,0,0,.22);
   --font: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
@@ -52,20 +51,20 @@
     --invert-fg: #0b0b0c;
     --invert-muted: #5c5c62;
     --invert-line: #dcdcd8;
-    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px -12px rgba(0,0,0,.6);
     --shadow-lg: 0 2px 6px rgba(0,0,0,.4), 0 40px 80px -24px rgba(0,0,0,.8);
     color-scheme: dark;
   }
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 var(--font); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; scroll-padding-top: 76px; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.7 var(--font); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; overflow-x: hidden; }
 img { display: block; max-width: 100%; height: auto; }
 a { color: inherit; }
-h1, h2, h3 { margin: 0; line-height: 1.08; letter-spacing: -.035em; font-weight: 700; }
+h1, h2, h3 { margin: 0; line-height: 1.2; letter-spacing: -.02em; font-weight: 600; text-wrap: balance; }
+p, dd, li { text-wrap: pretty; }
 p { margin: 0; }
-code { font-family: var(--mono); font-size: .88em; background: var(--chip); padding: 2px 6px; border-radius: 6px; }
+code { font-family: var(--mono); font-size: .86em; background: var(--chip); padding: 2px 6px; border-radius: 6px; overflow-wrap: anywhere; }
 .wrap { width: min(1160px, 100% - 32px); margin-inline: auto; }
 :focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; border-radius: 6px; }
 
@@ -77,11 +76,11 @@ nav.top .wrap { display: flex; align-items: center; gap: 28px; height: 62px; }
 .logo .t { fill: var(--bg); stroke: var(--line-2); stroke-width: 18; }
 .logo .r { fill: var(--fg); }
 .logo .h { fill: var(--bg); }
-nav.top .links { display: flex; gap: 26px; margin-left: auto; }
+nav.top .links { display: flex; gap: 24px; margin-left: auto; }
 nav.top .links a { text-decoration: none; color: var(--muted); font-size: 14.5px; font-weight: 500; transition: color .15s; }
 nav.top .links a:hover { color: var(--fg); }
 
-.btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: 999px; font: 600 15px var(--font); text-decoration: none; border: 1px solid transparent; transition: transform .2s var(--ease), opacity .2s, background .2s; cursor: pointer; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: 999px; font: 600 15px var(--font); text-decoration: none; border: 1px solid transparent; transition: transform .2s var(--ease), opacity .2s, border-color .2s; cursor: pointer; }
 .btn:hover { transform: translateY(-1px); }
 .btn svg { width: 17px; height: 17px; }
 .btn-solid { background: var(--fg); color: var(--bg); }
@@ -91,233 +90,184 @@ nav.top .links a:hover { color: var(--fg); }
 nav.top .btn { padding: 8px 16px; font-size: 14px; }
 
 /* ---- hero ---- */
-.hero { padding: 96px 0 0; text-align: center; overflow: hidden; }
-.badge { display: inline-flex; align-items: center; gap: 10px; padding: 6px 14px 6px 6px; border: 1px solid var(--line); border-radius: 999px; font-size: 13.5px; color: var(--fg-2); background: var(--bg); }
-.badge b { background: var(--fg); color: var(--bg); font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 999px; letter-spacing: .02em; }
-.hero h1 { font-size: clamp(44px, 8vw, 92px); margin: 26px auto 24px; max-width: 980px; letter-spacing: -.05em; }
+.hero { padding: 88px 0 0; overflow: hidden; }
+.kicker { font: 500 13px var(--mono); color: var(--muted); letter-spacing: .04em; }
+.kicker b { color: var(--fg); font-weight: 500; }
+.hero h1 { font-size: clamp(34px, 5vw, 58px); line-height: 1.12; margin: 22px 0 24px; max-width: 860px; letter-spacing: -.03em; }
 .hero h1 .soft { color: var(--faint); }
-.hero .lead { font-size: clamp(17px, 2vw, 20px); color: var(--muted); max-width: 640px; margin: 0 auto; }
+.hero .lead { font-size: clamp(17.5px, 1.8vw, 19.5px); line-height: 1.7; color: var(--fg-2); max-width: 680px; }
 .hero .lead strong { color: var(--fg); font-weight: 600; }
-.cta { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 36px; }
-.ticks { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 24px; margin-top: 26px; font-size: 14px; color: var(--muted); }
-.ticks span::before { content: "·"; margin-right: 8px; color: var(--faint); font-weight: 700; }
-
-.stage { position: relative; margin: 72px auto 0; max-width: 1080px; padding: 0 0 0; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
+.specs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; margin-top: 56px; }
+.specs div { background: var(--bg); padding: 20px 22px; min-width: 0; }
+.specs b { display: block; font: 500 12.5px var(--mono); color: var(--muted); letter-spacing: .03em; margin-bottom: 6px; }
+.specs span { display: block; font-size: 15.5px; line-height: 1.6; color: var(--fg-2); }
+.stage { margin: 64px auto 0; max-width: 1080px; }
 .frame { border-radius: 16px 16px 0 0; border: 1px solid var(--line-2); border-bottom: 0; overflow: hidden; background: var(--canvas); box-shadow: var(--shadow-lg); }
 .frame .bar { display: flex; align-items: center; gap: 7px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--bg); }
 .frame .bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--line-2); }
 .frame .bar span { margin: 0 auto; font: 500 12px var(--mono); color: var(--muted); background: var(--chip); padding: 4px 14px; border-radius: 8px; }
 .frame img { width: 100%; }
-.phone { position: absolute; right: -36px; bottom: -40px; width: 230px; border-radius: 34px; padding: 8px; background: var(--fg); box-shadow: var(--shadow-lg); }
-.phone img { border-radius: 27px; }
 .hero-fade { height: 1px; background: var(--line); }
 
-/* ---- quote band ---- */
-.quote { padding: 120px 0 40px; text-align: center; }
-.quote p { font-size: clamp(26px, 4vw, 44px); line-height: 1.2; letter-spacing: -.03em; font-weight: 600; max-width: 900px; margin: 0 auto; }
-.quote p s { color: var(--faint); text-decoration-thickness: 2px; }
-.quote small { display: block; margin-top: 20px; font-size: 16px; color: var(--muted); }
+/* ---- sections ---- */
+.sec { padding: 112px 0; }
+.sec + .sec { border-top: 1px solid var(--line); }
+.sec.tint { background: var(--canvas); }
+.head { max-width: 700px; margin-bottom: 52px; }
+.head h2 { font-size: clamp(26px, 3.1vw, 36px); margin: 14px 0 16px; }
+.head p { color: var(--fg-2); font-size: 17.5px; line-height: 1.7; }
+.head p + p { margin-top: 10px; }
+.head p strong { color: var(--fg); font-weight: 600; }
 
-/* ---- the moments it is for ---- */
-.pain { padding: 110px 0 30px; }
-.pain-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-.pain-card { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 30px 28px 26px; border: 1px solid var(--line); border-radius: 18px; background: var(--bg);
-  text-decoration: none; transition: border-color .2s, transform .2s var(--ease); }
-.pain-card:hover { border-color: var(--fg); transform: translateY(-2px); }
-.pain-card.wide { grid-column: 1 / -1; }
-.pain-card.wide .fix { max-width: 78ch; }
-.pain-card .said { font-size: 16.5px; line-height: 1.45; color: var(--muted); }
-.pain-card .said s { text-decoration-thickness: 1.5px; text-decoration-color: var(--faint); }
-.pain-card h3 { font-size: clamp(22px, 2.4vw, 27px); letter-spacing: -.03em; margin-top: 10px; }
-.pain-card .fix { color: var(--muted); font-size: 15.5px; }
-.pain-card .go { margin-top: auto; padding-top: 14px; font: 500 13px var(--mono); color: var(--fg); letter-spacing: .02em; }
-.who-band { padding: 110px 0; }
-.who .cell ul { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 8px; }
-.who .cell li { position: relative; padding-left: 18px; color: var(--fg-2); font-size: 14.5px; }
-.who .cell li::before { content: "·"; position: absolute; left: 4px; color: var(--muted); font-weight: 700; }
-
-/* ---- each part explained the same way: what it solves, how it works, what it connects to ---- */
-.explain { margin: 28px 0 0; border-top: 1px solid var(--line); }
-.explain > div { display: grid; grid-template-columns: 112px 1fr; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--line); }
-.explain dt { font: 500 12.5px var(--mono); color: var(--muted); letter-spacing: .03em; padding-top: 3px; }
-.explain dd { margin: 0; color: var(--fg-2); font-size: 15.5px; }
-.explain a { color: var(--fg); font-weight: 500; text-underline-offset: 3px; }
-.feature .explain + .points { margin-top: 24px; }
-
-/* ---- how the parts fit together ---- */
+/* ---- the map ---- */
 .flow { display: grid; gap: 0; }
 .lane { border: 1px solid var(--line); border-radius: 18px; background: var(--bg); padding: 22px 24px 24px; }
 .lane-name { display: block; font: 500 12.5px var(--mono); color: var(--muted); letter-spacing: .04em; margin-bottom: 14px; }
+.lane-name b { font: 700 18px var(--font); color: var(--fg); letter-spacing: -.02em; margin-right: 10px; }
 .flow .row { display: flex; align-items: stretch; gap: 14px; }
 .flow .row + .row { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line-2); }
-.node { flex: 1; min-width: 0; border: 1px solid var(--line-2); border-radius: 12px; padding: 14px 16px; background: var(--canvas); }
+.node { flex: 1; min-width: 0; border: 1px solid var(--line-2); border-radius: 12px; padding: 14px 16px; background: var(--canvas); text-decoration: none; display: block; transition: border-color .2s; }
+a.node:hover { border-color: var(--fg); }
 .node b { display: block; font-weight: 600; letter-spacing: -.01em; }
-.node small { display: block; color: var(--muted); font-size: 13.5px; margin-top: 2px; }
+.node small { display: block; color: var(--muted); font-size: 14px; line-height: 1.5; margin-top: 3px; }
+.node.strong { background: var(--fg); border-color: var(--fg); }
+.node.strong b { color: var(--bg); }
+.node.strong small { color: var(--bg); opacity: .7; }
 .flow .arrow { align-self: center; flex: none; font-size: 20px; color: var(--faint); }
 .trio { flex: 3; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.duo { flex: 3; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 .bridge { justify-self: center; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 0 14px; text-align: center; }
 .bridge b { background: var(--fg); color: var(--bg); padding: 7px 18px; border-radius: 999px; font-size: 14.5px; font-weight: 600; }
 .bridge small { color: var(--muted); font-size: 13.5px; margin-top: 6px; }
-.flow .note { flex: 3; align-self: center; color: var(--muted); font-size: 14.5px; }
-.lane-name b { font: 700 18px var(--font); color: var(--fg); letter-spacing: -.02em; margin-right: 10px; }
-.story-name { margin: 44px 0 0; font: 500 12.5px var(--mono); color: var(--muted); letter-spacing: .04em; }
-.story { list-style: none; counter-reset: st; margin: 16px 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; }
-.story li { counter-increment: st; border-top: 1px solid var(--line-2); padding-top: 14px; }
-.story li::before { content: counter(st); display: block; font: 500 13px var(--mono); color: var(--muted); margin-bottom: 8px; }
-.story b { display: block; font-size: 15.5px; font-weight: 600; letter-spacing: -.01em; }
-.story p { color: var(--muted); font-size: 14.5px; margin-top: 4px; }
+.rules { list-style: none; margin: 36px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.rules li { border-top: 1px solid var(--line-2); padding-top: 14px; }
+.rules b { display: block; font-size: 16.5px; font-weight: 600; letter-spacing: -.01em; }
+.rules p { color: var(--muted); font-size: 15.5px; line-height: 1.65; margin-top: 6px; }
 
-/* ---- feature rows ---- */
-.feature { padding: 110px 0; }
-.feature + .feature { border-top: 1px solid var(--line); }
-.feature .wrap { display: grid; grid-template-columns: 1fr 1.25fr; gap: 72px; align-items: center; }
-.feature.flip .wrap { grid-template-columns: 1.25fr 1fr; }
-.feature.flip .text { order: 2; }
-.num { font: 500 13px var(--mono); color: var(--muted); letter-spacing: .04em; }
-.num b { color: var(--fg); font-weight: 500; }
-.feature h2 { font-size: clamp(32px, 4.4vw, 52px); margin: 16px 0 18px; }
-.feature .text > p { font-size: 18px; color: var(--muted); }
-.feature .text > p strong { color: var(--fg); font-weight: 600; }
-.points { list-style: none; padding: 0; margin: 30px 0 0; display: grid; gap: 14px; }
-.points li { display: grid; grid-template-columns: 22px 1fr; gap: 12px; color: var(--fg-2); font-size: 15.5px; }
-.points li::before { content: ""; width: 18px; height: 18px; margin-top: 3px; border-radius: 50%; border: 1.5px solid var(--fg); background: radial-gradient(circle, var(--fg) 0 3px, transparent 3.5px); }
+/* ---- part rows: text + screenshot ---- */
+.part .wrap { display: grid; grid-template-columns: 1fr 1.15fr; gap: 64px; align-items: start; }
+.part .wrap > *, .side > * { min-width: 0; }
+.part.flip .text { order: 2; }
+.part h2 { font-size: clamp(26px, 3.1vw, 36px); margin: 14px 0 18px; }
+.part .text > p { font-size: 17.5px; line-height: 1.7; color: var(--fg-2); }
+.part .text > p strong { color: var(--fg); font-weight: 600; }
 .shot { border-radius: 14px; overflow: hidden; border: 1px solid var(--line-2); box-shadow: var(--shadow-lg); background: var(--canvas); }
-.shot-pair { position: relative; }
-.shot-pair .phone { right: -20px; bottom: -48px; width: 190px; }
+.side { display: grid; gap: 20px; position: sticky; top: 86px; }
 
-/* ---- also grid ---- */
-.also { padding: 110px 0; background: var(--canvas); border-block: 1px solid var(--line); }
-.head { max-width: 680px; margin-bottom: 52px; }
-.head h2 { font-size: clamp(30px, 4vw, 46px); margin: 14px 0 14px; }
-.head p { color: var(--muted); font-size: 18px; }
+.explain { margin: 26px 0 0; border-top: 1px solid var(--line); }
+.explain > div { display: grid; grid-template-columns: 104px 1fr; gap: 18px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.explain dt { font: 500 14px var(--font); color: var(--muted); padding-top: 2px; }
+.explain dd { margin: 0; color: var(--fg-2); font-size: 16px; line-height: 1.65; }
+.explain a { color: var(--fg); font-weight: 500; text-underline-offset: 3px; }
+
+/* ---- code and tables ---- */
+.code { margin: 0; padding: 22px 24px; background: #0b0b0c; color: #dededb; border: 1px solid var(--line-2); border-radius: 14px; font: 13.5px/1.85 var(--mono); overflow-x: auto; white-space: pre; }
+.code .c { color: #7c7c84; }
+.code-cap { font: 500 12.5px var(--mono); color: var(--muted); letter-spacing: .03em; margin-bottom: 10px; }
+.scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 16px; background: var(--bg); }
+table { border-collapse: collapse; width: 100%; font-size: 15.5px; line-height: 1.6; }
+th, td { text-align: left; vertical-align: top; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: 0; }
+thead th { font: 500 12.5px var(--mono); color: var(--muted); letter-spacing: .03em; background: var(--canvas); white-space: nowrap; }
+tbody th { font-weight: 600; color: var(--fg); min-width: 170px; }
+tbody th small { display: block; font: 400 12px/1.6 var(--mono); color: var(--muted); margin-top: 4px; }
+td { color: var(--fg-2); min-width: 190px; }
+td.no { color: var(--faint); }
+.matrix { min-width: 860px; }
+
+/* ---- cell grid ---- */
 .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
-.cell { background: var(--bg); padding: 30px 28px; }
-.cell svg { width: 24px; height: 24px; margin-bottom: 18px; }
-.cell h3 { font-size: 17px; letter-spacing: -.01em; margin-bottom: 6px; }
-.cell p { color: var(--muted); font-size: 15px; }
+.grid.two { grid-template-columns: repeat(2, 1fr); }
+.cell { background: var(--bg); padding: 30px 28px; min-width: 0; }
+.cell .tag { display: block; font: 500 12px var(--mono); color: var(--faint); letter-spacing: .04em; margin-bottom: 12px; }
+.cell h3 { font-size: 17.5px; line-height: 1.35; letter-spacing: -.01em; margin-bottom: 8px; }
+.cell p { color: var(--muted); font-size: 15.5px; line-height: 1.65; }
+.cell p + p { margin-top: 8px; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
+.split > div { min-width: 0; }
+.sub { margin-top: 56px; }
+.sub > h3 { font-size: 21px; letter-spacing: -.015em; margin-bottom: 20px; }
+.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.list li { display: grid; grid-template-columns: 22px 1fr; gap: 12px; color: var(--fg-2); font-size: 16px; line-height: 1.65; }
+.list li b { color: var(--fg); font-weight: 600; }
+.list li::before { content: ""; width: 18px; height: 18px; margin-top: 5px; border-radius: 50%; border: 1.5px solid var(--fg); background: radial-gradient(circle, var(--fg) 0 3px, transparent 3.5px); }
 
-/* ---- private (inverted) ---- */
-.private { background: var(--invert-bg); color: var(--invert-fg); padding: 120px 0; }
-.private .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; align-items: center; }
-.private .num, .private .num b { color: var(--invert-muted); }
-.private h2 { font-size: clamp(34px, 5vw, 60px); margin: 16px 0 20px; }
-.private p { color: var(--invert-muted); font-size: 18px; }
-.stack { display: grid; gap: 10px; }
-.layer { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 18px 22px; border: 1px solid var(--invert-line); border-radius: 14px; }
+/* ---- inverted: under the hood ---- */
+.hood { background: var(--invert-bg); color: var(--invert-fg); padding: 112px 0; }
+.hood .kicker, .hood .kicker b { color: var(--invert-muted); }
+.hood .head p { color: var(--invert-muted); }
+.hood .head p strong { color: var(--invert-fg); }
+.hood code { background: color-mix(in srgb, var(--invert-fg) 12%, transparent); }
+.facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 34px 40px; }
+.facts div { border-top: 1px solid var(--invert-line); padding-top: 16px; font-size: 15.5px; line-height: 1.65; color: var(--invert-muted); min-width: 0; }
+.facts b { display: block; color: var(--invert-fg); font-size: 16.5px; font-weight: 600; margin-bottom: 6px; }
+.stack { display: grid; gap: 10px; margin-top: 56px; }
+.layer { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 16px 22px; border: 1px solid var(--invert-line); border-radius: 14px; }
 .layer b { font-weight: 600; }
 .layer span { color: var(--invert-muted); font-size: 14px; text-align: right; }
 .layer.main { background: var(--invert-fg); color: var(--invert-bg); border-color: transparent; }
 .layer.main span { color: inherit; opacity: .65; }
-.facts { display: grid; grid-template-columns: 1fr 1fr; gap: 22px 28px; margin-top: 40px; }
-.facts div { border-top: 1px solid var(--invert-line); padding-top: 14px; font-size: 14.5px; color: var(--invert-muted); }
-.facts b { display: block; color: var(--invert-fg); font-size: 15.5px; font-weight: 600; margin-bottom: 2px; }
 
 /* ---- download ---- */
-.dl { padding: 110px 0; border-bottom: 1px solid var(--line); }
 .os-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: start; }
-.os { min-width: 0; border: 1px solid var(--line); border-radius: 18px; padding: 28px; background: var(--bg); }
-.os h3 { font-size: 22px; letter-spacing: -.02em; }
+.os { min-width: 0; border: 1px solid var(--line); border-radius: 18px; padding: 26px; background: var(--bg); }
+.os h3 { font-size: 20px; letter-spacing: -.02em; }
 .os .for { color: var(--muted); font-size: 14px; margin-top: 6px; }
-.os .btn { width: 100%; justify-content: center; margin-top: 20px; }
+.os .btn { width: 100%; justify-content: center; margin-top: 18px; }
 .os .alt { display: block; text-align: center; margin-top: 12px; font-size: 13.5px; color: var(--muted); }
 .os .alt:hover { color: var(--fg); }
-.os ol { margin: 24px 0 0; padding: 22px 0 0 20px; border-top: 1px solid var(--line); color: var(--fg-2); font-size: 14.5px; display: grid; gap: 10px; }
-.os ol b { color: var(--fg); font-weight: 600; }
-.os pre { margin: 24px 0 0; padding: 14px 16px; background: var(--chip); border-radius: 12px; font: 12.5px/1.75 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
-.os .hint { margin-top: 14px; font-size: 13.5px; color: var(--muted); }
-.os .hint b { color: var(--fg-2); font-weight: 600; }
-.after { margin-top: 22px; color: var(--muted); font-size: 15.5px; }
+.after { margin-top: 24px; color: var(--muted); font-size: 16px; }
 .after a { color: var(--fg); text-underline-offset: 3px; }
-.why { margin-top: 56px; border: 1px solid var(--line); border-radius: 18px; background: var(--canvas); padding: 44px; display: grid; grid-template-columns: 1.15fr 1fr; gap: 52px; align-items: start; }
-.why > div { min-width: 0; }
-.why h3 { font-size: clamp(22px, 2.6vw, 30px); letter-spacing: -.025em; margin-bottom: 16px; }
-.why h4 { margin: 0 0 12px; font-size: 13px; font-weight: 500; font-family: var(--mono); color: var(--muted); letter-spacing: .04em; }
-.why p { color: var(--muted); font-size: 15.5px; }
-.why p + p { margin-top: 12px; }
-.why p strong { color: var(--fg); font-weight: 600; }
-.bill { list-style: none; margin: 0 0 28px; padding: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--bg); overflow: hidden; }
-.bill li { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 14px 18px; font-size: 14.5px; color: var(--fg-2); }
-.bill li + li { border-top: 1px solid var(--line); }
-.bill li span:last-child { font: 500 13.5px var(--mono); white-space: nowrap; color: var(--fg); }
-.bill li.sum { font-weight: 600; color: var(--fg); background: var(--chip); }
-.why .points { margin-top: 0; }
-.why .points li { font-size: 14.5px; }
-
-/* ---- start ---- */
-.start { padding: 120px 0; }
-.start .wrap { display: grid; grid-template-columns: 1fr 1.1fr; gap: 64px; align-items: start; }
-.term { background: #0b0b0c; color: #ececea; border-radius: 16px; overflow: hidden; border: 1px solid var(--line-2); box-shadow: var(--shadow-lg); }
+.term { background: #0b0b0c; color: #ececea; border-radius: 16px; overflow: hidden; border: 1px solid var(--line-2); }
 .term .bar { display: flex; align-items: center; gap: 7px; padding: 12px 16px; border-bottom: 1px solid #222226; }
 .term .bar i { width: 10px; height: 10px; border-radius: 50%; background: #2c2c31; }
 .term .bar button { margin-left: auto; background: #1d1d21; color: #ececea; border: 1px solid #2c2c31; border-radius: 8px; padding: 5px 12px; font: 600 12px var(--font); cursor: pointer; }
 .term .bar button:hover { background: #26262b; }
-.term pre { margin: 0; padding: 22px; font: 14px/1.8 var(--mono); overflow-x: auto; }
-.term .c { color: #6e6e75; }
-.term .p { color: #6e6e75; user-select: none; }
-.steps { list-style: none; padding: 0; margin: 34px 0 0; counter-reset: s; display: grid; gap: 22px; }
-.steps li { display: grid; grid-template-columns: 36px 1fr; gap: 16px; }
-.steps li::before { counter-increment: s; content: counter(s); width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line-2); display: grid; place-items: center; font: 500 14px var(--mono); }
-.steps b { display: block; font-weight: 600; margin-bottom: 2px; }
-.steps p { color: var(--muted); font-size: 15px; }
-.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 30px; }
-.chips span { border: 1px solid var(--line); border-radius: 999px; padding: 5px 13px; font-size: 13px; color: var(--fg-2); }
+.term pre { margin: 0; padding: 22px; font: 13.5px/1.8 var(--mono); overflow-x: auto; }
+.term .c, .term .p { color: #6e6e75; }
+.term .p { user-select: none; }
 
-/* ---- end ---- */
-.end { text-align: center; padding: 40px 0 120px; }
-.end h2 { font-size: clamp(36px, 6vw, 72px); letter-spacing: -.05em; }
-.end p { color: var(--muted); font-size: 18px; margin-top: 18px; }
 footer { border-top: 1px solid var(--line); padding: 32px 0 48px; font-size: 14px; color: var(--muted); }
 footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px 28px; }
 footer .links { display: flex; flex-wrap: wrap; gap: 20px; }
 footer a { text-decoration: none; }
 footer a:hover { color: var(--fg); }
 
-/* ---- reveal on scroll ---- */
 .reveal { opacity: 0; transform: translateY(18px); transition: opacity .7s var(--ease), transform .7s var(--ease); }
 .reveal.in { opacity: 1; transform: none; }
 
-/* ---- responsive ---- */
 @media (max-width: 980px) {
-  .feature .wrap, .feature.flip .wrap, .private .wrap, .start .wrap { grid-template-columns: 1fr; gap: 44px; }
-  .feature.flip .text { order: 0; }
-  .grid { grid-template-columns: 1fr 1fr; }
   nav.top .links { display: none; }
   nav.top .btn { margin-left: auto; }
-  .phone { right: 8px; width: 170px; bottom: -28px; }
-  .shot-pair .phone { right: 8px; width: 150px; bottom: -28px; }
-  .feature, .also, .private, .start, .dl { padding: 80px 0; }
-  .os-grid, .why { grid-template-columns: 1fr; }
-  .why { padding: 28px 22px; gap: 32px; }
-  .quote { padding: 88px 0 24px; }
-  .pain { padding: 80px 0 16px; }
-  .who-band { padding: 80px 0; }
-  .story { grid-template-columns: 1fr 1fr; }
+  .sec, .hood { padding: 76px 0; }
+  .specs { grid-template-columns: 1fr 1fr; }
+  .part .wrap, .split { grid-template-columns: 1fr; gap: 36px; }
+  .part.flip .text { order: 0; }
+  .side { position: static; }
+  .grid, .facts { grid-template-columns: 1fr 1fr; }
+  .rules { grid-template-columns: 1fr; }
+  .os-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
-  .hero { padding-top: 56px; }
-  .grid { grid-template-columns: 1fr; }
-  .pain-grid { grid-template-columns: 1fr; }
-  .pain-card { padding: 24px 22px 22px; }
+  .hero { padding-top: 52px; }
+  .specs, .grid, .grid.two, .facts { grid-template-columns: 1fr; }
   .explain > div { grid-template-columns: 1fr; gap: 2px; }
   .lane { padding: 18px 16px; }
   .lane-name b { display: block; margin: 0 0 4px; }
   .flow .row { flex-direction: column; }
   .flow .row > .arrow { transform: rotate(90deg); }
-  .trio { grid-template-columns: 1fr; }
-  .story { grid-template-columns: 1fr; }
-  .phone { width: 120px; padding: 5px; border-radius: 22px; bottom: -18px; }
-  .phone img { border-radius: 18px; }
-  .shot-pair .phone { width: 110px; }
+  .trio, .duo { grid-template-columns: 1fr; }
   .frame .bar span { display: none; }
-  .facts { grid-template-columns: 1fr; }
   .layer { flex-direction: column; gap: 2px; }
   .layer span { text-align: left; }
-  .stage { margin-top: 48px; }
+  .stage { margin-top: 44px; }
+  .code { font-size: 12px; padding: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .reveal { opacity: 1; transform: none; transition: none; }
-  .btn, .pain-card { transition: none; }
+  .btn { transition: none; }
 }
 </style>
 </head>
@@ -330,11 +280,12 @@ footer a:hover { color: var(--fg); }
       Knitnox
     </a>
     <div class="links">
-      <a href="#chats">Groups</a>
-      <a href="#groupmem">Group memory</a>
-      <a href="#plan">Plan Book</a>
-      <a href="#feed">Feed</a>
-      <a href="#map">How it fits</a>
+      <a href="#map">Map</a>
+      <a href="#groups">Groups</a>
+      <a href="#tools">Tools</a>
+      <a href="#agents">Agents</a>
+      <a href="#mcp">MCP</a>
+      <a href="#hood">Under the hood</a>
       <a href="#download">Download</a>
     </div>
     <a class="btn btn-line" href="https://github.com/knitnox/knitnox">
@@ -345,30 +296,32 @@ footer a:hover { color: var(--fg); }
 </nav>
 
 <main id="top">
+
 <header class="hero">
   <div class="wrap">
-    <span class="badge"><b>Private</b> Self-hosted · open source · runs on your own machine</span>
-    <h1>Decide together.<br><span class="soft">With AI in the room.</span></h1>
-    <p class="lead">Knitnox is a <strong>private AI harness</strong> for personal use or a small pro-AI team. With your team, <strong>everyone and one AI sit in the same chat</strong> and see the same answer. On your own, it is an assistant with a memory, a to-do list and agents that work around the clock.</p>
+    <span class="kicker"><b>Knitnox</b> / self-hosted · open source · multi-user</span>
+    <h1>An AI harness for a small group.<br><span class="soft">One Go binary. One SQLite file.</span></h1>
+    <p class="lead"><strong>Private chats</strong> for each person, with a token quota the admin sets per day or month, and <strong>group chats where one AI answers everyone</strong>. Around them: two kinds of memory, a task list, a feed, scheduled agents and MCP tools. Each part is a set of tools the model can call, and the server decides on every run which of them it gets. Bring any OpenAI-compatible model, local or cloud.</p>
     <div class="cta">
       <a class="btn btn-solid" href="#download">Download
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-      <a class="btn btn-line" href="#map">See how it fits together</a>
+      <a class="btn btn-line" href="#map">See how the parts connect</a>
+      <a class="btn btn-line" href="https://github.com/knitnox/knitnox/blob/main/docs/ARCHITECTURE.md">Read the architecture</a>
     </div>
-    <div class="ticks"><span>One program, one portable database</span><span>Local or cloud AI</span><span>Personal or as a team</span><span>On demand or around the clock</span></div>
+
+    <div class="specs reveal">
+      <div><b>RUNTIME</b><span>Pure Go, no CGO. One binary with the UI, migrations and docs embedded.</span></div>
+      <div><b>STORAGE</b><span>One SQLite file. Copy the data folder and it runs on another machine.</span></div>
+      <div><b>MODELS</b><span>Any OpenAI-compatible endpoint: Ollama, LM Studio, OpenAI, OpenRouter, Groq.</span></div>
+      <div><b>TOOLS</b><span>32 built-in tools, plus any MCP server over Streamable HTTP.</span></div>
+    </div>
 
     <div class="stage reveal">
       <div class="frame">
-        <div class="bar"><i></i><i></i><i></i><span>your-server / Lake trip: which weekend?</span></div>
+        <div class="bar"><i></i><i></i><i></i><span>your-server / a group: three people, one AI</span></div>
         <picture>
           <source srcset="screenshots/chat-dark.webp" media="(prefers-color-scheme: dark)">
-          <img src="screenshots/chat-light.webp" width="2000" height="1250" alt="A Knitnox group. Leo and Mia say which weekend works for them, and the AI keeps track of who can come.">
-        </picture>
-      </div>
-      <div class="phone">
-        <picture>
-          <source srcset="screenshots/chat-phone-dark.webp" media="(prefers-color-scheme: dark)">
-          <img src="screenshots/chat-phone-light.webp" width="780" height="1688" alt="The same group on a phone, showing the agreed cost split.">
+          <img src="screenshots/chat-light.webp" width="2000" height="1250" alt="A Knitnox group. Several people write in one chat and one AI answers each of them by name.">
         </picture>
       </div>
     </div>
@@ -376,498 +329,608 @@ footer a:hover { color: var(--fg); }
   <div class="hero-fade"></div>
 </header>
 
-<section class="quote">
-  <div class="wrap reveal">
-    <p><s>“Well, ChatGPT told me…”</s><br>Everyone sees the same answer, at the same time.</p>
-    <small>No more screenshots of AI replies passed around. Ask together, agree together.</small>
-  </div>
-</section>
-
-<!-- Why -->
-<section class="pain" id="why">
+<!-- Map -->
+<section class="sec tint" id="map">
   <div class="wrap">
     <div class="head reveal">
-      <span class="num"><b>?</b> / What it is for</span>
-      <h2>Everyday problems, and the part that solves each.</h2>
-      <p>They happen at work, in a club and at the kitchen table. Each card names one part of Knitnox. Click it to read how that part works.</p>
+      <span class="kicker"><b>01</b> / The map</span>
+      <h2>Two scopes and one bridge.</h2>
+      <p>Everything in Knitnox is either <strong>shared by a group</strong> or <strong>owned by one person</strong>. A personal chat can read a group. Nothing personal ever flows into one. Click any box to read how it works.</p>
     </div>
-    <div class="pain-grid reveal">
-      <a class="pain-card" href="#chats">
-        <p class="said"><s>“ChatGPT said this.” “Gemini said the opposite.”</s></p>
-        <h3>Groups</h3>
-        <p class="fix">Everyone asks in one chat. The AI answers once, in front of everybody, and anyone can push back.</p>
-        <span class="go">How groups work →</span>
-      </a>
-      <a class="pain-card" href="#groupmem">
-        <p class="said"><s>“Wait, didn't we change that last week?”</s></p>
-        <h3>Group memory</h3>
-        <p class="fix">The AI writes down what the group agreed and whose message it came from. Everyone can read it.</p>
-        <span class="go">How group memory works →</span>
-      </a>
-      <a class="pain-card" href="#connect">
-        <p class="said"><s>“I did not follow, but I will not ask in front of everybody.”</s></p>
-        <h3>Take to my chat</h3>
-        <p class="fix">Open a chat of your own that points at the group and ask there. Nobody in the group sees it.</p>
-        <span class="go">How Take to my chat works →</span>
-      </a>
-      <a class="pain-card" href="#plan">
-        <p class="said"><s>“Who asked me to do this? And by when?”</s></p>
-        <h3>Plan Book</h3>
-        <p class="fix">One list for what is yours to do. Every task shows who added it and which chat it came from.</p>
-        <span class="go">How the Plan Book works →</span>
-      </a>
-      <a class="pain-card" href="#feed">
-        <p class="said"><s>“Sorry, I missed that. I was busy.”</s></p>
-        <h3>Feed</h3>
-        <p class="fix">Your chats and your agents post short updates in one place, so you stop checking five tools.</p>
-        <span class="go">How the Feed works →</span>
-      </a>
-      <a class="pain-card" href="#memory">
-        <p class="said"><s>“I told you that already.”</s></p>
-        <h3>Memory</h3>
-        <p class="fix">Your own memory. Tell the AI something once and it knows it in all of your own chats. Nobody else can read it.</p>
-        <span class="go">How Memory works →</span>
-      </a>
-      <a class="pain-card" href="#agents">
-        <p class="said"><s>“Nobody checked. I forgot to look.”</s></p>
-        <h3>Agents</h3>
-        <p class="fix">A helper with a job of its own. It works by itself around the clock, or when you ask, and reports to your Feed.</p>
-        <span class="go">How agents work →</span>
-      </a>
-      <a class="pain-card" href="#tools">
-        <p class="said"><s>“It cannot do that. It is only a chatbot.”</s></p>
-        <h3>Tools (MCP)</h3>
-        <p class="fix">Connect a tool server and the AI can act, not only talk: search the web, read a calendar, call a service of your own. MCP is an open standard, so anything a tool server exists for can be added.</p>
-        <span class="go">How tools work →</span>
-      </a>
+
+    <div class="flow reveal" role="img" aria-label="A group, its memory and its tool servers are shared. A reference lets a personal chat read the group, one way. The personal chat uses the owner's Memory, Plan Book, Feed, agents and tool servers. Agents run on a schedule and write to the Plan Book and Feed.">
+      <div class="lane">
+        <span class="lane-name"><b>Shared</b> a group: every member sees all of it</span>
+        <div class="row">
+          <a class="node strong" href="#groups"><b>Group</b><small>many people, one queue, one AI</small></a>
+          <span class="arrow" aria-hidden="true">→</span>
+          <div class="duo">
+            <a class="node" href="#groupmem"><b>Group memory</b><small>written only by the AI</small></a>
+            <a class="node" href="#mcp"><b>Group tool servers</b><small>MCP servers added for this group</small></a>
+          </div>
+        </div>
+      </div>
+      <div class="bridge"><span class="arrow" aria-hidden="true">↓</span><b>Reference · “Take to my chat”</b><small>one way: three read-only tools, membership checked on every call</small></div>
+      <div class="lane">
+        <span class="lane-name"><b>Personal</b> one owner: nobody else sees it</span>
+        <div class="row">
+          <a class="node strong" href="#reference"><b>Personal chat</b><small>you and the AI, with your tools</small></a>
+          <span class="arrow" aria-hidden="true">→</span>
+          <div class="trio">
+            <a class="node" href="#memory"><b>Memory</b><small>facts, things, connections</small></a>
+            <a class="node" href="#plan"><b>Plan Book</b><small>tasks and projects</small></a>
+            <a class="node" href="#feed"><b>Feed</b><small>posts, reports, charts</small></a>
+          </div>
+        </div>
+        <div class="row">
+          <a class="node strong" href="#agents"><b>Agents</b><small>scheduled or on demand, fresh every run</small></a>
+          <span class="arrow" aria-hidden="true">→</span>
+          <div class="trio">
+            <div class="node"><b>Memory</b><small>read only, if you allow it</small></div>
+            <div class="node"><b>Plan Book</b><small>none, read, or read and write</small></div>
+            <div class="node"><b>Feed</b><small>post, with a daily limit</small></div>
+          </div>
+        </div>
+        <div class="row">
+          <a class="node" href="#mcp"><b>Your MCP servers</b><small>used by your chats; ticked per agent</small></a>
+          <span class="arrow" aria-hidden="true">+</span>
+          <div class="duo">
+            <a class="node" href="#agents"><b>Manager tools</b><small>a chat hands work to connected agents</small></a>
+            <a class="node" href="#mcp"><b>An agent's own servers</b><small>visible to that one agent only</small></a>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <ul class="rules reveal">
+      <li><b>A chat's kind never changes</b><p>A thread is a personal chat or a group from the moment it is made. A chat cannot be “opened up” later, so nothing a personal tool answered can leak by sharing.</p></li>
+      <li><b>No personal tools in a group</b><p>Not even the group admin's. Every member can make the AI use whatever is there, so only what belongs to the group is there.</p></li>
+      <li><b>Text from elsewhere is data</b><p>Group messages, memory, agent output and other people's posts reach a model only as tool results that are marked as data, not instructions.</p></li>
+    </ul>
   </div>
 </section>
 
-<!-- 01 Chats and groups -->
-<section class="feature" id="chats">
+<!-- Groups -->
+<section class="sec part" id="groups">
   <div class="wrap">
     <div class="text reveal">
-      <span class="num"><b>01</b> / Chats and groups</span>
-      <h2>Chat alone.<br>Or decide together.</h2>
-      <p>A <strong>chat</strong> is you and the AI. A <strong>group</strong> is one chat for several people. There <strong>the AI works like the speaker of a small parliament</strong>: everyone gets a turn, it answers each person by name and keeps track of who said what.</p>
+      <span class="kicker"><b>02</b> / Groups</span>
+      <h2>Everyone talks to one AI.<br>Everyone hears the answer.</h2>
+      <p>In a group the AI works like <strong>the chair of a meeting</strong>, or the speaker of a small parliament. People do not each have their own assistant. All of them address the same one, it answers one message at a time, by name, and the whole room reads every answer.</p>
       <dl class="explain">
-        <div><dt>Solves</dt><dd>“ChatGPT said this, Gemini said that.” In a group there is one answer, and everyone saw it. Use it to brainstorm or to settle a question.</dd></div>
-        <div><dt>How it works</dt><dd>Start a group and send the invite link. Everyone writes in the same place and one AI model answers. Whoever started the group chooses the model.</dd></div>
-        <div><dt>Who sees it</dt><dd>Your own chat: only you. A group: the people you invited.</dd></div>
-        <div><dt>Connects to</dt><dd>Every group has its own <a href="#groupmem">memory</a>. Anything said there can be <a href="#connect">taken to your own chat</a>.</dd></div>
+        <div><dt>Queue</dt><dd>One FIFO queue per group and one worker per thread, so exactly one answer is being written at a time. Up to 10 messages wait their turn.</dd></div>
+        <div><dt>Who said it</dt><dd>Each message reaches the model as <code>[username]: text</code>, and the system prompt lists the participants. The model can tell people apart and keep track of who wants what.</dd></div>
+        <div><dt>One model</dt><dd>Chosen by the group's admin, from the server's shared models or the admin's own key. Members need no key of their own.</dd></div>
+        <div><dt>Same prompt</dt><dd>The toolset is built the same way whoever wrote the message, so the prompt prefix is identical between members and provider-side caching keeps working.</dd></div>
+        <div><dt>Roles</dt><dd>Admin, member and read-only viewer. People join by an invite link with an expiry date and a maximum number of uses.</dd></div>
+        <div><dt>Approvals</dt><dd>A tool on an “ask first” server shows a card to the whole group. The message's author or the admin decides, and the queue waits, because the next message may depend on the result.</dd></div>
       </dl>
-      <ul class="points">
-        <li>Answers keep coming even after you close the tab</li>
-        <li>Attach PDFs, photos and notes; the AI can draw pictures and read answers aloud</li>
-        <li>Show one of your own chats to anyone with a read-only link</li>
-      </ul>
     </div>
-    <div class="shot-pair reveal">
+    <div class="side reveal">
+      <div>
+        <p class="code-cap">WHAT THE MODEL RECEIVES (SIMPLIFIED)</p>
+<pre class="code"><span class="c">system</span>  …participants: sam, leo, mia…
+        tools: memory_* (the group's), s4_search
+
+<span class="c">user</span>    [leo]: 21 June works for me
+<span class="c">ai</span>      Noted, Leo. Sam and Mia?
+<span class="c">user</span>    [mia]: same. Who drives?
+<span class="c">ai</span>      Mia is in too. Leo, you offered
+        last week: still fine?
+        <span class="c">→ memory_save("Trip is on 21 June")</span></pre>
+      </div>
       <div class="shot">
         <picture>
           <source srcset="screenshots/chat-end-dark.webp" media="(prefers-color-scheme: dark)">
-          <img src="screenshots/chat-end-light.webp" width="2000" height="1250" alt="The group agrees on June 21 and the AI splits the cost: €89.50 each." loading="lazy">
+          <img src="screenshots/chat-end-light.webp" width="2000" height="1250" alt="A group reaches a decision and the AI sums up the result for everyone." loading="lazy">
         </picture>
       </div>
     </div>
   </div>
 </section>
 
-<!-- 02 Group memory -->
-<section class="feature flip" id="groupmem">
+<!-- Group memory -->
+<section class="sec part flip" id="groupmem">
   <div class="wrap">
     <div class="text reveal">
-      <span class="num"><b>02</b> / Group memory</span>
-      <h2>What you decided.<br>Written down.</h2>
-      <p>While you talk, the AI writes down <strong>what the group agrees on</strong>: the date, who does what, what it costs. Anyone in the group can open the list at any time.</p>
+      <span class="kicker"><b>03</b> / Group memory</span>
+      <h2>The group's record.<br>Only the AI writes it.</h2>
+      <p>While people talk, the AI saves <strong>what the group agreed on</strong> as short facts. It is the same memory engine a person has, with a second kind of owner: the group.</p>
       <dl class="explain">
-        <div><dt>Solves</dt><dd>“Didn't we change that?” “Who said that?” Each fact shows whose message it came from, and when.</dd></div>
-        <div><dt>How it works</dt><dd>Only the AI writes there, so nobody can quietly slip a “decision” in. When something changes, tell the AI in the group and it corrects the fact. A wrong fact can be deleted.</dd></div>
-        <div><dt>Who sees it</dt><dd>Everyone in the group, and nobody outside it.</dd></div>
-        <div><dt>Connects to</dt><dd>It belongs to the <a href="#chats">group</a>, not to one person. Your own chat can read it when you <a href="#connect">take something with you</a>.</dd></div>
+        <div><dt>Tools</dt><dd><code>memory_search</code> <code>memory_read</code> <code>memory_explore</code> <code>memory_save</code> <code>memory_update</code> <code>memory_delete</code>, scoped to this group.</dd></div>
+        <div><dt>Writes</dt><dd>The AI only. People cannot type a fact in, because a fact planted by one member would shape the answers for all of them. To correct one, say so in the group.</dd></div>
+        <div><dt>Source</dt><dd>Every fact records whose message it came from and when.</dd></div>
+        <div><dt>Reads</dt><dd>Every member, as a list and as a map of things and connections. Nobody outside the group.</dd></div>
+        <div><dt>Deletes</dt><dd>The admin can delete any fact. A member can delete facts that came from their own messages.</dd></div>
+        <div><dt>Connects to</dt><dd>A <a href="#reference">personal chat</a> can search and read it through a reference. It is never mixed with anyone's <a href="#memory">personal memory</a>.</dd></div>
       </dl>
     </div>
-    <div class="reveal">
+    <div class="side reveal">
       <div class="shot">
         <picture>
           <source srcset="screenshots/groupmem-dark.webp" media="(prefers-color-scheme: dark)">
-          <img src="screenshots/groupmem-light.webp" width="2000" height="1250" alt="The memory of the lake trip group: the date, who drives, the cost, each with the name of the person whose message it came from." loading="lazy">
+          <img src="screenshots/groupmem-light.webp" width="2000" height="1250" alt="A group's memory: each fact with the name of the person whose message it came from." loading="lazy">
         </picture>
       </div>
     </div>
   </div>
 </section>
 
-<!-- 03 Take to my chat -->
-<section class="feature" id="connect">
+<!-- Reference -->
+<section class="sec part" id="reference">
   <div class="wrap">
     <div class="text reveal">
-      <span class="num"><b>03</b> / Take to my chat</span>
-      <h2>Ask in private.<br>Then get it done.</h2>
-      <p>A chat of your own that <strong>points at the group</strong>. Nobody in the group sees it. Ask what you did not want to ask in front of everyone, or act on what was decided.</p>
+      <span class="kicker"><b>04</b> / Reference</span>
+      <h2>A personal chat<br>that can read a group.</h2>
+      <p>A group cannot post to your feed or add to your task list. The way out is a <strong>reference</strong>: a personal chat that points at a group you are in. There your own tools are available, and the group is readable.</p>
       <dl class="explain">
-        <div><dt>Solves</dt><dd>“I did not follow, but I will not ask in front of everybody.” Ask here instead: “what did we decide, and why?” And when a decision needs doing, say “post this to my feed and add it to my plan”.</dd></div>
-        <div><dt>How it works</dt><dd>Click the arrow under any message in a group. A chat of your own opens with that message quoted. It can read the group's memory and latest messages. It cannot write there.</dd></div>
-        <div><dt>Who sees it</dt><dd>Only you. Your questions and the answers never reach the group.</dd></div>
-        <div><dt>Connects to</dt><dd>It is the bridge from the <a href="#chats">group</a> to your own <a href="#plan">Plan Book</a>, <a href="#feed">Feed</a> and <a href="#memory">Memory</a>.</dd></div>
+        <div><dt>Start</dt><dd>“Take to my chat” under any group message opens a personal chat with that message quoted and the group connected. Or tick a group in the chat's Tools menu.</dd></div>
+        <div><dt>Tools</dt><dd><code>group_memory_search</code> <code>group_memory_read</code> <code>group_messages</code> (up to 30 recent turns, text only). None of them writes.</dd></div>
+        <div><dt>Prompt</dt><dd>Only the names of the connected groups go into the system prompt. Group text arrives as tool results when the model decides to look, so the chat's prompt cache is kept.</dd></div>
+        <div><dt>Access</dt><dd>Membership is checked on every call. Leave the group, or get removed, and the tools answer that it can no longer be read.</dd></div>
+        <div><dt>Use</dt><dd>“What did we decide, and why?” in private. Or “post the decision to my feed and add booking the cabin to my plan”.</dd></div>
       </dl>
     </div>
-    <div class="reveal">
+    <div class="side reveal">
       <div class="shot">
         <picture>
           <source srcset="screenshots/connect-dark.webp" media="(prefers-color-scheme: dark)">
-          <img src="screenshots/connect-light.webp" width="2000" height="1250" alt="Sam's own chat, connected to the lake trip group. He asks to post the decision to his feed and add booking the cabin to his plan, and the AI does both." loading="lazy">
+          <img src="screenshots/connect-light.webp" width="2000" height="1250" alt="A personal chat connected to a group. The AI reads the group's decision, posts it to the owner's feed and adds a task to the owner's plan." loading="lazy">
         </picture>
       </div>
     </div>
   </div>
 </section>
 
-<!-- 04 Plan Book -->
-<section class="feature flip" id="plan">
+<!-- Memory -->
+<section class="sec part flip" id="memory">
   <div class="wrap">
     <div class="text reveal">
-      <span class="num"><b>04</b> / Plan Book</span>
-      <h2>Your to-do list.<br>The AI helps fill it.</h2>
-      <p>Your own tasks, each with a due date, grouped into projects if you like. Add them yourself, or <strong>ask the AI in a chat to add them</strong>.</p>
+      <span class="kicker"><b>05</b> / Memory</span>
+      <h2>A graph of facts<br>in plain SQLite.</h2>
+      <p>Per person, off until switched on. The AI saves short facts in one chat and looks them up in another. Facts, the <strong>things</strong> they mention and the <strong>connections</strong> between those things are four ordinary tables. There is no graph database and no vector extension.</p>
       <dl class="explain">
-        <div><dt>Solves</dt><dd>“Who asked me to do this, and by when?” Every task shows who added it (you, the AI or an agent) and which chat it came from.</dd></div>
-        <div><dt>How it works</dt><dd>Today, tomorrow and this week at a glance. A bin and a history of every change, so nothing disappears.</dd></div>
-        <div><dt>Who sees it</dt><dd>Only you. An agent can read or change it if you allow that agent.</dd></div>
-        <div><dt>Connects to</dt><dd>Filled from <a href="#connect">your chats</a>. An <a href="#agents">agent</a> can read it and remind you in your <a href="#feed">Feed</a>.</dd></div>
+        <div><dt>Tools</dt><dd><code>memory_search</code> <code>memory_read</code> <code>memory_explore</code> <code>memory_save</code> <code>memory_update</code> <code>memory_delete</code></dd></div>
+        <div><dt>Search</dt><dd>FTS5 word search ranked by BM25 works with no setup. Add an embedding model and results are merged with a vector search by reciprocal rank fusion.</dd></div>
+        <div><dt>Budget</dt><dd>A large memory cannot flood the context: 8 hits of 240 characters per search, full text fetched by id, the graph walked one hop per call, every answer cut at 6,000 characters.</dd></div>
+        <div><dt>Pinned</dt><dd>Up to 12 pinned facts are always in the prompt. The rest is looked up.</dd></div>
+        <div><dt>Control</dt><dd>Read, edit, pin, merge and delete everything on the Memory page. Export it all as a file, or wipe it.</dd></div>
+        <div><dt>Connects to</dt><dd>Personal chats read and write it. An <a href="#agents">agent</a> can read it if you allow that agent, and never writes. <a href="#groups">Groups</a> never see it.</dd></div>
       </dl>
     </div>
-    <div class="reveal">
-      <div class="shot">
-        <picture>
-          <source srcset="screenshots/plan-dark.webp" media="(prefers-color-scheme: dark)">
-          <img src="screenshots/plan-light.webp" width="2000" height="1250" alt="The Plan Book with tasks due today, tomorrow and this week. Three were added by the AI from Sam's chat about the lake trip." loading="lazy">
-        </picture>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- 05 Feed -->
-<section class="feature" id="feed">
-  <div class="wrap">
-    <div class="text reveal">
-      <span class="num"><b>05</b> / Feed</span>
-      <h2>Your private timeline.<br>The AI posts too.</h2>
-      <p>Like a social feed, but <strong>just for you</strong>. Short posts from you, from the AI in your chats and from your agents, newest first.</p>
-      <dl class="explain">
-        <div><dt>Solves</dt><dd>“I missed that, I was busy.” You stop checking five tools every morning. The news comes to you.</dd></div>
-        <div><dt>How it works</dt><dd>A post can carry a report, a chart, a picture or a voice recording. The AI and your agents post only after you allow it.</dd></div>
-        <div><dt>Who sees it</dt><dd>Only you, until you share a post with everyone on your server.</dd></div>
-        <div><dt>Connects to</dt><dd>Decisions you <a href="#connect">took from a group</a>, and what your <a href="#agents">agents</a> found. A morning brief can read your <a href="#plan">Plan Book</a>.</dd></div>
-      </dl>
-    </div>
-    <div class="shot-pair reveal">
-      <div class="shot">
-        <picture>
-          <source srcset="screenshots/feed-dark.webp" media="(prefers-color-scheme: dark)">
-          <img src="screenshots/feed-light.webp" width="2000" height="1250" alt="The Feed: the lake trip decision posted by the AI, a morning brief from an agent, and a sales chart." loading="lazy">
-        </picture>
-      </div>
-      <div class="phone">
-        <picture>
-          <source srcset="screenshots/feed-phone-dark.webp" media="(prefers-color-scheme: dark)">
-          <img src="screenshots/feed-phone-light.webp" width="780" height="1688" alt="The Feed on a phone." loading="lazy">
-        </picture>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- 06 Memory -->
-<section class="feature flip" id="memory">
-  <div class="wrap">
-    <div class="text reveal">
-      <span class="num"><b>06</b> / Memory</span>
-      <h2>It remembers.<br>You stay in charge.</h2>
-      <p>Your <strong>own</strong> memory, used in every chat of yours and separate from any group's. Tell the AI once that Ana is allergic to peanuts and it knows from then on.</p>
-      <dl class="explain">
-        <div><dt>Solves</dt><dd>“I told you that already.” You stop repeating yourself and starting every chat from zero.</dd></div>
-        <div><dt>How it works</dt><dd>Off until you switch it on. People, places and projects are linked on a map you can explore. Read, change, pin or delete anything it knows.</dd></div>
-        <div><dt>Who sees it</dt><dd>Only you. An agent can read it if you allow that one agent, and can never change it.</dd></div>
-        <div><dt>Connects to</dt><dd>Used in <a href="#connect">your own chats</a> only, never in a <a href="#chats">group</a>.</dd></div>
-      </dl>
-    </div>
-    <div class="reveal">
+    <div class="side reveal">
       <div class="shot">
         <picture>
           <source srcset="screenshots/memory-dark.webp" media="(prefers-color-scheme: dark)">
-          <img src="screenshots/memory-light.webp" width="2000" height="1250" alt="The memory map linking Sam, Ana, Leo, Mia, the lake trip and Acme Bakery." loading="lazy">
+          <img src="screenshots/memory-light.webp" width="2000" height="1250" alt="The memory map: people, places and projects linked by named connections." loading="lazy">
         </picture>
       </div>
     </div>
   </div>
 </section>
 
-<!-- Map -->
-<section class="also map" id="map">
+<!-- Plan Book -->
+<section class="sec part" id="plan">
   <div class="wrap">
-    <div class="head reveal">
-      <span class="num"><b>=</b> / How it fits together</span>
-      <h2>The group is shared.<br>The rest is yours.</h2>
-      <p>One bridge carries a decision from the group to your own chat. Nothing private ever flows back.</p>
+    <div class="text reveal">
+      <span class="kicker"><b>06</b> / Plan Book</span>
+      <h2>One task list.<br>Three kinds of author.</h2>
+      <p>Per person. You, the AI in your chats and your agents all work on <strong>the same rows</strong>, and every change records who made it.</p>
+      <dl class="explain">
+        <div><dt>Tools</dt><dd><code>plan_list</code> <code>plan_read</code> <code>plan_projects</code> <code>plan_add</code> <code>plan_update</code> <code>plan_delete</code></dd></div>
+        <div><dt>History</dt><dd>Each task keeps a log: you, the AI (and from which chat), or which agent. Deleted tasks sit in a bin for 30 days, because a model may delete by mistake.</dd></div>
+        <div><dt>Agents</dt><dd>Per agent: no access, read only (three tools), or read and write (all six).</dd></div>
+        <div><dt>Prompt</dt><dd>No task list is put into the system prompt. The model calls <code>plan_list</code> when it needs to know, so the prompt prefix stays stable from turn to turn.</dd></div>
+        <div><dt>Connects to</dt><dd>Filled from <a href="#reference">personal chats</a>. An <a href="#agents">agent</a> can read it and post what is due to your <a href="#feed">Feed</a>.</dd></div>
+      </dl>
     </div>
-    <div class="flow reveal" role="img" aria-label="A group and its memory are shared. Take to my chat is the bridge to your own chat, which uses your Plan Book, Feed and Memory. Agents post to your Feed.">
-      <div class="lane">
-        <span class="lane-name"><b>Shared</b> Everyone in the group sees it</span>
-        <div class="row">
-          <div class="node"><b>Group</b><small>everyone asks, one AI answers</small></div>
-          <span class="arrow" aria-hidden="true">→</span>
-          <div class="node"><b>Group memory</b><small>what was decided, and by whom</small></div>
-        </div>
-      </div>
-      <div class="bridge"><span class="arrow" aria-hidden="true">↓</span><b>Take to my chat</b><small>one way: reads the group, never writes to it</small></div>
-      <div class="lane">
-        <span class="lane-name"><b>Yours alone</b> Every person has their own. Nobody else sees it</span>
-        <div class="row">
-          <div class="node"><b>Your own chat</b><small>ask in private, “post this, add that”</small></div>
-          <span class="arrow" aria-hidden="true">→</span>
-          <div class="trio">
-            <div class="node"><b>Plan Book</b><small>what you have to do</small></div>
-            <div class="node"><b>Feed</b><small>what happened</small></div>
-            <div class="node"><b>Memory</b><small>what it knows about you</small></div>
-          </div>
-        </div>
-        <div class="row agents-row">
-          <div class="node"><b>Agents</b><small>work around the clock, or when asked</small></div>
-          <span class="arrow" aria-hidden="true">→</span>
-          <p class="note">Helpers with a job, such as “every morning, tell me what is due this week”. They post what they found to your Feed. You set the limits and can pause one at any time.</p>
-        </div>
-      </div>
-    </div>
-
-    <p class="story-name reveal">One example, in five steps</p>
-    <ol class="story reveal">
-      <li><b>Four friends ask in a group</b><p>“Which weekend works for the lake?” Everyone answers in the same place. The AI keeps count.</p></li>
-      <li><b>The group's memory keeps the result</b><p>June 21, Leo drives, €89.50 each. Next month anyone can look it up.</p></li>
-      <li><b>Sam takes it to his own chat</b><p>“Post this to my feed and add booking the cabin to my plan.”</p></li>
-      <li><b>His Plan Book has the task</b><p>“Book the Lakeside Cabin”, due tomorrow, added by the AI.</p></li>
-      <li><b>His agent reminds him</b><p>The morning brief reads the Plan Book and posts “three things today” to his Feed.</p></li>
-    </ol>
-  </div>
-</section>
-
-<!-- Who -->
-<section class="who-band">
-  <div class="wrap">
-    <div class="head reveal">
-      <span class="num"><b>+</b> / Who it is for</span>
-      <h2>Just you, or any few people who decide things together.</h2>
-      <p>On your own it is a private assistant with a memory, a to-do list and helpers that work while you sleep. With others it is a small parliament with an AI as its speaker. You do not need an IT department: one person starts it, the others open a link.</p>
-    </div>
-    <div class="grid who reveal">
-      <div class="cell">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/></svg>
-        <h3>A small team</h3><p>Stop passing AI screenshots around.</p>
-        <ul><li>Choose the tools for the next project, together</li><li>Keep what was decided, and correct it when it changes</li><li>Let an agent post the weekly numbers</li></ul>
-      </div>
-      <div class="cell">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        <h3>A club or a class</h3><p>Many voices, one place to settle things.</p>
-        <ul><li>Plan the season or the event</li><li>Split the costs fairly</li><li>Keep the rules where everyone can read them</li></ul>
-      </div>
-      <div class="cell">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>
-        <h3>Friends and family</h3><p>Simple enough for everyone you invite.</p>
-        <ul><li>Find a weekend that works for the trip</li><li>Plan the birthday without ten chats</li><li>Remember who is allergic to what</li></ul>
+    <div class="side reveal">
+      <div class="shot">
+        <picture>
+          <source srcset="screenshots/plan-dark.webp" media="(prefers-color-scheme: dark)">
+          <img src="screenshots/plan-light.webp" width="2000" height="1250" alt="The Plan Book: tasks grouped by due date, some of them added by the AI from a chat." loading="lazy">
+        </picture>
       </div>
     </div>
   </div>
 </section>
 
-<!-- Private -->
-<section class="private">
+<!-- Feed -->
+<section class="sec part flip" id="feed">
   <div class="wrap">
-    <div class="reveal">
-      <span class="num"><b>07</b> / Yours</span>
-      <h2>Your server.<br>Your data.</h2>
-      <p>“Can I put our things in this?” Yes. Knitnox runs on a computer you control: a laptop, a Raspberry Pi or a small cloud server. Your chats never pass through anyone else's app.</p>
-      <div class="facts">
-        <div><b>One program</b>A single file to run. No database server, no Docker needed.</div>
-        <div><b>One portable database</b>Everything lives in one SQLite file. Copy the data folder and it runs on another machine.</div>
-        <div><b>Keys locked away</b>API keys are encrypted at rest.</div>
-        <div><b>Backed up</b>Automatic, checked backups every day.</div>
-      </div>
+    <div class="text reveal">
+      <span class="kicker"><b>07</b> / Feed</span>
+      <h2>Where the output lands.</h2>
+      <p>A private timeline per person. It is the <strong>output channel</strong> for anything that runs without you watching: a scheduled agent's report, a decision taken from a group, a chart of this week's numbers.</p>
+      <dl class="explain">
+        <div><dt>Tools</dt><dd><code>feed_post</code> <code>feed_list</code> <code>feed_read</code> <code>feed_delete</code></dd></div>
+        <div><dt>A post</dt><dd>Up to 500 characters, with an optional Markdown report behind it, a bar or line chart drawn by the server from numbers, or an SVG the model draws. With a picture, voice or video model set up, also an image, a recording or a short clip.</dd></div>
+        <div><dt>Private first</dt><dd>Posts by the AI or an agent are always private. You share one with the server by hand.</dd></div>
+        <div><dt>Agents</dt><dd>An agent posts only if you allow it, with a cap on posts per day.</dd></div>
+        <div><dt>Isolation</dt><dd>The tools read only the owner's posts, so another user's shared post cannot carry instructions into a run. AI-drawn SVG is served as a sandboxed image and is never put into a page.</dd></div>
+        <div><dt>Connects to</dt><dd>Written by <a href="#reference">personal chats</a> and <a href="#agents">agents</a>. New posts arrive live and as push notifications.</dd></div>
+      </dl>
     </div>
-    <div class="stack reveal" aria-label="How Knitnox is built">
-      <div class="layer"><b>Your browser or phone</b><span>light, fast, installable</span></div>
-      <div class="layer main"><b>knitnox</b><span>one program on your machine</span></div>
-      <div class="layer"><b>knitnox.db</b><span>one file, all your data</span></div>
-      <div class="layer"><b>The AI you choose</b><span>a cloud provider, or a local model that never leaves your machine</span></div>
+    <div class="side reveal">
+      <div class="shot">
+        <picture>
+          <source srcset="screenshots/feed-dark.webp" media="(prefers-color-scheme: dark)">
+          <img src="screenshots/feed-light.webp" width="2000" height="1250" alt="The Feed: a decision posted by the AI, a morning brief from an agent and a chart." loading="lazy">
+        </picture>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- Also -->
-<section class="also">
+<!-- Tool resolution -->
+<section class="sec tint" id="tools">
   <div class="wrap">
     <div class="head reveal">
-      <span class="num"><b>+</b> / And also</span>
-      <h2>Quietly capable.</h2>
-      <p>The things that make it work every day, for personal use, a household or a small team.</p>
+      <span class="kicker"><b>08</b> / Tools</span>
+      <h2>The toolset is worked out on every run.</h2>
+      <p>Built-in tools and MCP tools sit in one list. At the start of each run the server looks at <strong>what kind of run it is and who owns it</strong>, and gives the model exactly the tools that follow from that. Nobody wires a tool to a chat by hand. Switch Memory on once and every personal chat has it; add an MCP server once and every personal chat can call it.</p>
+    </div>
+
+    <div class="scroll reveal">
+      <table class="matrix">
+        <thead>
+          <tr><th>Tool set</th><th>Personal chat</th><th>Group</th><th>Agent run</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>MCP servers<small>s{id}_{tool}</small></th>
+            <td>All of the owner's enabled servers</td>
+            <td>Only servers added for this group</td>
+            <td>Servers ticked for the agent, filtered by a per-tool allowlist, plus the agent's own servers</td>
+          </tr>
+          <tr>
+            <th>Memory<small>memory_* (6)</small></th>
+            <td>Read and write, the owner's, if switched on</td>
+            <td>Read and write, the group's own</td>
+            <td>Read only, the owner's, if allowed for this agent</td>
+          </tr>
+          <tr>
+            <th>Plan Book<small>plan_* (6)</small></th>
+            <td>All six, if switched on</td>
+            <td class="no">None</td>
+            <td>None, three read tools, or all six: set per agent</td>
+          </tr>
+          <tr>
+            <th>Feed<small>feed_* (4)</small></th>
+            <td>All four, if the owner lets the AI post</td>
+            <td class="no">None</td>
+            <td>Post, list and read, within a daily limit, if allowed</td>
+          </tr>
+          <tr>
+            <th>Pictures<small>make_picture</small></th>
+            <td>If the owner has a picture model</td>
+            <td class="no">None</td>
+            <td class="no">None</td>
+          </tr>
+          <tr>
+            <th>Manager tools<small>run_agent, create_agent_task, … (8)</small></th>
+            <td>For agents the owner connected to this chat</td>
+            <td class="no">None</td>
+            <td class="no">None: agents do not call agents</td>
+          </tr>
+          <tr>
+            <th>Group reference<small>group_* (3)</small></th>
+            <td>Read only, for groups connected to this chat</td>
+            <td class="no">None</td>
+            <td class="no">None</td>
+          </tr>
+          <tr>
+            <th>Own work queue<small>list_tasks, add_task, update_task, save_memory</small></th>
+            <td class="no">None</td>
+            <td class="no">None</td>
+            <td>Always</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grid reveal sub">
+      <div class="cell">
+        <span class="tag">NARROW PER CHAT</span>
+        <h3>The Tools menu only switches things off</h3>
+        <p>Each chat has a menu that can drop Memory, the Plan Book, the Feed, pictures, agents or any one server for that chat. It stores the exceptions, so a tool added later works in old chats too. It can never grant a chat something its owner has not enabled.</p>
+      </div>
+      <div class="cell">
+        <span class="tag">NO NAME CLASHES</span>
+        <h3>Two servers can both have <code>search</code></h3>
+        <p>MCP tools are exposed to the model as <code>s{serverID}_{tool}</code>. Built-in tools keep plain names and run inside the engine, with no network hop and no approval step.</p>
+      </div>
+      <div class="cell">
+        <span class="tag">DEGRADES, DOES NOT FAIL</span>
+        <h3>A server that is down is skipped</h3>
+        <p>Servers are connected in parallel with a 15-second limit each. One that does not answer is left out, the run goes on without it, and the run is marked so the owner sees why.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Agents -->
+<section class="sec" id="agents">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="kicker"><b>09</b> / Agents</span>
+      <h2>An agent is a thread with a job.</h2>
+      <p>A saved worker: instructions, a model, chosen tools, a to-do list and a schedule. Internally it is <strong>an ordinary thread plus one row</strong>, so the queue, streaming, Stop, tool approvals, quotas and push notifications apply to agents with no extra machinery. An agent's page is its log.</p>
+    </div>
+
+    <div class="split reveal">
+      <div>
+        <p class="code-cap">WHAT AN AGENT RUN SEES</p>
+<pre class="code"><span class="c">system</span>  instructions        <span class="c">← only you edit</span>
+        notes               <span class="c">← you, or a connected chat</span>
+        memory              <span class="c">← the agent, via save_memory</span>
+        open tasks (≤ 30)
+        digest of the last 3 runs
+        date and time in your zone
+
+<span class="c">tools</span>   list_tasks  add_task  update_task  save_memory
+        + MCP servers ticked for it (allowlist)
+        + its own MCP servers
+        + memory_*  <span class="c">read only, if allowed</span>
+        + plan_*    <span class="c">read or write, if allowed</span>
+        + feed_*    <span class="c">post ≤ N per day, if allowed</span>
+
+<span class="c">history</span> none. Every run starts fresh.</pre>
+      </div>
+      <div>
+        <dl class="explain" style="margin-top:0">
+          <div><dt>Triggers</dt><dd>A schedule from every 15 minutes to weekly, <b>Run now</b>, a message typed in its chat, or a connected chat calling <code>run_agent</code>.</dd></div>
+          <div><dt>Fresh runs</dt><dd>No conversation history is carried over, so cost per run stays flat. What it must remember goes into its tasks and its own memory.</dd></div>
+          <div><dt>Limits</dt><dd>Steps per run, automatic runs per day, “only when there are open tasks”, and a pause switch. Every run is billed to and approved by its owner.</dd></div>
+          <div><dt>Manager</dt><dd>Agents never talk to each other. The only manager is a chat's AI, for agents you connected to that chat: it creates tasks, starts runs, reads results and adjusts notes. It cannot change instructions, tools, schedule or limits.</dd></div>
+          <div><dt>Results</dt><dd>Starting an agent only queues a run; the chat never waits. When the task is done, the result is posted back into the chat that asked.</dd></div>
+          <div><dt>Store</dt><dd>Publish an agent's configuration for others on the server. Tasks, memory, notes and MCP addresses are never copied. An installed copy starts paused and without tools.</dd></div>
+        </dl>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MCP -->
+<section class="sec tint" id="mcp">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="kicker"><b>10</b> / MCP</span>
+      <h2>External tools, with rules about repeating them.</h2>
+      <p>Knitnox speaks MCP over <strong>Streamable HTTP</strong> with a client of its own, about 300 lines: <code>initialize</code>, <code>tools/list</code>, <code>tools/call</code>. Add a server by URL and optional headers, which are encrypted at rest.</p>
     </div>
     <div class="grid reveal">
-      <div class="cell" id="agents">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="7" width="16" height="13" rx="3"/><path d="M12 7V3M8.5 13h.01M15.5 13h.01M9 17h6"/></svg>
-        <h3>Agents, 24 hours a day</h3><p>Helpers with their own job, tools and to-do list. They work by themselves around the clock on a schedule, or only on demand. You set the limits and can pause one at any time. If one runs into trouble, your Feed says so once.</p>
-      </div>
-      <div class="cell" id="tools">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg>
-        <h3>Tools you already use (MCP)</h3><p>A tool server gives the AI hands: web search, a calendar, a tracker, a database, a service of your own. Add one to your own chats, give a group its own, or hand one to a single agent. Choose “Ask before running” and you approve every step.</p>
+      <div class="cell">
+        <span class="tag">THREE SCOPES</span>
+        <h3>Yours, a group's, or one agent's</h3>
+        <p>A server belongs to a person (all their personal chats), to one group (that group only), or to one agent (that agent only). The three never mix: a group's server is not in your chats, and your servers are not in a group.</p>
       </div>
       <div class="cell">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>
-        <h3>Local or cloud AI</h3><p>A local model with Ollama or LM Studio, or a cloud provider such as OpenAI, OpenRouter or Groq. Mix them, and let people bring their own keys.</p>
+        <span class="tag">TWO MODES</span>
+        <h3>Run automatically, or ask first</h3>
+        <p>On an “ask first” server every call shows an approval card with its arguments: Allow once, Deny, or Always allow. A push notification goes out if nobody is watching. An unanswered card expires and the model is told the call was not allowed.</p>
       </div>
       <div class="cell">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20V10M9 20V4M15 20v-7M21 20v-11"/></svg>
-        <h3>Fair sharing</h3><p>Daily or monthly allowances per person, and a clear view of usage and cost.</p>
+        <span class="tag">AT MOST ONCE</span>
+        <h3>A call that may have run is not retried</h3>
+        <p>A call is tried again only when it cannot have reached the tool: connection refused, DNS failure, 429 or 503. After a timeout or a dropped connection the model is told the tool may have run and to check before repeating anything that sends, books or pays.</p>
       </div>
       <div class="cell">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="3"/><path d="M11 18h2"/></svg>
-        <h3>An app on your phone (PWA)</h3><p>Knitnox is a PWA: a web app you install straight from the browser, with no app store. Open it on your phone, choose “Add to Home screen”, and get a notification when an answer is ready.</p>
+        <span class="tag">BOUNDED</span>
+        <h3>A turn cannot loop forever</h3>
+        <p>Tool output is capped at 20,000 characters. At the step limit one last call is made without tools, so the user always gets an answer and never a dangling tool call.</p>
       </div>
       <div class="cell">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-        <h3>Find anything</h3><p>Search every chat at once, jump anywhere with Ctrl+K, export a chat as Markdown.</p>
+        <span class="tag">ERRORS GO BACK</span>
+        <h3>The model sees tool errors</h3>
+        <p>A tool-level error is returned to the model instead of being retried, because the model can usually fix its own arguments.</p>
+      </div>
+      <div class="cell">
+        <span class="tag">NETWORK GUARD</span>
+        <h3>User-typed addresses are checked at connect time</h3>
+        <p>The IP is checked after the name is resolved, so redirects and DNS tricks are covered. Link-local addresses are always refused; the admin can also close off loopback and private ranges.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Engine -->
+<section class="sec" id="engine">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="kicker"><b>11</b> / The engine</span>
+      <h2>Generation belongs to the server, not to the browser tab.</h2>
+      <p>Sending a message only stores it and queues a run. A worker goroutine per busy thread does the model and tool work and publishes progress; browsers are viewers that subscribe over SSE. Background answers, the queue, several tabs, reconnecting after sleep and turn-based groups all follow from that one decision.</p>
+    </div>
+
+    <div class="split reveal">
+      <div>
+        <p class="code-cap">ONE RUN</p>
+<pre class="code">prepare        thread, members, model, who pays
+quota check
+maybeCompact   <span class="c">fold old turns into a summary</span>
+openTools      <span class="c">built-in + MCP, see the table above</span>
+buildContext   [system] [summary?] [history] [this turn]
+
+for step = 1..:
+    final = step &gt; max steps
+    stream the model   <span class="c">retry 429/5xx only before the first token</span>
+    no tool calls, or final  →  done
+    for each tool call:
+        “ask first” server  →  wait for approval
+        run it, store the result, append, loop</pre>
+      </div>
+      <div>
+        <ul class="list">
+          <li><span><b>Survives the browser.</b> Close the tab or let the laptop sleep: the run goes on. On return the page shows the stored state and the stream resumes from a snapshot.</span></li>
+          <li><span><b>Survives a restart.</b> The queue is rows in SQLite. After a crash, running turns are marked interrupted, never silently re-run, and queued ones start again.</span></li>
+          <li><span><b>Compaction.</b> Past 50 turns, or 70% of the model's context window, older turns are folded into a rolling summary. The last 10 stay verbatim and the originals are never deleted.</span></li>
+          <li><span><b>Cache-friendly prompts.</b> No clock, no task list and no post list in the system prompt. Time arrives as a stamp on each user message, so the prompt prefix is byte-identical from turn to turn.</span></li>
+          <li><span><b>Nothing holds a slot forever.</b> An idle watchdog on the provider stream, a time limit per run, an approval timeout, and a cap on parallel runs the admin can change while it runs.</span></li>
+          <li><span><b>A fault stays local.</b> A panic in one run, hook or background job fails that one thing, logs the stack and leaves the server up.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Under the hood -->
+<section class="hood" id="hood">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="kicker"><b>12</b> / Under the hood</span>
+      <h2>Small on purpose.</h2>
+      <p>The whole thing is one process and one data folder. No database server, no Redis, no Node, no Docker unless you want it. <strong>It runs on a laptop, a Raspberry Pi or a small VPS.</strong></p>
+    </div>
+
+    <div class="facts reveal">
+      <div><b>Pure Go, no CGO</b>SQLite is the pure-Go <code>modernc.org/sqlite</code>, so there is no C toolchain anywhere. One Linux runner cross-compiles all six targets: Windows, macOS and Linux, each on amd64 and arm64.</div>
+      <div><b>One self-contained binary</b>Templates, CSS, JS, fonts, SQL migrations and the guides are compiled in with <code>go:embed</code>. Time-zone data too, so it behaves the same on Windows.</div>
+      <div><b>Four direct dependencies</b>SQLite, Web Push, a PDF text reader and <code>x/crypto</code>. The LLM client and the MCP client are written in-house, about 300 lines each, with no SDK.</div>
+      <div><b>No frontend build</b>Server-rendered <code>html/template</code>, htmx for forms and partial updates, and about 95 KB of hand-written vanilla JS. No npm, no bundler, no framework.</div>
+      <div><b>Four vendored libraries</b>htmx, marked, DOMPurify and highlight.js, served from the binary. Nothing is loaded from a CDN at runtime.</div>
+      <div><b>SQLite in WAL mode</b>FTS5 for chat search and memory search. Memory vectors are plain BLOBs compared in Go. A daily backup is written with <code>VACUUM INTO</code> and verified with an integrity check.</div>
+      <div><b>SSE, not WebSockets</b>Token deltas carry a running length, so a client that missed events notices and resyncs from a snapshot. A slow browser can never block a worker.</div>
+      <div><b>Strict browser policy</b>CSP with no inline scripts or styles. Model output is sanitised, and pictures hosted on other sites load only on a click, so an answer cannot leak data through an image URL.</div>
+      <div><b>Secrets and accounts</b>API keys and MCP headers are sealed with AES-256-GCM. Sessions, CSRF tokens, a login limiter that cannot be used to lock out a real owner, per-user token quotas and an audit log.</div>
+      <div><b>Installable</b>A PWA with Web Push: an answer is ready, a tool needs approval, an agent finished, a new Feed post, tasks due today. Each kind has its own switch.</div>
+      <div><b>Operable</b><code>/healthz</code>, a rotating log file, command-line tools for accounts and backups, and housekeeping limits for old usage rows and agent runs.</div>
+      <div><b>Readable</b>Nine internal packages with one job each. All SQL lives in <code>store</code>; the engine never renders HTML; the web layer never calls a model.</div>
+    </div>
+
+    <div class="stack reveal" aria-label="The layers of a Knitnox install">
+      <div class="layer"><b>Browser or installed PWA</b><span>server-rendered HTML · htmx · SSE</span></div>
+      <div class="layer main"><b>knitnox</b><span>web → engine → llm · mcp · hub · store</span></div>
+      <div class="layer"><b>data/</b><span>knitnox.db · secret.key · uploads · backups</span></div>
+      <div class="layer"><b>Outside</b><span>any OpenAI-compatible model endpoint · MCP servers over HTTP</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- Recipes -->
+<section class="sec" id="recipes">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="kicker"><b>13</b> / What you can build</span>
+      <h2>The parts are few. The combinations are the point.</h2>
+      <p>Nothing here is a special feature. Each one is the same handful of parts, connected differently.</p>
+    </div>
+    <div class="grid two reveal">
+      <div class="cell">
+        <span class="tag">AGENT + PLAN BOOK (READ) + FEED</span>
+        <h3>A morning brief</h3>
+        <p>An agent on a daily schedule reads what is due and late in your Plan Book and posts “three things today” to your Feed. Your phone gets the push.</p>
+      </div>
+      <div class="cell">
+        <span class="tag">AGENT + MCP + FEED CHART</span>
+        <h3>A weekly numbers post</h3>
+        <p>An agent with one MCP server for your database or analytics pulls the figures every Monday and posts a bar chart with a short report behind it.</p>
+      </div>
+      <div class="cell">
+        <span class="tag">GROUP + GROUP MEMORY + GROUP MCP</span>
+        <h3>A decision room</h3>
+        <p>A team group with a web-search server of its own. The AI looks things up in front of everyone, and what the team settles on is saved to the group's memory with the name of who said it.</p>
+      </div>
+      <div class="cell">
+        <span class="tag">REFERENCE + PLAN BOOK + FEED</span>
+        <h3>From a decision to your own list</h3>
+        <p>Take a group message to your chat and say “add my part to my plan, due Friday, and post the decision to my feed”. The group sees none of it.</p>
+      </div>
+      <div class="cell">
+        <span class="tag">CHAT + MANAGER TOOLS + AGENTS</span>
+        <h3>A chat that hands work out</h3>
+        <p>Connect a research agent and a monitoring agent to one chat. The chat's AI creates tasks for them, starts runs and gets each result posted back when it is done.</p>
+      </div>
+      <div class="cell">
+        <span class="tag">OLLAMA + NETWORK GUARD</span>
+        <h3>Fully local</h3>
+        <p>Point Knitnox at Ollama or LM Studio on the same machine, add a local embedding model for memory search, and nothing leaves the box.</p>
+      </div>
+    </div>
+
+    <div class="sub reveal">
+      <h3>What it does not do</h3>
+      <div class="grid">
+        <div class="cell"><h3>One process</h3><p>The hub and the workers are in memory, so Knitnox runs as a single instance. It is built for a household or a small team, not for horizontal scale.</p></div>
+        <div class="cell"><h3>MCP over HTTP only</h3><p>No stdio servers and no OAuth sign-in flow. Static headers work. MCP resources and prompts are not implemented.</p></div>
+        <div class="cell"><h3>No agent-to-agent calls</h3><p>Hub and spoke only: a chat manages agents. That rules out loops and privilege hand-offs, and also multi-agent pipelines.</p></div>
+        <div class="cell"><h3>No e-mail</h3><p>A forgotten password is reset by an admin or from the command line, not by a link.</p></div>
+        <div class="cell"><h3>Plain documents only</h3><p>PDF, text, Markdown, CSV, JSON and code are read. No OCR, and no Word, Excel or PowerPoint.</p></div>
+        <div class="cell"><h3>The full list</h3><p>Every limit is written down in <a href="https://github.com/knitnox/knitnox/blob/main/docs/FEATURES.md#known-limits">FEATURES.md</a>, so nothing here is a surprise.</p></div>
       </div>
     </div>
   </div>
 </section>
 
 <!-- Download -->
-<section class="dl" id="download">
+<section class="sec tint" id="download">
   <div class="wrap">
     <div class="head reveal">
-      <span class="num"><b>08</b> / Download</span>
-      <h2>Download and run.</h2>
-      <p>One file for your system. No installer and nothing else to set up: unpack it, start it, and open <code>http://localhost:8080</code>.</p>
+      <span class="kicker"><b>14</b> / Run it</span>
+      <h2>Download, unpack, start.</h2>
+      <p>One file per system. Start it and open <code>http://localhost:8080</code>; the first account becomes the admin. The binaries are unsigned, so Windows and macOS warn on first start. Each release is built by GitHub from the public source and lists SHA-256 checksums.</p>
     </div>
 
     <div class="os-grid reveal">
       <article class="os">
         <h3>Windows</h3>
         <p class="for">Windows 10 and 11</p>
-        <a class="btn btn-solid" href="https://github.com/knitnox/knitnox/releases/latest/download/knitnox-windows-amd64.zip">Download for Windows</a>
-        <a class="alt" href="https://github.com/knitnox/knitnox/releases/latest/download/knitnox-windows-arm64.zip">ARM64 version (Snapdragon laptops)</a>
-        <ol>
-          <li>Unpack the zip: right-click → <b>Extract All</b>.</li>
-          <li>Double-click <b>knitnox.exe</b>.</li>
-          <li>A blue box says “Windows protected your PC”. Click <b>More info</b>, then <b>Run anyway</b>.</li>
-          <li>Keep the black window open. It is Knitnox.</li>
-        </ol>
+        <a class="btn btn-solid" href="https://github.com/knitnox/knitnox/releases/latest/download/knitnox-windows-amd64.zip">knitnox-windows-amd64.zip</a>
+        <a class="alt" href="https://github.com/knitnox/knitnox/releases/latest/download/knitnox-windows-arm64.zip">ARM64 version</a>
       </article>
-
       <article class="os">
         <h3>macOS</h3>
         <p class="for">Apple Silicon and Intel</p>
-        <a class="btn btn-solid" href="https://github.com/knitnox/knitnox/releases/latest/download/knitnox-macos-arm64.tar.gz">Download for Mac (Apple Silicon)</a>
-        <a class="alt" href="https://github.com/knitnox/knitnox/releases/latest/download/knitnox-macos-amd64.tar.gz">Intel Mac version</a>
-<pre># easiest: paste into Terminal
-curl -LO https://github.com/knitnox/knitnox/releases/latest/download/knitnox-macos-arm64.tar.gz
-tar -xzf knitnox-macos-arm64.tar.gz
-cd knitnox-macos-arm64
-./knitnox</pre>
-        <p class="hint"><b>Used the button instead?</b> macOS says it could not verify “knitnox”. Open System Settings → Privacy &amp; Security and click <b>Open Anyway</b>.</p>
+        <a class="btn btn-solid" href="https://github.com/knitnox/knitnox/releases/latest/download/knitnox-macos-arm64.tar.gz">knitnox-macos-arm64.tar.gz</a>
+        <a class="alt" href="https://github.com/knitnox/knitnox/releases/latest/download/knitnox-macos-amd64.tar.gz">Intel version</a>
       </article>
-
       <article class="os">
         <h3>Linux</h3>
         <p class="for">PCs, servers and Raspberry Pi</p>
-        <a class="btn btn-solid" href="https://github.com/knitnox/knitnox/releases/latest/download/knitnox-linux-amd64.tar.gz">Download for Linux (x64)</a>
+        <a class="btn btn-solid" href="https://github.com/knitnox/knitnox/releases/latest/download/knitnox-linux-amd64.tar.gz">knitnox-linux-amd64.tar.gz</a>
         <a class="alt" href="https://github.com/knitnox/knitnox/releases/latest/download/knitnox-linux-arm64.tar.gz">ARM64 version (Raspberry Pi 4/5)</a>
-<pre># or paste into a terminal
-curl -LO https://github.com/knitnox/knitnox/releases/latest/download/knitnox-linux-amd64.tar.gz
-tar -xzf knitnox-linux-amd64.tar.gz
-cd knitnox-linux-amd64
-./knitnox</pre>
-        <p class="hint">Linux shows no warning.</p>
       </article>
     </div>
 
-    <p class="after reveal">Then open <code>http://localhost:8080</code> and create your account; the first one becomes the admin. The <a href="https://github.com/knitnox/knitnox/blob/main/docs/INSTALL.md">install guide</a> has every step, how to connect an AI, how to update, and <a href="https://github.com/knitnox/knitnox/releases/latest">all downloads with checksums</a> are on GitHub.</p>
+    <p class="after reveal">The <a href="https://github.com/knitnox/knitnox/blob/main/docs/INSTALL.md">install guide</a> has every step for each system: getting past the first-start warning, connecting a model and updating. <a href="https://github.com/knitnox/knitnox/releases/latest">All downloads and checksums</a> are on GitHub.</p>
 
-    <div class="why reveal" id="warning">
+    <div class="split sub reveal">
       <div>
-        <h3>Why does my computer show a warning?</h3>
-        <p>The first time you open Knitnox, Windows and macOS say they cannot verify it. <strong>Nothing was found in the file.</strong> The warning only means the file has no paid signature.</p>
-        <p>To make it go away, a developer pays Apple and a certificate company every year to put a verified name on the program. Even then, a newly signed Windows program keeps the warning until enough people have downloaded it.</p>
-        <p><strong>Knitnox is a free hobby project and earns nothing</strong>, so we chose not to spend several hundred dollars a year on this. That money buys a name on a certificate. It does not make the program any safer.</p>
-      </div>
-      <div>
-        <h4>WHAT SIGNING WOULD COST</h4>
-        <ul class="bill">
-          <li><span>Apple Developer Program, for macOS</span><span>US$99 / year</span></li>
-          <li><span>Code-signing certificate, for Windows</span><span>≈ US$200–400 / year</span></li>
-          <li class="sum"><span>Together, every year</span><span>US$300 or more</span></li>
-        </ul>
-        <h4>WHAT YOU GET INSTEAD</h4>
-        <ul class="points">
-          <li>The source is public. Anyone can read every line.</li>
-          <li>Each download is built by GitHub from that source, not on someone's own computer.</li>
-          <li>Every release lists checksums, so you can check your file is the one that was built.</li>
-          <li>You can build it yourself with one command.</li>
+        <h3 style="font-size:22px;letter-spacing:-.02em;margin-bottom:12px">Or build from source</h3>
+        <p style="color:var(--muted)">All you need is Go 1.26 or newer. No C compiler, no Node. The repository includes a mock model and a mock MCP server, so you can try groups, agents and tool approvals without an API key.</p>
+        <ul class="list" style="margin-top:22px">
+          <li><span>Create your account. The first one is the admin.</span></li>
+          <li><span>Admin → Providers → Add, with base URL <code>http://localhost:9090/v1</code> and any key.</span></li>
+          <li><span>Start a group, press Invite and open the link in a second browser.</span></li>
         </ul>
       </div>
-    </div>
-  </div>
-</section>
-
-<!-- Start -->
-<section class="start" id="start">
-  <div class="wrap">
-    <div class="reveal">
-      <span class="num"><b>09</b> / From source</span>
-      <h2 style="font-size:clamp(32px,4.4vw,52px);margin:16px 0 18px">Or build it yourself.</h2>
-      <p style="color:var(--muted);font-size:18px">Prefer to run the code directly? All you need is Go 1.26 or newer. A built-in practice AI lets you try everything before connecting a real one.</p>
-      <ol class="steps">
-        <li><div><b>Create your account</b><p>The first account on a new server becomes the admin.</p></div></li>
-        <li><div><b>Add the practice AI</b><p>Admin → Providers → Add, with base URL <code>http://localhost:9090/v1</code> and any key.</p></div></li>
-        <li><div><b>Invite your people</b><p>Start a group, press Invite, send the link.</p></div></li>
-      </ol>
-      <div class="chips"><span>Linux</span><span>macOS</span><span>Windows</span><span>Raspberry Pi</span><span>Docker</span></div>
-    </div>
-    <div class="term reveal">
-      <div class="bar"><i></i><i></i><i></i><button type="button" id="copy">Copy</button></div>
-<pre id="cmds"><span class="c"># get the code</span>
-<span class="p">$ </span>git clone https://github.com/knitnox/knitnox.git
+      <div class="term">
+        <div class="bar"><i></i><i></i><i></i><button type="button" id="copy">Copy</button></div>
+<pre id="cmds"><span class="p">$ </span>git clone https://github.com/knitnox/knitnox.git
 <span class="p">$ </span>cd knitnox
 
-<span class="c"># terminal 1: the practice AI</span>
+<span class="c"># terminal 1: a mock model and a mock MCP server</span>
 <span class="p">$ </span>go run ./cmd/mockllm
 
-<span class="c"># terminal 2: Knitnox</span>
+<span class="c"># terminal 2: Knitnox on http://localhost:8080</span>
 <span class="p">$ </span>go run ./cmd/knitnox
-<span class="c"># open http://localhost:8080</span></pre>
+
+<span class="c"># all six release targets, from any OS</span>
+<span class="p">$ </span>bash scripts/build-all.sh</pre>
+      </div>
     </div>
   </div>
 </section>
 
-<section class="end">
-  <div class="wrap reveal">
-    <h2>Talk it through.<br>Together.</h2>
-    <p>For your team, your club, your family, or just you. Private by default, and simple enough for everyone you invite.</p>
-    <div class="cta">
-      <a class="btn btn-solid" href="#download">Download Knitnox</a>
-      <a class="btn btn-line" href="https://github.com/knitnox/knitnox/blob/main/docs/USER_GUIDE.md">Read the guide</a>
-    </div>
-  </div>
-</section>
 </main>
 
 <footer>
   <div class="wrap">
-    <span>Knitnox · made with care, runs on your machine</span>
+    <span>Knitnox · one binary, one database file, your machine</span>
     <div class="links">
-      <a href="https://github.com/knitnox/knitnox/blob/main/docs/INSTALL.md">Install guide</a>
-      <a href="https://github.com/knitnox/knitnox/blob/main/docs/USER_GUIDE.md">User guide</a>
+      <a href="https://github.com/knitnox/knitnox/blob/main/docs/ARCHITECTURE.md">Architecture</a>
       <a href="https://github.com/knitnox/knitnox/blob/main/docs/FEATURES.md">Features</a>
+      <a href="https://github.com/knitnox/knitnox/blob/main/docs/INSTALL.md">Install guide</a>
       <a href="https://github.com/knitnox/knitnox/blob/main/docs/DEVELOPER_GUIDE.md">Developers</a>
       <a href="https://github.com/knitnox/knitnox">GitHub</a>
     </div>
@@ -885,7 +948,7 @@ cd knitnox-linux-amd64
   } else {
     els.forEach(function (el) { el.classList.add('in'); });
   }
-  // Copy the quick-start commands without prompts and comments.
+  // Copy the commands without prompts and comments.
   document.getElementById('copy').addEventListener('click', function () {
     var btn = this;
     var text = document.getElementById('cmds').innerText.split('\n')

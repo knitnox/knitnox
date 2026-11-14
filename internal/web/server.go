@@ -365,12 +365,14 @@ func (s *Server) Handler() http.Handler {
 	u("GET /feed/p/{id}/picture.svg", s.feedPicture)
 	u("POST /feed/p/{id}", s.feedUpdate)
 	u("POST /feed/p/{id}/share", s.feedShare)
+	u("POST /feed/p/{id}/keep", s.feedKeep)
 	u("POST /feed/p/{id}/delete", s.feedDelete)
 	u("POST /feed/p/{id}/restore", s.feedRestore)
 	u("POST /feed/p/{id}/purge", s.feedPurge)
 	u("POST /feed/bin/empty", s.feedBinEmpty)
 	u("GET /feed/settings", s.feedSettingsPage)
 	u("POST /feed/settings", s.feedSwitch)
+	u("POST /feed/settings/keep", s.feedKeepSave)
 	u("POST /feed/settings/models", s.feedModelsSave)
 	u("POST /feed/settings/models/add", s.feedModelAdd)
 	u("GET /feed/p/{id}/media", s.feedMedia)
@@ -711,6 +713,11 @@ func (s *Server) StartJanitor(ctx context.Context) {
 			s.log.Warn("feed bin sweep failed", "err", err)
 		} else if n > 0 {
 			s.log.Info("removed old posts from feed bins", "count", n)
+		}
+		if n, err := s.st.PurgeOldFeedPosts(); err != nil {
+			s.log.Warn("old feed posts sweep failed", "err", err)
+		} else if n > 0 {
+			s.log.Info("removed feed posts older than their owners keep them", "count", n)
 		}
 		if n, err := s.st.SweepFeedMedia(); err != nil {
 			s.log.Warn("feed media sweep failed", "err", err)

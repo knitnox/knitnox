@@ -111,6 +111,9 @@ This is everything it does today, grouped by area. Limits are listed at the end 
 | Reports | A longer text (Markdown) can sit behind "Read the full report" |
 | Charts and diagrams | The AI can add a small bar or line chart from numbers, or a diagram it draws itself. Neither needs an extra model |
 | Pictures, voice and video | With a picture, voice or video model set up, a post can carry an image, the text read aloud, or a short video |
+| Your own photo or drawing | Add a photo or an SVG drawing from your device to a post, with or without text; paste and drop work too |
+| Old posts removed | Posts older than 30 days are removed with their files; each person can choose another time or never, and mark single posts **Keep** |
+| Live times | "5 min ago" on a post moves on by itself while the page is open |
 | Picture check | A picture asked for by the AI is looked at once by a model that can see images, and drawn again if it does not match |
 | Your models or the server's | Each user picks the model for each kind in Feed settings, or adds their own right there |
 | Three kinds of author | You, the AI in your own chats, and agents you allowed |

@@ -372,6 +372,85 @@
     window.addEventListener("pageshow", (e) => { if (e.persisted && !feedEvents) { listen(); check(); } });
   }
 
+  // ---------- Feed: post times stay true ("5 min ago" moves on by itself) ----------
+  // Same words as the server writes (feedWhen), in the time zone the server used.
+  if (feedList) {
+    let zone = feedList.dataset.tz || undefined;
+    try { new Intl.DateTimeFormat("en-GB", { timeZone: zone }); } catch { zone = undefined; }
+    const fmt = (opts) => new Intl.DateTimeFormat("en-GB", { timeZone: zone, hourCycle: "h23", ...opts });
+    const ymd = fmt({ year: "numeric", month: "numeric", day: "numeric" });
+    const clock = fmt({ hour: "2-digit", minute: "2-digit" }), weekday = fmt({ weekday: "short" });
+    const dayMonth = fmt({ day: "numeric", month: "short" }), dayMonthYear = fmt({ day: "numeric", month: "short", year: "numeric" });
+    const dayNo = (d) => { // days since 1970 of the calendar day in that zone
+      const p = Object.fromEntries(ymd.formatToParts(d).map((x) => [x.type, Number(x.value)]));
+      return [Math.round(Date.UTC(p.year, p.month - 1, p.day) / 864e5), p.year];
+    };
+    const words = (t, now) => {
+      const ago = now - t;
+      if (ago < 60e3) return "just now";
+      if (ago < 3600e3) return `${Math.floor(ago / 60e3)} min ago`;
+      const [day, year] = dayNo(t), [today, thisYear] = dayNo(now);
+      if (day === today) return `Today ${clock.format(t)}`;
+      if (today - day === 1) return `Yesterday ${clock.format(t)}`;
+      if (today - day < 7) return `${weekday.format(t)} ${clock.format(t)}`;
+      return year === thisYear ? dayMonth.format(t) : dayMonthYear.format(t);
+    };
+    const tick = () => {
+      const now = new Date();
+      for (const el of $$("time[data-when]", feedList)) {
+        const t = new Date(el.dateTime);
+        if (isNaN(t)) continue;
+        const text = words(t, now);
+        if (el.textContent !== text) el.textContent = text;
+      }
+    };
+    setInterval(tick, 30e3);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
+  }
+
+  // ---------- Feed: a photo or drawing of your own on a new post ----------
+  const feedAdd = $("#add.feed-add"), ownFile = feedAdd && $("[data-own-file]", feedAdd);
+  if (ownFile) {
+    const shown = $("[data-own-shown]", feedAdd), text = $("[data-own-text]", feedAdd);
+    const isPicture = (f) => /^image\/(png|jpeg|webp|gif|svg\+xml)$/.test(f.type) || /\.svg$/i.test(f.name);
+    let address = "";
+    const show = () => {
+      const f = ownFile.files[0];
+      if (address) { URL.revokeObjectURL(address); address = ""; }
+      if (f && (!isPicture(f) || f.size > 10 * 1024 * 1024)) {
+        ownFile.value = "";
+        flash(isPicture(f) ? "That picture is larger than 10 MB." : "Choose a PNG, JPEG, WebP or GIF photo, or an SVG drawing.");
+        return show();
+      }
+      const svg = !!f && (f.type === "image/svg+xml" || /\.svg$/i.test(f.name));
+      shown.hidden = !f;
+      feedAdd.classList.toggle("has-own", !!f);
+      feedAdd.classList.toggle("has-photo", !!f && !svg); // a photo takes the place of what AI would add
+      if (text) text.required = !f; // a picture can stand by itself
+      if (!f) { $("img", shown).removeAttribute("src"); return; }
+      if (!svg) for (const r of $$("[name=media]", feedAdd)) r.checked = r.value === "";
+      address = URL.createObjectURL(f);
+      $("img", shown).src = address;
+      $(".feed-own-name", shown).textContent = f.name;
+    };
+    ownFile.addEventListener("change", show);
+    $("[data-own-pick]", feedAdd).addEventListener("click", () => ownFile.click());
+    $("[data-own-clear]", feedAdd).addEventListener("click", () => { ownFile.value = ""; show(); });
+    feedAdd.addEventListener("reset", () => setTimeout(show)); // after a post went out
+    const take = (files) => { // pasted or dropped
+      const f = [...(files || [])].find(isPicture);
+      if (!f) return false;
+      const dt = new DataTransfer();
+      dt.items.add(f);
+      ownFile.files = dt.files;
+      show();
+      return true;
+    };
+    feedAdd.addEventListener("paste", (e) => { if (take(e.clipboardData?.files)) e.preventDefault(); });
+    feedAdd.addEventListener("dragover", (e) => { if ([...(e.dataTransfer?.types || [])].includes("Files")) e.preventDefault(); });
+    feedAdd.addEventListener("drop", (e) => { if (take(e.dataTransfer?.files)) e.preventDefault(); });
+  }
+
   document.addEventListener("htmx:beforeRequest", (e) => { // panel button toggles
     if (e.target.id === "panel-toggle" && panel && !panel.hidden) { closePanel(); e.preventDefault(); }
   });

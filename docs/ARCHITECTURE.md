@@ -679,9 +679,9 @@ The **Feed** is a per-user list of short posts, newest first. The person, the AI
 
 ```
 feed_posts (body, report, chart, svg, visibility, created_by, actor_name,
-   │        agent_id, source_thread_id, edited_at, deleted_at, media_*)
+   │        agent_id, source_thread_id, edited_at, deleted_at, kept, media_*, media_own)
    └─< feed_reads (post_id, user_id)            one row per other person who was shown it
-feed_settings (per user: ai_enabled, seen_id)
+feed_settings (per user: ai_enabled, seen_id, keep_days)   keep_days: posts older are removed with their files (store.PurgeOldFeedPosts, hourly); 0 = never; kept posts stay
 agents.feed_access, agents.feed_daily            none | post, posts per day
 settings.feed_public                             may people share posts on this server
 ```
@@ -831,7 +831,7 @@ attachments.kind   image | file | audio
 | Made | inside the run; the tool waits up to 4 minutes | inside the request; up to 3 minutes |
 | Made again? | each call makes a new picture | never: `MessageAudio` returns the kept recording to everyone |
 
-- **The model is chosen in one place.** Both use `store.FeedMediaModel` (the choice on Feed → Settings, else the first shared model of that kind) and `Engine.mediaLimitLeft`, which counts Feed media and chat media together against `settings.feed_media_daily`.
+- **The model is chosen in one place.** Both use `store.FeedMediaModel` (the choice on Feed → More settings, else the first shared model of that kind) and `Engine.mediaLimitLeft`, which counts Feed media and chat media together against `settings.feed_media_daily`.
 - **The AI never gets the picture back.** The tool result only says it is shown, so nothing large enters the context and the prompt prefix is unchanged. A made picture is not sent to the model in later turns either: `buildContext` only loads attachments of user messages.
 - **The system prompt gains one fixed sentence** (`pictureNote`) while a picture model exists; it changes only when the owner changes their models.
 - **What is read.** `speakable` drops code blocks, link addresses and Markdown signs, and cuts at 4,000 characters on a sentence end.

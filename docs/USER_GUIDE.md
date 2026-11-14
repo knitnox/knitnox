@@ -74,7 +74,7 @@ Your **Feed** is a private timeline. Two things fill it.
 
 **Something said in a group:**
 
-1. Open **Feed**, click the settings button, then **Who may post**, and click **Let the AI post**. You do this once.
+1. Open **Feed**, click the settings button, then **AI access**, and click **Let the AI post**. You do this once.
 2. In the group, click the arrow under the message you want, **Take to my chat**.
 3. A new chat of your own opens with the message quoted. Type "post this to my feed" and send. Or, with the Plan Book turned on, "add this to my plan for Friday".
 
@@ -125,7 +125,7 @@ To change how Knitnox looks, open **Settings → Appearance**: choose **Auto**, 
 
 On a phone, **Enter** adds a new line and the arrow button sends.
 
-**Pictures and voice need a model.** If your admin shares a picture or voice model, both work for you with nothing to set up. If you added your own model of that kind, it is used when the admin shares none. To choose between them, or to turn one off, open **Feed → Settings → Pictures, voice and video**. If the speaker button is missing, or the AI says it cannot make pictures, no such model exists yet. Pictures are made in your own chats only, not in groups. With the server's models there is a daily limit, shared with the Feed.
+**Pictures and voice need a model.** If your admin shares a picture or voice model, both work for you with nothing to set up. If you added your own model of that kind, it is used when the admin shares none. To choose between them, or to turn one off, open **Feed → More settings → Pictures, voice and video**. If the speaker button is missing, or the AI says it cannot make pictures, no such model exists yet. Pictures are made in your own chats only, not in groups. With the server's models there is a daily limit, shared with the Feed.
 
 ## Attach images and files
 
@@ -337,17 +337,19 @@ The page shows only posts. Everything else is one click away in the row at the t
 | **Latest / Mine / Shared** | Which posts you see (see Views below) |
 | **Everyone ▾** | Show only posts written by people, by the AI, by agents, or by one agent |
 | **Find a post…** | Search the text of posts and reports |
-| **Settings** (the sliders button) | Who may post, the models for pictures, voice and video, how the Feed works, and the bin |
+| **Settings** (the sliders button) | **AI access** (may the AI and agents post), **More settings** (how long posts are kept, the models for pictures, voice and video), how the Feed works, and the bin |
 | **New post** | Opens the box to write a post |
 
 ### Write and read posts
 
 - **Post:** click **New post**, type, and click **Post**. A post is at most 500 characters.
+- **Add a photo or drawing:** click **Add a photo or drawing** and choose a photo (PNG, JPEG, WebP or GIF, up to 10 MB) or an SVG drawing. You can also paste a picture or drop it on the box. A post with a picture needs no text. A photo takes the place of what AI would add.
 - **Add a longer report:** open **Add a longer report** and write the details. They open behind **Read the full report**.
 - **Let AI add:** when a picture, voice or video model is set up, you can ask for **A picture**, **Read it aloud** or **A video** with your post. The post appears at once; the picture, recording or video shows up on it by itself when it is ready.
 - **Who can see it:** choose **Only me** or **Everyone on this server**. You can change this later from the post's **⋯** menu.
 - **Older posts:** the page shows the newest 20. Scroll down and 10 more load each time you reach the end.
 - **New posts:** when a post arrives while you are reading, a button such as **3 new posts** appears at the top. Click it to see them. Nothing moves until you do.
+- **Times:** the time on each post ("5 min ago", "Today 14:05") moves on by itself while the page is open.
 
 ### Views
 
@@ -364,13 +366,22 @@ Open the **⋯** menu on one of your posts.
 
 - **Change the text:** edit the post and its report in place.
 - **Share with everyone / Make it private again:** a shared post shows **Seen by N people**, the number of other people who were shown it.
+- **Keep / Stop keeping:** a kept post is never removed for being old (see below). It shows **Kept**.
 - **Delete:** the post goes to the bin. Click **Undo** right away, or restore it later from the **Bin**.
+
+### Old posts are removed by themselves
+
+Posts older than 30 days are removed for good, together with their pictures, recordings and videos. They do not go to the bin. This keeps the feed about what is happening now and stops old files from filling the server.
+
+- **Change the time:** open the settings button, then **More settings** → **How long posts are kept**. Choose 7 days up to 1 year, or **Never**.
+- **Hold on to one post:** choose **Keep** in its **⋯** menu.
+- A shorter time takes effect within the hour, also for posts already on your feed.
 
 There are no likes, comments or follows.
 
 ### Let the AI and agents post
 
-Open the settings button, then **Who may post**. The AI cannot post until you click **Let the AI post**. After that, in your own chats:
+Open the settings button, then **AI access**. The AI cannot post until you click **Let the AI post**. After that, in your own chats:
 
 - "Post a short summary of this to my feed."
 - "Post this with a diagram of the steps."
@@ -387,6 +398,7 @@ What the AI and agents post is always private. Only you can share a post. They c
 | Report | No | A longer text behind **Read the full report** |
 | Chart | No | Bars or a line, drawn from a few numbers the AI gives |
 | Diagram | No | A picture the AI draws itself, for steps, timelines and how things connect |
+| Your own photo or drawing | No | A file from your device, added when you write the post |
 | Picture | A picture model | An image made from a description |
 | Voice | A voice model | The text read aloud |
 | Video | A video model | A short film made from a description. It takes minutes |
@@ -395,7 +407,7 @@ When the AI or an agent asks for a picture and its own model can see images, it 
 
 ### Pictures, voice and video: choosing the models
 
-Open the settings button, then **Pictures, voice and video**.
+Open the settings button, then **More settings**, and look under **Pictures, voice and video**.
 
 - **Pick a model for each kind**, or choose **Off**. "The server's model" is the one your admin shares with everyone.
 - **Add my own model:** if you have your own account with an AI provider, type the model name, the provider's address and your key. The model is used for your feed right away. It is also listed under **Settings → Your API keys**, so you never type a key twice.

@@ -1562,6 +1562,13 @@ button.plan-title { display: block; width: 100%; padding: 0; border: 0; border-r
 .feed-add .advanced { margin-top: 8px; }
 .feed-add .advanced textarea { margin-top: 4px; }
 .feed-media-pick { margin-top: 12px; }
+.feed-own { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 10px; }
+.feed-own .btn .i { width: 15px; height: 15px; }
+.feed-own-shown { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 6px 6px 6px 6px; border: 1px solid var(--border); border-radius: var(--r); background: var(--bg-subtle); }
+.feed-own-shown[hidden] { display: none; }
+.feed-own-shown img { width: 56px; height: 56px; object-fit: cover; border-radius: var(--r-sm); background: #ffffff; flex-shrink: 0; }
+.feed-own-name { min-width: 0; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); color: var(--fg-2); }
+.feed-add.has-own [data-own-pick], .feed-add.has-own [data-own-hint], .feed-add.has-photo [data-own-hides] { display: none !important; }
 .feed-media-prompt { display: none; margin-top: 10px; }
 .feed-add:has([name=media][value=image]:checked) .feed-media-prompt,
 .feed-add:has([name=media][value=video]:checked) .feed-media-prompt { display: flex; }
@@ -1613,10 +1620,10 @@ button.plan-title { display: block; width: 100%; padding: 0; border: 0; border-r
 .fc-line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
 .fc-dot { fill: var(--bg); stroke: var(--accent); stroke-width: 2.5; }
 
-/* A picture drawn by the AI is made for a light background, so it gets one in both themes.
-   It is shown at its own size and only ever made smaller to fit, never blown up. */
-.feed-picture { padding: 10px; border-radius: var(--r); background: #ffffff; border: 1px solid var(--border); }
-.feed-picture img { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+/* A drawing is made for a light background, so it gets one in both themes, but only behind the
+   drawing itself: no white frame around it. It is shown at its own size and only ever made
+   smaller to fit, never blown up. */
+.feed-picture img { display: block; max-width: 100%; height: auto; border-radius: var(--r); background: #ffffff; box-shadow: 0 0 0 1px var(--border); }
 .feed-picture img:not([width]) { width: min(100%, 480px); }
 
 /* a picture, a recording or a video made by an AI model */
@@ -1648,6 +1655,9 @@ button.plan-title { display: block; width: 100%; padding: 0; border: 0; border-r
 .feed-gone > .i { width: 22px; height: 22px; padding: 4px; border-radius: 50%; flex-shrink: 0; background: var(--ok-soft); color: var(--ok); stroke-width: 2.5; }
 .feed-gone span { flex: 1; min-width: 0; }
 .feed-more { display: flex; justify-content: center; padding: 6px 0; }
+.feed-keep-note { display: flex; align-items: flex-start; justify-content: center; gap: 7px; margin-top: 18px; }
+.feed-keep-note .i { width: 14px; height: 14px; margin-top: 2px; flex-shrink: 0; }
+.feed-list:has(> .empty-card:only-child) + .feed-keep-note { display: none; }
 
 /* feed settings */
 .feed-agents { padding: 6px 16px; }
@@ -1656,6 +1666,8 @@ button.plan-title { display: block; width: 100%; padding: 0; border: 0; border-r
 .feed-agent b { font-size: var(--fs-md); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .feed-agents + .hint { margin-top: 10px; }
 .feed-own-model, .mem-own-model { margin-top: 14px; }
+.h-row.sub h3 { font-size: var(--fs-base); }
+.feed-models-lead { margin: -6px 0 12px; }
 .feed-media-limit { margin-top: 14px; }
 /* the address and key are only asked for when the model goes on a new provider */
 form:has([data-quick-provider]) .quick-new-provider { display: none; }

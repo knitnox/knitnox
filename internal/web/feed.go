@@ -1,16 +1,23 @@
 package web
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
 	"html/template"
+	"image"
+	_ "image/gif" // sizes of the photos people add
+	_ "image/jpeg"
+	_ "image/png"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"knitnox/internal/engine"
 	"knitnox/internal/hub"
@@ -134,6 +141,7 @@ type feedPostView struct {
 	PublicOn bool          // sharing is allowed on this server
 	When     string        // "5 min ago", "Today 14:05", "Mon 14:05", "3 Nov"
 	WhenFull string        // the exact local time
+	WhenISO  string        // the moment itself, so the page can keep "5 min ago" true
 	Chart    template.HTML // the chart, drawn
 	// The size a picture is shown at: its own size, made smaller when it is
 	// larger than the card, never made larger. 0 = unknown.
@@ -189,6 +197,9 @@ func (s *Server) viewFeedPost(p store.FeedPost, u *store.User, seen int64, publi
 	v.IsNew = seen >= 0 && p.ID > seen && !(v.Mine && p.CreatedBy == store.FeedByUser)
 	v.CanPull = !v.Mine && p.Public && u.IsAdmin()
 	v.When, v.WhenFull = feedWhen(p.CreatedAt, u.Location(), time.Now())
+	if t, err := time.Parse("2006-01-02 15:04:05", p.CreatedAt); err == nil {
+		v.WhenISO = t.UTC().Format(time.RFC3339)
+	}
 	if p.Chart != nil {
 		v.Chart = drawFeedChart(*p.Chart)
 	}
@@ -334,6 +345,7 @@ func (s *Server) feedPage(w http.ResponseWriter, r *http.Request) {
 	data := map[string]any{
 		"State": st, "Posts": s.viewFeedPosts(posts, u, seen, publicOn), "More": more, "PublicOn": publicOn,
 		"On": s.st.FeedEnabled(u.ID), "BinDays": store.FeedBinDays, "Tab": "feed",
+		"KeepDays": s.st.FeedKeepDays(u.ID), "TZ": u.Location().String(),
 		"BodyMax": store.FeedBodyMax, "ReportMax": store.FeedReportMax, "Kinds": s.eng.FeedMediaKinds(u.ID),
 		"Agents": s.st.FeedAgentNames(u.ID), "BinCount": s.st.CountFeed(u.ID, store.FeedFilter{View: store.FeedViewBin}),
 		"Empty": len(posts) == 0 && !st.Filtered() && st.View != store.FeedViewBin &&
@@ -461,7 +473,7 @@ func (s *Server) feedFail(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, store.ErrNotFound):
 		s.errorPage(w, r, http.StatusNotFound, "That post does not exist (any more).")
 	case errors.Is(err, store.ErrFeedBody):
-		s.errorPage(w, r, http.StatusBadRequest, "A post needs some text.")
+		s.errorPage(w, r, http.StatusBadRequest, "A post needs some text, or a picture.")
 	default:
 		msg := err.Error()
 		s.errorPage(w, r, http.StatusBadRequest, "That did not work: "+strings.ToUpper(msg[:1])+msg[1:]+".")
@@ -474,12 +486,55 @@ func (s *Server) renderFeedCard(w http.ResponseWriter, r *http.Request, p *store
 	s.renderPartial(w, r, "feed", "feed-card", map[string]any{"P": s.viewFeedPost(*p, currentUser(r), -1, s.feedPublicOn())})
 }
 
+// feedOwnPicture reads the picture a person adds to their post from their
+// device: a photo, kept as a file, or an SVG drawing, kept as text. Neither is
+// trusted: the bytes decide what it is, never the name or the type the browser
+// sent, and both are only ever shown as an image (feedMedia, feedPicture).
+func feedOwnPicture(r *http.Request, in *store.FeedPostInput) error {
+	f, _, err := r.FormFile("picture")
+	if err != nil {
+		return nil // no picture with this post
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, store.FeedPhotoMax+1))
+	if err != nil || len(data) > store.FeedPhotoMax {
+		return store.ErrFeedPhoto
+	}
+	if len(data) == 0 {
+		return nil
+	}
+	mime, _, _ := strings.Cut(http.DetectContentType(data), ";")
+	if _, ok := store.AllowedImageTypes[mime]; ok {
+		in.Photo = &store.FeedPhoto{Data: data, Mime: mime}
+		if cfg, _, err := image.DecodeConfig(bytes.NewReader(data)); err == nil {
+			in.Photo.W, in.Photo.H = cfg.Width, cfg.Height
+		}
+		return nil
+	}
+	// A drawing: drawing programs put a prolog, a doctype or a comment before the <svg> element.
+	i := bytes.Index(bytes.ToLower(data), []byte("<svg"))
+	if i < 0 || !utf8.Valid(data) || len(data)-i > store.FeedSVGOwnMax {
+		return store.ErrFeedPhoto
+	}
+	in.SVG = string(data[i:])
+	return nil
+}
+
 func (s *Server) feedCreate(w http.ResponseWriter, r *http.Request) {
 	u := currentUser(r)
 	in := store.FeedPostInput{Body: r.FormValue("body"), Report: r.FormValue("report"),
 		Public: r.FormValue("visibility") == store.FeedPublic && s.feedPublicOn()}
+	if err := feedOwnPicture(r, &in); err != nil {
+		s.feedFail(w, r, err)
+		return
+	}
 	// Optional: a picture, the post read aloud, or a video, made by an AI model.
-	switch kind := r.FormValue("media"); kind {
+	// A photo of their own takes that place: a post carries one of them.
+	kind := r.FormValue("media")
+	if in.Photo != nil {
+		kind = ""
+	}
+	switch kind {
 	case store.MediaImage, store.MediaVideo:
 		in.MediaKind, in.MediaPrompt = kind, r.FormValue("media_prompt")
 	case store.MediaVoice:
@@ -532,7 +587,8 @@ func (s *Server) feedEdit(w http.ResponseWriter, r *http.Request) {
 		s.errorPage(w, r, http.StatusBadRequest, "This post is in the bin. Restore it first.")
 		return
 	}
-	s.renderPartial(w, r, "feed", "feed-edit", map[string]any{"P": p, "BodyMax": store.FeedBodyMax, "ReportMax": store.FeedReportMax})
+	s.renderPartial(w, r, "feed", "feed-edit", map[string]any{"P": p,
+		"HasPicture": p.HasSVG || (p.MediaKind == store.MediaImage && p.MediaStatus == store.MediaReady), "BodyMax": store.FeedBodyMax, "ReportMax": store.FeedReportMax})
 }
 
 func (s *Server) feedUpdate(w http.ResponseWriter, r *http.Request) {
@@ -580,6 +636,28 @@ func (s *Server) feedShare(w http.ResponseWriter, r *http.Request) {
 		s.hub.Publish(hub.FeedPublic, engine.EvFeed, map[string]any{"id": p.ID})
 	}
 	s.feedAfter(w, r, p.ID)
+}
+
+// feedKeep marks a post so it is never removed for being old, or takes the mark away.
+func (s *Server) feedKeep(w http.ResponseWriter, r *http.Request) {
+	p, ok := s.loadFeedPost(w, r)
+	if !ok {
+		return
+	}
+	if err := s.st.SetFeedKept(p.UserID, p.ID, r.FormValue("keep") == "1"); err != nil {
+		s.feedFail(w, r, err)
+		return
+	}
+	s.feedAfter(w, r, p.ID)
+}
+
+// feedKeepSave stores for how many days the user's posts are kept.
+func (s *Server) feedKeepSave(w http.ResponseWriter, r *http.Request) {
+	if err := s.st.SetFeedKeepDays(currentUser(r).ID, int(formInt(r, "keep_days", store.FeedKeepDefault))); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/feed/settings?done=keep#more", http.StatusSeeOther)
 }
 
 // feedUnshare lets an admin take someone's post out of the public feed. Its owner keeps it, private.

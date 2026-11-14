@@ -12,8 +12,9 @@ import (
 	"knitnox/internal/store"
 )
 
-// Feed settings (/feed/settings): who may post, and which models make the
-// pictures, voice and video on posts. Models can be chosen from the ones the
+// Feed settings (/feed/settings): whether the AI and agents may post ("AI
+// access"), and under "More settings" how long posts are kept and which
+// models make the pictures, voice and video on posts. Models can be chosen from the ones the
 // admin shares and the user's own; a user can add a model of their own right
 // here, without going to the Settings page first. It is saved in the same
 // place as every other provider and key (Settings, "Your API keys"), so a key
@@ -59,6 +60,7 @@ func (s *Server) feedSettingsPage(w http.ResponseWriter, r *http.Request) {
 		"Notice": r.URL.Query().Get("done"), "Picks": picks, "VoiceName": fm.VoiceName, "Providers": providers,
 		"AgentList": agents, "MediaDaily": st.FeedMediaDaily,
 		"BinCount": s.st.CountFeed(u.ID, store.FeedFilter{View: store.FeedViewBin}),
+		"KeepDays": s.st.FeedKeepDays(u.ID), "KeepChoices": store.FeedKeepChoices,
 	})
 }
 

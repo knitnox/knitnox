@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -21,6 +23,9 @@ const (
 	FeedBodyMax     = 500   // the short text of a post
 	FeedReportMax   = 12000 // the longer report behind "read more"
 	FeedSVGMax      = 60000
+	FeedSVGOwnMax   = 512000   // a drawing the owner adds from their device
+	FeedPhotoMax    = 10 << 20 // a photo the owner adds from their device
+	FeedKeepDefault = 30       // days a post is kept unless its owner chose otherwise
 	FeedChartPoints = 24
 	FeedBinDays     = 30
 	FeedDailyMax    = 50 // most posts per day an agent can be allowed
@@ -44,6 +49,7 @@ const (
 
 var (
 	ErrFeedBody  = errors.New("a post needs some text")
+	ErrFeedPhoto = errors.New("the picture must be a PNG, JPEG, WebP or GIF photo of at most 10 MB, or an SVG drawing")
 	ErrFeedChart = fmt.Errorf("a chart needs a type (bar or line) and 1 to %d labels, each with one number", FeedChartPoints)
 	ErrFeedSVG   = errors.New("the picture must be one <svg> … </svg> element")
 )
@@ -58,6 +64,30 @@ func (s *Store) FeedEnabled(userID int64) bool {
 func (s *Store) SetFeedEnabled(userID int64, on bool) error {
 	_, err := s.DB.Exec(`INSERT INTO feed_settings(user_id, ai_enabled) VALUES (?, ?)
 		ON CONFLICT(user_id) DO UPDATE SET ai_enabled = excluded.ai_enabled`, userID, b2i(on))
+	return err
+}
+
+// FeedKeepChoices are the numbers of days a user can keep posts for; 0 = never remove.
+var FeedKeepChoices = []int{7, 14, 30, 60, 90, 180, 365, 0}
+
+// FeedKeepDays is how many days this user's posts are kept (0 = never removed).
+func (s *Store) FeedKeepDays(userID int64) int {
+	days := FeedKeepDefault
+	s.DB.QueryRow(`SELECT keep_days FROM feed_settings WHERE user_id = ?`, userID).Scan(&days)
+	return days
+}
+
+// SetFeedKeepDays sets how long a user's posts are kept. Only the offered choices are taken.
+func (s *Store) SetFeedKeepDays(userID int64, days int) error {
+	ok := false
+	for _, c := range FeedKeepChoices {
+		ok = ok || c == days
+	}
+	if !ok {
+		days = FeedKeepDefault
+	}
+	_, err := s.DB.Exec(`INSERT INTO feed_settings(user_id, keep_days) VALUES (?, ?)
+		ON CONFLICT(user_id) DO UPDATE SET keep_days = excluded.keep_days`, userID, days)
 	return err
 }
 
@@ -120,7 +150,7 @@ func (c *FeedChart) clean() error {
 
 // cleanSVG accepts one svg element. It is only ever shown as an image (never
 // put into a page), so scripts and links inside it cannot do anything.
-func cleanSVG(svg string) (string, error) {
+func cleanSVG(svg string, maxLen int) (string, error) {
 	svg = strings.TrimSpace(svg)
 	if svg == "" {
 		return "", nil
@@ -130,7 +160,7 @@ func cleanSVG(svg string) (string, error) {
 			svg = strings.TrimSpace(svg[i+2:])
 		}
 	}
-	if len(svg) > FeedSVGMax || !strings.HasPrefix(strings.ToLower(svg), "<svg") || !strings.HasSuffix(strings.ToLower(svg), "</svg>") {
+	if len(svg) > maxLen || !strings.HasPrefix(strings.ToLower(svg), "<svg") || !strings.HasSuffix(strings.ToLower(svg), "</svg>") {
 		return "", ErrFeedSVG
 	}
 	if !strings.Contains(svg[:min(len(svg), 600)], "http://www.w3.org/2000/svg") { // browsers need this to show it as an image
@@ -168,6 +198,8 @@ type FeedPost struct {
 	MediaPrompt    string // what the model was asked for
 	MediaNote      string // why it failed, or that the picture was redrawn after a check
 	MediaW, MediaH int    // size of a picture, 0 when unknown
+	MediaOwn       bool   // the picture was added by the owner, not made by a model
+	Kept           bool   // the owner marked it: never removed for being old
 	EditedAt       string // set when the owner changed the text
 	DeletedAt      string // set while in the bin
 	CreatedAt      string
@@ -190,17 +222,37 @@ type FeedPostInput struct {
 	MediaKind   string // "" | image | voice | video
 	MediaPrompt string
 	MediaShared bool // made with a server model
+	// A photo the owner adds from their device. It takes the place of media made by a model.
+	Photo *FeedPhoto
+}
+
+// FeedPhoto is a picture file a person adds to their own post.
+type FeedPhoto struct {
+	Data []byte
+	Mime string // one of AllowedImageTypes
+	W, H int    // 0 when unknown
 }
 
 // CreateFeedPost adds a post to userID's feed.
 func (s *Store) CreateFeedPost(userID int64, in FeedPostInput, by FeedActor) (int64, error) {
-	body := cleanFeedBody(in.Body)
-	if body == "" {
-		return 0, ErrFeedBody
+	kind := by.Kind
+	if kind != FeedByAI && kind != FeedByAgent {
+		kind = FeedByUser
 	}
-	svg, err := cleanSVG(in.SVG)
+	svgMax := FeedSVGMax
+	if kind == FeedByUser {
+		svgMax = FeedSVGOwnMax
+	} else {
+		in.Photo = nil
+	}
+	svg, err := cleanSVG(in.SVG, svgMax)
 	if err != nil {
 		return 0, err
+	}
+	body := cleanFeedBody(in.Body)
+	// A person's picture can stand by itself; everything else needs some text.
+	if body == "" && !(kind == FeedByUser && (svg != "" || in.Photo != nil)) {
+		return 0, ErrFeedBody
 	}
 	chart := ""
 	if in.Chart != nil {
@@ -209,10 +261,6 @@ func (s *Store) CreateFeedPost(userID int64, in FeedPostInput, by FeedActor) (in
 		}
 		b, _ := json.Marshal(in.Chart)
 		chart = string(b)
-	}
-	kind := by.Kind
-	if kind != FeedByAI && kind != FeedByAgent {
-		kind = FeedByUser
 	}
 	visibility := FeedPrivate
 	if in.Public {
@@ -236,10 +284,28 @@ func (s *Store) CreateFeedPost(userID int64, in FeedPostInput, by FeedActor) (in
 	default:
 		in.MediaKind, in.MediaPrompt = "", ""
 	}
+	var file, mime string
+	var w, h int
+	if in.Photo != nil { // the file is there already, so the post is complete the moment it is written
+		ext, ok := AllowedImageTypes[in.Photo.Mime]
+		if !ok || len(in.Photo.Data) == 0 || len(in.Photo.Data) > FeedPhotoMax {
+			return 0, ErrFeedPhoto
+		}
+		if file, err = s.writeFeedMedia(in.Photo.Data, ext); err != nil {
+			return 0, err
+		}
+		in.MediaKind, mediaStatus, in.MediaPrompt, in.MediaShared = MediaImage, MediaReady, "", false
+		mime, w, h = in.Photo.Mime, in.Photo.W, in.Photo.H
+	}
 	res, err := s.DB.Exec(`INSERT INTO feed_posts(user_id, body, report, chart, svg, visibility, created_by, actor_name, agent_id, source_thread_id,
-		media_kind, media_status, media_prompt, media_shared, notice) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, userID, body, clip(strings.TrimSpace(in.Report), FeedReportMax), chart, svg,
-		visibility, kind, clip(by.Name, 60), agent, thread, in.MediaKind, mediaStatus, clip(strings.TrimSpace(in.MediaPrompt), FeedMediaPromptMax), b2i(in.MediaShared), notice)
+		media_kind, media_status, media_prompt, media_shared, notice, media_file, media_mime, media_w, media_h, media_own)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, userID, body, clip(strings.TrimSpace(in.Report), FeedReportMax), chart, svg,
+		visibility, kind, clip(by.Name, 60), agent, thread, in.MediaKind, mediaStatus, clip(strings.TrimSpace(in.MediaPrompt), FeedMediaPromptMax), b2i(in.MediaShared), notice,
+		file, mime, w, h, b2i(in.Photo != nil))
 	if err != nil {
+		if file != "" {
+			os.Remove(filepath.Join(s.FeedMediaDir(), file))
+		}
 		return 0, err
 	}
 	return res.LastInsertId()
@@ -248,8 +314,12 @@ func (s *Store) CreateFeedPost(userID int64, in FeedPostInput, by FeedActor) (in
 // UpdateFeedPost replaces the text and the report of a post the user owns.
 func (s *Store) UpdateFeedPost(userID, id int64, body, report string) error {
 	body = cleanFeedBody(body)
-	if body == "" {
-		return ErrFeedBody
+	if body == "" { // only a post that shows a picture can do without text
+		var picture bool
+		s.DB.QueryRow(`SELECT svg != '' OR (media_kind = 'image' AND media_status = 'ready') FROM feed_posts WHERE id = ? AND user_id = ?`, id, userID).Scan(&picture)
+		if !picture {
+			return ErrFeedBody
+		}
 	}
 	res, err := s.DB.Exec(`UPDATE feed_posts SET body = ?, report = ?, edited_at = ? WHERE id = ? AND user_id = ? AND deleted_at IS NULL`,
 		body, clip(strings.TrimSpace(report), FeedReportMax), Now(), id, userID)
@@ -269,6 +339,12 @@ func (s *Store) SetFeedPublic(userID, id int64, public bool) error {
 // UnshareFeedPost makes any public post private again (for admins). The owner keeps it.
 func (s *Store) UnshareFeedPost(id int64) error {
 	res, err := s.DB.Exec(`UPDATE feed_posts SET visibility = 'private' WHERE id = ? AND visibility = 'public'`, id)
+	return affected(res, err)
+}
+
+// SetFeedKept marks a post so that it is never removed for being old, or takes the mark away.
+func (s *Store) SetFeedKept(userID, id int64, kept bool) error {
+	res, err := s.DB.Exec(`UPDATE feed_posts SET kept = ? WHERE id = ? AND user_id = ? AND deleted_at IS NULL`, b2i(kept), id, userID)
 	return affected(res, err)
 }
 
@@ -306,10 +382,51 @@ func (s *Store) PurgeOldFeedBin() (int64, error) {
 	return res.RowsAffected()
 }
 
+// PurgeOldFeedPosts removes, for good, every post older than its owner keeps
+// posts for (FeedKeepDays), together with its picture, recording or video
+// file. Posts marked "Keep" stay, and so do the posts of people who chose to
+// never remove any (janitor).
+func (s *Store) PurgeOldFeedPosts() (int, error) {
+	rows, err := s.DB.Query(`SELECT p.id, p.media_file FROM feed_posts p LEFT JOIN feed_settings fs ON fs.user_id = p.user_id
+		WHERE p.kept = 0 AND p.media_status != 'pending' AND COALESCE(fs.keep_days, ?) > 0
+		AND p.created_at < datetime('now', '-' || COALESCE(fs.keep_days, ?) || ' days')`, FeedKeepDefault, FeedKeepDefault)
+	if err != nil {
+		return 0, err
+	}
+	type old struct {
+		id   int64
+		file string
+	}
+	var list []old
+	for rows.Next() {
+		var o old
+		if err := rows.Scan(&o.id, &o.file); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		list = append(list, o)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, o := range list {
+		if _, err := s.DB.Exec(`DELETE FROM feed_posts WHERE id = ?`, o.id); err != nil {
+			return n, err
+		}
+		if o.file != "" {
+			os.Remove(filepath.Join(s.FeedMediaDir(), filepath.Base(o.file)))
+		}
+		n++
+	}
+	return n, nil
+}
+
 const feedCols = `p.id, p.user_id, u.username, p.body, p.report, p.chart, substr(p.svg, 1, 700), p.visibility = 'public', p.created_by, p.actor_name,
 	COALESCE(p.agent_id, 0), COALESCE(p.source_thread_id, 0), COALESCE(th.title, ''),
 	(SELECT COUNT(*) FROM feed_reads r WHERE r.post_id = p.id), COALESCE(p.edited_at, ''), COALESCE(p.deleted_at, ''), p.created_at,
-	p.media_kind, p.media_status, p.media_file, p.media_mime, p.media_prompt, p.media_note, p.media_w, p.media_h, p.notice`
+	p.media_kind, p.media_status, p.media_file, p.media_mime, p.media_prompt, p.media_note, p.media_w, p.media_h, p.notice, p.media_own, p.kept`
 const feedFrom = ` FROM feed_posts p JOIN users u ON u.id = p.user_id LEFT JOIN threads th ON th.id = p.source_thread_id `
 
 func scanFeed(rows *sql.Rows) ([]FeedPost, error) {
@@ -320,7 +437,7 @@ func scanFeed(rows *sql.Rows) ([]FeedPost, error) {
 		var chart, svgHead string
 		if err := rows.Scan(&p.ID, &p.UserID, &p.Username, &p.Body, &p.Report, &chart, &svgHead, &p.Public, &p.CreatedBy, &p.ActorName,
 			&p.AgentID, &p.SourceThreadID, &p.SourceTitle, &p.Reads, &p.EditedAt, &p.DeletedAt, &p.CreatedAt,
-			&p.MediaKind, &p.MediaStatus, &p.MediaFile, &p.MediaMime, &p.MediaPrompt, &p.MediaNote, &p.MediaW, &p.MediaH, &p.Notice); err != nil {
+			&p.MediaKind, &p.MediaStatus, &p.MediaFile, &p.MediaMime, &p.MediaPrompt, &p.MediaNote, &p.MediaW, &p.MediaH, &p.Notice, &p.MediaOwn, &p.Kept); err != nil {
 			return nil, err
 		}
 		if svgHead != "" {

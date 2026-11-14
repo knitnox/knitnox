@@ -779,7 +779,7 @@ func (s *Server) speakMessage(w http.ResponseWriter, r *http.Request) {
 	a, err := s.eng.SpeakMessage(r.Context(), currentUser(r).ID, msg)
 	switch {
 	case errors.Is(err, store.ErrNoMediaModel):
-		http.Error(w, "No voice model is set up. Choose one under Feed → Settings → Pictures, voice and video.", http.StatusBadRequest)
+		http.Error(w, "No voice model is set up. Choose one under Feed → More settings → Pictures, voice and video.", http.StatusBadRequest)
 		return
 	case errors.Is(err, engine.ErrSpeaking):
 		http.Error(w, "This answer is already being read. It will be ready in a moment.", http.StatusConflict)

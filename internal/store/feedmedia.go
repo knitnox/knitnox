@@ -176,20 +176,29 @@ func (s *Store) FeedMediaPath(p *FeedPost) string {
 	return filepath.Join(s.FeedMediaDir(), filepath.Base(p.MediaFile))
 }
 
+// writeFeedMedia writes a file into the feed media folder under a random name.
+func (s *Store) writeFeedMedia(data []byte, ext string) (string, error) {
+	if err := os.MkdirAll(s.FeedMediaDir(), 0o700); err != nil {
+		return "", err
+	}
+	buf := make([]byte, 16)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	name := hex.EncodeToString(buf) + ext
+	if err := os.WriteFile(filepath.Join(s.FeedMediaDir(), name), data, 0o600); err != nil {
+		return "", err
+	}
+	return name, nil
+}
+
 // SaveFeedMedia writes the finished file and marks the post's media as ready.
 func (s *Store) SaveFeedMedia(postID int64, data []byte, mime, ext, prompt, note string, w, h int) error {
 	if len(data) == 0 || len(data) > FeedMediaMaxBytes {
 		return fmt.Errorf("the file has %d bytes; at most %d are kept", len(data), FeedMediaMaxBytes)
 	}
-	if err := os.MkdirAll(s.FeedMediaDir(), 0o700); err != nil {
-		return err
-	}
-	buf := make([]byte, 16)
-	if _, err := rand.Read(buf); err != nil {
-		return err
-	}
-	name := hex.EncodeToString(buf) + ext
-	if err := os.WriteFile(filepath.Join(s.FeedMediaDir(), name), data, 0o600); err != nil {
+	name, err := s.writeFeedMedia(data, ext)
+	if err != nil {
 		return err
 	}
 	res, err := s.DB.Exec(`UPDATE feed_posts SET media_status = 'ready', media_file = ?, media_mime = ?, media_prompt = ?, media_note = ?, media_w = ?, media_h = ?

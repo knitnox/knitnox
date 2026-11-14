@@ -100,7 +100,7 @@ func (e *Engine) addPictureTool(ts *toolset, tc *turnCtx) bool {
 			}
 			m, p, err := e.st.FeedMediaModel(owner, store.MediaImage) // again: it may have been changed since the run began
 			if err != nil || m == nil {
-				return "Error: no picture model is set up any more. The user can choose one under Feed → Settings → Pictures, voice and video."
+				return "Error: no picture model is set up any more. The user can choose one under Feed → More settings → Pictures, voice and video."
 			}
 			shared := p.IsGlobal()
 			if shared {

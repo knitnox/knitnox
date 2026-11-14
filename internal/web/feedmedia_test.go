@@ -22,13 +22,13 @@ func TestFeedFirstScreenIsThePosts(t *testing.T) {
 			t.Errorf("the feed is missing %q", want)
 		}
 	}
-	for _, not := range []string{"Who may post to my feed", "How the Feed works</h2>", "Your feed is empty", "Add my own model"} {
+	for _, not := range []string{"<h2>AI access</h2>", "How the Feed works</h2>", "Your feed is empty", "Add my own model"} {
 		if strings.Contains(page, not) {
 			t.Errorf("the feed's first screen still shows %q", not)
 		}
 	}
 	settings := alice.get("/feed/settings")
-	for _, want := range []string{"Who may post to my feed", "Pictures, voice and video", "How the Feed works", "Add my own model", `action="/feed/settings/models"`, "The server's model (none is set up yet)", `href="/feed"`} {
+	for _, want := range []string{"<h2>AI access</h2>", "<h2>More settings</h2>", "Pictures, voice and video", "How the Feed works", "Add my own model", `action="/feed/settings/models"`, "The server's model (none is set up yet)", `href="/feed"`} {
 		if !strings.Contains(settings, want) {
 			t.Errorf("feed settings is missing %q", want)
 		}

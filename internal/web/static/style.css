@@ -682,10 +682,12 @@ pre, code { tab-size: 4; -moz-tab-size: 4; }
 .tool-pill .i { width: 16px; height: 16px; color: var(--muted); }
 .tool-pill:disabled { opacity: .45; cursor: not-allowed; }
 @media (hover: hover) { .tool-pill:not(:disabled):hover { background: var(--bg-subtle); border-color: var(--border-2); color: var(--fg); } }
-.model-select { position: relative; flex-direction: row; max-width: 60%; padding-right: 10px; }
+/* The model pill is the one that gives way when the bar is too narrow, so the send button always stays inside the card. */
+.model-select { position: relative; flex-direction: row; flex: 0 1 auto; min-width: 64px; max-width: 60%; padding-right: 10px; }
+.model-select > .i { flex-shrink: 0; }
 .model-select > .i:last-child { width: 14px; height: 14px; margin-left: -2px; }
 .model-select select { border: 0 !important; box-shadow: none !important; background: none !important; padding: 0 !important; min-height: 0 !important;
-  font-size: var(--fs-sm); font-weight: 500; color: var(--fg); width: auto !important; max-width: 100%; text-overflow: ellipsis; cursor: pointer; line-height: var(--lh-tight); }
+  font-size: var(--fs-sm); font-weight: 500; color: var(--fg); width: auto !important; min-width: 0; flex: 0 1 auto; max-width: 100%; text-overflow: ellipsis; cursor: pointer; line-height: var(--lh-tight); }
 
 .suggestions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .suggestion { display: flex; align-items: center; gap: 14px; padding: 14px 16px; text-align: left; cursor: pointer;
